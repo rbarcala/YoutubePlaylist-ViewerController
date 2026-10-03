@@ -22,8 +22,14 @@ Al abrir la aplicación en tu celular Android o en tu computadora, la pantalla p
 4. 🔴 **Visualizador de Directo (YouTube Live Monitor)**:
    - Monitorea tu transmisión en directo de YouTube en tiempo real con la interfaz de YouTube y sonido conmutable (mute/unmute).
    - Detecta automáticamente el directo activo de tu canal configurado en Ajustes.
+5. 🔊 **Botonera / Soundboard (MyInstants)**:
+   - **Reproducción de audio en la PC**: Cada sonido se reproduce directamente en los parlantes/auriculares de tu computadora (Linux PipeWire/ALSA).
+   - **Buscador en Vivo**: Busca entre más de 100.000 efectos de sonido y memes de MyInstants.
+   - **Más Usados & Top Histórico**: Pestañas de tendencias y sonidos más virales siempre a mano.
+   - **Favoritos Sincronizados**: Marca con la estrella (⭐) cualquier sonido para guardarlo en tu lista personal.
+   - **Integración con Cuenta / Google**: Vincula tu usuario de MyInstants o perfil en Ajustes para importar automáticamente todos los favoritos guardados en tu cuenta.
 
-> ↩️ **Navegación Intuitiva**: Desde cualquiera de los 4 módulos puedes regresar al Menú Principal en cualquier momento pulsando el botón **"Go Back" (Atrás)** de tu celular Android o el botón **"← Menú"** en la barra superior.
+> ↩️ **Navegación Intuitiva**: Desde cualquiera de los 5 módulos puedes regresar al Menú Principal en cualquier momento pulsando el botón **"Go Back" (Atrás)** de tu celular Android o el botón **"← Menú"** en la barra superior.
 
 ---
 
@@ -32,7 +38,7 @@ Al abrir la aplicación en tu celular Android o en tu computadora, la pantalla p
 - **En PC**:
   - **App Nativa de Escritorio** (por defecto en Ubuntu con GTK3 + WebKit2).
   - **Modo Navegador Web** (disponible pulsando el botón **"🌐 Web"** en la barra superior).
-  - Barra superior con pestañas directas para saltar entre `Menú`, `Fondos`, `OBS`, `Spotify` y `Directo`.
+  - Barra superior con pestañas directas para saltar entre `Menú`, `Fondos`, `OBS`, `Spotify`, `Directo` y `Botonera`.
 - **En Celular Android**:
   - **PWA sin instalación (Recomendada y directa)**: Pulsa el botón **`📱`** en la PC, escanea el código **QR** con la cámara de tu teléfono en la misma red Wi-Fi (o entra a `http://<IP_PC>:8000/controller.html`), toca el menú de 3 puntos (⋮) en Chrome/Brave/Edge y selecciona **"Instalar aplicación"** (o "Agregar a pantalla principal"). Se instalará como una app nativa a pantalla completa con su propio icono.
   - **Proyecto Android Nativo**: La carpeta `android/` contiene el proyecto Gradle/Android Studio listo para abrir y compilar en caso de desear un binario `.apk`.

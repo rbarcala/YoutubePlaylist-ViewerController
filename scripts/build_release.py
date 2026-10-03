@@ -40,7 +40,7 @@ def build_deb():
     # 1. Copiar código de la app
     app_files = [
         "app.py", "server.py", "config_manager.py", "obs_client.py",
-        "spotify_manager.py", "qr_svg.py", "controller.html", "viewer.html",
+        "spotify_manager.py", "soundboard_manager.py", "qr_svg.py", "controller.html", "viewer.html",
         "manifest.json", "sw.js", "config.example.json", "requirements.txt"
     ]
     for f in app_files:
@@ -83,7 +83,7 @@ Version: {VERSION}
 Section: video
 Priority: optional
 Architecture: all
-Depends: python3, python3-flask, yt-dlp, python3-requests, python3-qrcode, gir1.2-gtk-3.0, gir1.2-webkit2-4.1
+Depends: python3, python3-flask, yt-dlp, python3-requests, python3-qrcode, gir1.2-gtk-3.0, gir1.2-webkit2-4.1, ffmpeg
 Maintainer: Ramiro Barcala Roca <rbarcala@fi.uba.ar>
 Description: YouTube Playlist & Video Backgrounds Stream Controller
  Controlador en tiempo real de fondos de video para streaming, Google Meet y OBS Studio.

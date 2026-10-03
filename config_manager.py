@@ -31,7 +31,10 @@ DEFAULT_CONFIG = {
     "obs_scene_on_play": "Fondos",
     "obs_scene_on_stop": "",
     "last_played_video_id": "",
-    "last_played_title": ""
+    "last_played_title": "",
+    "soundboard_username": "",
+    "soundboard_volume": 80,
+    "soundboard_favorites": []
 }
 
 USER_CONFIG_DIR = Path.home() / ".config" / "youtube-playlist-vc"

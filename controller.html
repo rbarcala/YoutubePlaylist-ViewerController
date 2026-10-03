@@ -452,6 +452,178 @@
     gap: 12px;
   }
 
+  /* ─── 6. VISTA SOUNDBOARD / BOTONERA (MYINSTANTS) ─── */
+  .soundboard-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .soundboard-topbar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .soundboard-now-playing {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+  .soundboard-playing-pill {
+    background: rgba(232, 255, 71, 0.1);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .soundboard-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+  }
+  .sb-tab-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .sb-tab-btn:hover { color: var(--text); border-color: #555; }
+  .sb-tab-btn.active {
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+    border-color: var(--accent);
+  }
+  .soundboard-search-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 4px 0 10px;
+  }
+  .soundboard-account-bar {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 12px;
+  }
+  .soundboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 14px;
+    margin-top: 6px;
+  }
+  .sound-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 10px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .sound-card:hover {
+    border-color: #666;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+  }
+  .sound-card:active, .sound-card.pressed {
+    transform: scale(0.95);
+  }
+  .sound-card.playing {
+    border-color: var(--accent);
+    box-shadow: 0 0 15px rgba(232, 255, 71, 0.35);
+  }
+  .sound-btn-circle {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: 0 6px 0 rgba(0, 0, 0, 0.4), 0 8px 16px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.35);
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  .sound-card:active .sound-btn-circle, .sound-card.pressed .sound-btn-circle {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4), 0 3px 6px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+  }
+  .sound-btn-play-icon {
+    font-size: 20px;
+    color: #fff;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+  }
+  .sound-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--text);
+    line-height: 1.3;
+    max-height: 2.6em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    width: 100%;
+    word-break: break-word;
+  }
+  .sound-fav-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 15px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: color 0.15s, transform 0.15s;
+    line-height: 1;
+  }
+  .sound-fav-btn:hover {
+    color: #ffcc00;
+    transform: scale(1.2);
+  }
+  .sound-fav-btn.is-fav {
+    color: #ffcc00;
+    text-shadow: 0 0 8px rgba(255, 204, 0, 0.6);
+  }
+
   /* ─── MODAL AJUSTES Y QR ─── */
   .modal-overlay {
     position: fixed; inset: 0;
@@ -510,6 +682,7 @@
     <button class="nav-pill" id="pill-obs" onclick="navigateTo('obs')">🎥 OBS</button>
     <button class="nav-pill" id="pill-spotify" onclick="navigateTo('spotify')">🎵 Spotify</button>
     <button class="nav-pill" id="pill-live" onclick="navigateTo('live')">🔴 Directo</button>
+    <button class="nav-pill" id="pill-soundboard" onclick="navigateTo('soundboard')">🔊 Botonera</button>
   </div>
 
   <div class="status-indicators">
@@ -562,6 +735,14 @@
       <div class="hub-card-title">Visualizador de Directo</div>
       <div class="hub-card-desc">Monitorea tu transmisión en vivo de YouTube en tiempo real con interfaz de YouTube y sonido conmutable.</div>
       <span class="hub-card-badge">YouTube Live</span>
+    </div>
+
+    <!-- Opción 5: Botonera / Soundboard (MyInstants) -->
+    <div class="hub-card" onclick="navigateTo('soundboard')">
+      <div class="hub-card-icon">🔊</div>
+      <div class="hub-card-title">Botonera (MyInstants)</div>
+      <div class="hub-card-desc">Reproduce efectos de sonido y memes en vivo directo en tu computadora. Búsqueda instantánea, más usados y favoritos sincronizados.</div>
+      <span class="hub-card-badge">MyInstants SFX</span>
     </div>
   </div>
 </div>
@@ -668,6 +849,60 @@
   </div>
 </div>
 
+<!-- ─── 6. VISTA SOUNDBOARD / BOTONERA (MYINSTANTS) ─── -->
+<div class="view-container" id="view-soundboard">
+  <div class="soundboard-container">
+    <!-- Barra superior de controles -->
+    <div class="soundboard-topbar">
+      <div class="soundboard-now-playing">
+        <span style="color:var(--muted); font-size:11px;">REPRODUCIENDO EN PC:</span>
+        <span class="soundboard-playing-pill" id="sbNowPlayingText">Listo / Silencio</span>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:8px; font-size:11px;">
+          <span style="color:var(--muted);">🔊 VOLUMEN:</span>
+          <input type="range" id="sbVolumeSlider" min="0" max="100" value="80" oninput="updateSoundboardVolume(this.value)" style="accent-color:var(--accent); width:110px;">
+          <span id="sbVolumeText" style="color:var(--accent); font-weight:700; width:34px;">80%</span>
+        </div>
+        <button class="btn btn-danger" onclick="stopSoundboard()" title="Detener todo el audio">⏹️ Detener Todo</button>
+      </div>
+    </div>
+
+    <!-- Barra de pestañas -->
+    <div class="soundboard-tabs">
+      <button class="sb-tab-btn active" id="sbTab-trending" onclick="switchSoundboardTab('trending')">🔥 Más Usados / Tendencias</button>
+      <button class="sb-tab-btn" id="sbTab-favorites" onclick="switchSoundboardTab('favorites')">⭐ Mis Favoritos</button>
+      <button class="sb-tab-btn" id="sbTab-best" onclick="switchSoundboardTab('best')">🏆 Top Histórico</button>
+      <button class="sb-tab-btn" id="sbTab-search" onclick="switchSoundboardTab('search')">🔍 Búsqueda MyInstants</button>
+    </div>
+
+    <!-- Barra de búsqueda -->
+    <div class="soundboard-search-bar" id="sbSearchBarWrap">
+      <input type="text" id="sbSearchInput" class="form-input" style="flex:1;" placeholder="Buscar entre miles de efectos y memes en MyInstants..." onkeydown="if(event.key==='Enter') executeSoundboardSearch()">
+      <button class="btn btn-accent" onclick="executeSoundboardSearch()">Buscar</button>
+      <button class="btn" onclick="clearSoundboardSearch()">Limpiar</button>
+    </div>
+
+    <!-- Barra de cuenta vinculada y sincronización -->
+    <div class="soundboard-account-bar">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span>👤 Cuenta MyInstants:</span>
+        <strong id="sbAccountUsername" style="color:var(--accent);">Sin vincular</strong>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn" onclick="syncMyInstantsAccount()" title="Descargar favoritos de tu perfil público">🔄 Sincronizar Cuenta</button>
+        <button class="btn" onclick="openMyInstantsWeb()" title="Abrir MyInstants para iniciar sesión con Google">🌐 MyInstants (Google)</button>
+        <button class="btn" onclick="openSettingsModal()">⚙️ Ajustes</button>
+      </div>
+    </div>
+
+    <!-- Grid de Botones -->
+    <div id="sbLoadingIndicator" style="text-align:center; padding:30px; color:var(--muted); display:none;">Cargando sonidos de MyInstants…</div>
+    <div class="soundboard-grid" id="soundboardGrid"></div>
+  </div>
+</div>
+
 <!-- ─── MODAL DE CONFIGURACIÓN Y SETUP (⚙️) ─── -->
 <div class="modal-overlay" id="settingsModal">
   <div class="modal-content">
@@ -734,6 +969,24 @@
     <div class="form-group">
       <label class="form-label">Contraseña OBS</label>
       <input type="password" id="cfgObsPassword" class="form-input" placeholder="Opcional">
+    </div>
+
+    <!-- Botonera / MyInstants -->
+    <div class="form-group" style="border-top:1px solid var(--border); padding-top:10px;">
+      <label class="form-label">Botonera: Cuenta MyInstants (Favoritos &amp; Perfil)</label>
+      <input type="text" id="cfgSoundboardUsername" class="form-input" placeholder="Nombre de usuario o URL (ej: axelito__ o https://www.myinstants.com/en/profile/tu_usuario/)">
+      <div class="form-help">Si inicias sesión en MyInstants (con Google o correo), coloca tu usuario aquí para ver automáticamente tus sonidos favoritos en la botonera.</div>
+      <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+        <button class="btn" type="button" onclick="openMyInstantsWeb()">🌐 Abrir MyInstants / Iniciar con Google</button>
+        <button class="btn btn-accent" type="button" onclick="syncMyInstantsFromSettings()">🔄 Importar Favoritos Ahora</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Volumen Predeterminado de la Botonera (PC)</label>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <input type="range" id="cfgSoundboardVolume" min="0" max="100" value="80" style="accent-color:var(--accent); width:200px;" oninput="document.getElementById('cfgSbVolVal').textContent = this.value + '%'">
+        <span id="cfgSbVolVal" style="color:var(--accent); font-weight:700; font-size:12px;">80%</span>
+      </div>
     </div>
 
     <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
@@ -822,6 +1075,7 @@ function showView(viewName, push = false) {
   if (viewName === 'obs') loadObsData();
   if (viewName === 'spotify') loadSpotifyData();
   if (viewName === 'live') loadLiveData();
+  if (viewName === 'soundboard') loadSoundboardView();
 }
 
 // ─── INICIALIZACIÓN ───
@@ -832,11 +1086,14 @@ async function initApp() {
     if (config.auto_focus_viewer !== undefined) {
       document.getElementById('cfgAutoFocusViewer').checked = config.auto_focus_viewer;
     }
+    if (config.soundboard_volume !== undefined) {
+      sbVolume = config.soundboard_volume;
+    }
   } catch(e) {}
 
   // Verificar hash inicial en URL
   const hash = window.location.hash.replace('#', '');
-  if (['fondos', 'obs', 'spotify', 'live'].includes(hash)) {
+  if (['fondos', 'obs', 'spotify', 'live', 'soundboard'].includes(hash)) {
     showView(hash, false);
   } else {
     showView('menu', false);
@@ -1204,6 +1461,324 @@ function refreshLiveStream() {
   loadLiveData();
 }
 
+// ─── 6. BOTONERA / SOUNDBOARD (MYINSTANTS) LOGIC ───
+let currentSbTab = 'trending';
+let savedFavorites = [];
+let sbVolume = 80;
+let playingResetTimer = null;
+
+async function loadSoundboardView() {
+  updateSoundboardAccountDisplay();
+  await loadSavedFavoritesList();
+  loadSoundboardTab(currentSbTab);
+}
+
+async function updateSoundboardAccountDisplay() {
+  try {
+    const res = await fetch('/api/soundboard/account');
+    const data = await res.json();
+    const user = data.username || config.soundboard_username || '';
+    const userEl = document.getElementById('sbAccountUsername');
+    if (userEl) {
+      userEl.textContent = user ? '@' + user : 'Sin vincular';
+    }
+    if (data.volume !== undefined) {
+      sbVolume = data.volume;
+      const slider = document.getElementById('sbVolumeSlider');
+      const text = document.getElementById('sbVolumeText');
+      if (slider) slider.value = sbVolume;
+      if (text) text.textContent = sbVolume + '%';
+    }
+  } catch(e) {}
+}
+
+async function loadSavedFavoritesList() {
+  try {
+    const res = await fetch('/api/soundboard/favorites');
+    savedFavorites = await res.json();
+  } catch(e) {
+    savedFavorites = [];
+  }
+}
+
+function switchSoundboardTab(tab) {
+  currentSbTab = tab;
+  document.querySelectorAll('.sb-tab-btn').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = document.getElementById('sbTab-' + tab);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  const searchWrap = document.getElementById('sbSearchBarWrap');
+  if (tab === 'search') {
+    searchWrap.style.display = 'flex';
+    document.getElementById('sbSearchInput').focus();
+    const query = document.getElementById('sbSearchInput').value.trim();
+    if (query) {
+      executeSoundboardSearch();
+      return;
+    }
+  }
+  loadSoundboardTab(tab);
+}
+
+async function loadSoundboardTab(tab) {
+  const loading = document.getElementById('sbLoadingIndicator');
+  const grid = document.getElementById('soundboardGrid');
+  loading.style.display = 'block';
+  grid.innerHTML = '';
+
+  try {
+    let sounds = [];
+    if (tab === 'trending') {
+      const res = await fetch('/api/soundboard/trending?mode=es');
+      sounds = await res.json();
+    } else if (tab === 'best') {
+      const res = await fetch('/api/soundboard/trending?mode=best');
+      sounds = await res.json();
+    } else if (tab === 'favorites') {
+      await loadSavedFavoritesList();
+      sounds = savedFavorites;
+    } else if (tab === 'search') {
+      const q = document.getElementById('sbSearchInput').value.trim();
+      if (q) {
+        const res = await fetch('/api/soundboard/search?q=' + encodeURIComponent(q));
+        sounds = await res.json();
+      } else {
+        loading.style.display = 'none';
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted);">Escribe en el buscador de arriba para buscar sonidos en MyInstants.</div>';
+        return;
+      }
+    }
+
+    loading.style.display = 'none';
+    renderSoundboardGrid(sounds);
+  } catch(e) {
+    loading.style.display = 'none';
+    grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--accent2);">Error al cargar sonidos. Revisa tu conexión.</div>';
+  }
+}
+
+function executeSoundboardSearch() {
+  const q = document.getElementById('sbSearchInput').value.trim();
+  if (!q) {
+    showToast('Ingresa un término de búsqueda');
+    return;
+  }
+  currentSbTab = 'search';
+  document.querySelectorAll('.sb-tab-btn').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = document.getElementById('sbTab-search');
+  if (activeBtn) activeBtn.classList.add('active');
+  loadSoundboardTab('search');
+}
+
+function clearSoundboardSearch() {
+  document.getElementById('sbSearchInput').value = '';
+  switchSoundboardTab('trending');
+}
+
+function isSoundFavorite(sound) {
+  return savedFavorites.some(f => 
+    (f.id && f.id === sound.id) || 
+    (f.mp3 && f.mp3 === sound.mp3) || 
+    (f.title && f.title.toLowerCase() === sound.title.toLowerCase())
+  );
+}
+
+function renderSoundboardGrid(sounds) {
+  const grid = document.getElementById('soundboardGrid');
+  if (!sounds || sounds.length === 0) {
+    grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted);">No se encontraron sonidos en esta sección.</div>';
+    return;
+  }
+
+  grid.innerHTML = sounds.map(s => {
+    const isFav = isSoundFavorite(s);
+    const safeTitle = (s.title || '').replace(/"/g, '&quot;');
+    const safeMp3 = (s.mp3 || '').replace(/"/g, '&quot;');
+    const color = s.color || '#ff0055';
+    const jsonStr = JSON.stringify(s).replace(/"/g, '&quot;');
+
+    return `
+      <div class="sound-card" data-mp3="${safeMp3}" onclick="triggerPlaySound('${safeMp3}', '${safeTitle}', this)" title="${safeTitle}">
+        <button class="sound-fav-btn ${isFav ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleFavoriteSound(${jsonStr}, this)" title="${isFav ? 'Quitar de favoritos' : 'Agregar a favoritos'}">
+          ${isFav ? '★' : '☆'}
+        </button>
+        <div class="sound-btn-circle" style="background: radial-gradient(circle at 35% 35%, ${color} 0%, rgba(0,0,0,0.4) 100%), ${color};">
+          <span class="sound-btn-play-icon">▶</span>
+        </div>
+        <div class="sound-title">${safeTitle}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function triggerPlaySound(mp3Url, title, cardEl) {
+  if (cardEl) {
+    cardEl.classList.add('playing', 'pressed');
+    setTimeout(() => cardEl.classList.remove('pressed'), 180);
+  }
+
+  const npText = document.getElementById('sbNowPlayingText');
+  if (npText) {
+    npText.textContent = '▶ ' + title;
+  }
+
+  try {
+    const res = await fetch('/api/soundboard/play', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mp3: mp3Url,
+        title: title,
+        volume: sbVolume
+      })
+    });
+    const data = await res.json();
+    if (!data.success && data.error) {
+      showToast('Error audio: ' + data.error);
+    }
+  } catch(e) {
+    showToast('Error conectando con el servidor');
+  }
+
+  if (playingResetTimer) clearTimeout(playingResetTimer);
+  playingResetTimer = setTimeout(() => {
+    if (cardEl) cardEl.classList.remove('playing');
+  }, 2500);
+}
+
+async function stopSoundboard() {
+  try {
+    await fetch('/api/soundboard/stop', { method: 'POST' });
+    const npText = document.getElementById('sbNowPlayingText');
+    if (npText) npText.textContent = '⏹️ Detenido';
+    document.querySelectorAll('.sound-card').forEach(c => c.classList.remove('playing'));
+    showToast('Audio detenido ⏹️');
+  } catch(e) {}
+}
+
+function updateSoundboardVolume(val) {
+  sbVolume = parseInt(val) || 80;
+  const label = document.getElementById('sbVolumeText');
+  if (label) label.textContent = sbVolume + '%';
+  // Actualizar también en el slider de ajustes si está abierto
+  const cfgSlider = document.getElementById('cfgSoundboardVolume');
+  if (cfgSlider) cfgSlider.value = sbVolume;
+  const cfgVal = document.getElementById('cfgSbVolVal');
+  if (cfgVal) cfgVal.textContent = sbVolume + '%';
+}
+
+async function toggleFavoriteSound(sound, btnEl) {
+  const isFav = isSoundFavorite(sound);
+  try {
+    if (isFav) {
+      const res = await fetch('/api/soundboard/favorites/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: sound.id, title: sound.title, mp3: sound.mp3 })
+      });
+      savedFavorites = await res.json();
+      btnEl.classList.remove('is-fav');
+      btnEl.textContent = '☆';
+      btnEl.title = 'Agregar a favoritos';
+      showToast('Eliminado de favoritos');
+      if (currentSbTab === 'favorites') {
+        const card = btnEl.closest('.sound-card');
+        if (card) card.remove();
+      }
+    } else {
+      const res = await fetch('/api/soundboard/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sound)
+      });
+      savedFavorites = await res.json();
+      btnEl.classList.add('is-fav');
+      btnEl.textContent = '★';
+      btnEl.title = 'Quitar de favoritos';
+      showToast('Guardado en favoritos ⭐');
+    }
+  } catch(e) {
+    showToast('Error al modificar favoritos');
+  }
+}
+
+async function syncMyInstantsAccount() {
+  let user = config.soundboard_username || '';
+  if (!user) {
+    const input = prompt('Ingresa tu nombre de usuario o enlace de perfil de MyInstants:');
+    if (!input) return;
+    user = input.trim();
+    config.soundboard_username = user;
+    saveSettingsQuietly({ soundboard_username: user });
+  }
+
+  showToast('Sincronizando favoritos de MyInstants...');
+  try {
+    const res = await fetch('/api/soundboard/sync_account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user })
+    });
+    const data = await res.json();
+    if (data.success) {
+      savedFavorites = data.favorites;
+      config.soundboard_username = data.username;
+      updateSoundboardAccountDisplay();
+      showToast(`¡Sincronizados ${data.total_synced} favoritos de @${data.username}!`);
+      if (currentSbTab === 'favorites') {
+        loadSoundboardTab('favorites');
+      }
+    } else {
+      showToast(data.error || 'No se pudieron sincronizar los favoritos');
+    }
+  } catch(e) {
+    showToast('Error al sincronizar con MyInstants');
+  }
+}
+
+async function syncMyInstantsFromSettings() {
+  const user = document.getElementById('cfgSoundboardUsername').value.trim();
+  if (!user) {
+    showToast('Ingresa primero un nombre de usuario de MyInstants');
+    return;
+  }
+  showToast('Consultando perfil público...');
+  try {
+    const res = await fetch('/api/soundboard/sync_account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user })
+    });
+    const data = await res.json();
+    if (data.success) {
+      savedFavorites = data.favorites;
+      config.soundboard_username = data.username;
+      showToast(`✓ ¡${data.total_synced} favoritos importados exitosamente!`);
+      updateSoundboardAccountDisplay();
+    } else {
+      showToast(data.error || 'Usuario no encontrado o perfil sin favoritos públicos');
+    }
+  } catch(e) {
+    showToast('Error al sincronizar cuenta');
+  }
+}
+
+function openMyInstantsWeb() {
+  window.open('https://www.myinstants.com/', '_blank');
+}
+
+async function saveSettingsQuietly(partialCfg) {
+  try {
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(partialCfg)
+    });
+    const data = await res.json();
+    config = data.config;
+  } catch(e) {}
+}
+
 // ─── APERTURA DE VENTANAS Y UTILIDADES ───
 function openViewer() {
   viewerWindow = window.open('/viewer.html', 'FondosStreamViewer');
@@ -1249,6 +1824,11 @@ function openSettingsModal() {
   document.getElementById('cfgObsPort').value = config.obs_port || 4455;
   document.getElementById('cfgObsPassword').value = config.obs_password || '';
 
+  document.getElementById('cfgSoundboardUsername').value = config.soundboard_username || '';
+  const sbVol = config.soundboard_volume !== undefined ? config.soundboard_volume : 80;
+  document.getElementById('cfgSoundboardVolume').value = sbVol;
+  document.getElementById('cfgSbVolVal').textContent = sbVol + '%';
+
   document.getElementById('settingsModal').classList.add('active');
 }
 
@@ -1272,7 +1852,9 @@ async function saveSettings() {
     obs_enabled: document.getElementById('cfgObsEnabled').checked,
     obs_host: document.getElementById('cfgObsHost').value.trim(),
     obs_port: parseInt(document.getElementById('cfgObsPort').value),
-    obs_password: document.getElementById('cfgObsPassword').value
+    obs_password: document.getElementById('cfgObsPassword').value,
+    soundboard_username: document.getElementById('cfgSoundboardUsername').value.trim(),
+    soundboard_volume: parseInt(document.getElementById('cfgSoundboardVolume').value) || 80
   };
 
   const res = await fetch('/api/config', {
@@ -1286,6 +1868,7 @@ async function saveSettings() {
   showToast('Configuración guardada ✓');
   loadPlaylist();
   loadObsData();
+  updateSoundboardAccountDisplay();
 }
 
 // ─── MODAL QR ───
