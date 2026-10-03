@@ -1,0 +1,30 @@
+{
+  "name": "YouTube Stream Controller",
+  "short_name": "StreamCtrl",
+  "description": "Controlador en tiempo real de fondos de video para streaming, Google Meet y OBS",
+  "start_url": "/controller.html",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#e8ff47",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/assets/icons/192x192/youtube-stream-controller.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icons/512x512/youtube-stream-controller.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

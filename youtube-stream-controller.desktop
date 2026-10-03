@@ -1,0 +1,22 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=YouTube Stream Controller
+GenericName=Controlador de Fondos de Video
+Comment=Controlador sincronizado de fondos y videos de YouTube para streaming, Google Meet y OBS
+Exec=youtube-stream-controller
+Icon=youtube-stream-controller
+Terminal=false
+Categories=AudioVideo;Video;AudioVideoEditing;Utility;
+Keywords=youtube;stream;controller;viewer;fondos;obs;meet;video;reproductor;
+StartupNotify=true
+StartupWMClass=youtube-stream-controller
+Actions=WebMode;ViewerMode;
+
+[Desktop Action WebMode]
+Name=Abrir en Navegador Web
+Exec=youtube-stream-controller --mode web
+
+[Desktop Action ViewerMode]
+Name=Abrir Viewer
+Exec=youtube-stream-controller --viewer

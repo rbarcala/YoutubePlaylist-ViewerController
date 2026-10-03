@@ -1,0 +1,480 @@
+import os
+import sys
+import json
+import time
+import queue
+import socket
+import threading
+import urllib.request
+import urllib.parse
+import webbrowser
+from pathlib import Path
+from flask import Flask, request, jsonify, send_from_directory, Response, redirect
+
+import yt_dlp
+from config_manager import load_config, save_config
+from obs_client import OBSController
+from spotify_manager import SpotifyManager
+from qr_svg import generate_qr_svg
+
+app = Flask(__name__, static_folder='.', static_url_path='')
+
+spotify_mgr = SpotifyManager(load_config, save_config)
+
+# ─── ESTADO CENTRALIZADO Y SINCRONIZACIÓN EN TIEMPO REAL ───
+initial_cfg = load_config()
+
+current_state = {
+    "videoId": initial_cfg.get("last_played_video_id", ""),
+    "title": initial_cfg.get("last_played_title", ""),
+    "thumb": "",
+    "playbackRate": float(initial_cfg.get("default_playback_rate", 1.7)),
+    "muted": bool(initial_cfg.get("default_muted", True)),
+    "isPlaying": False,
+    "activeViewers": 0,
+    "activeControllers": 0,
+    "lastAction": "init",
+    "updatedAt": time.time()
+}
+
+# Cola de eventos SSE para todos los clientes conectados
+event_listeners = set()
+listeners_lock = threading.Lock()
+video_cache = {}  # Cache de URLs resueltas por yt-dlp
+
+def broadcast_event(event_type: str, data: dict):
+    """Transmite un evento a todos los clientes SSE conectados (Desktop, Web, Móvil, Viewer)."""
+    payload = json.dumps({"type": event_type, "data": data, "timestamp": time.time()})
+    sse_message = f"event: {event_type}\ndata: {payload}\n\n"
+    
+    with listeners_lock:
+        dead_queues = []
+        for q in event_listeners:
+            try:
+                q.put_nowait(sse_message)
+            except Exception:
+                dead_queues.append(q)
+        for dead in dead_queues:
+            event_listeners.discard(dead)
+
+def get_lan_ip():
+    """Detecta la IP local de la máquina en la red Wi-Fi / Ethernet."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.5)
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        pass
+    try:
+        return socket.gethostbyname(socket.gethostname())
+    except Exception:
+        return "127.0.0.1"
+
+# ─── RUTAS ESTÁTICAS Y PRINCIPALES ───
+@app.route('/')
+def index():
+    return send_from_directory('.', 'controller.html')
+
+@app.route('/viewer')
+@app.route('/viewer.html')
+def serve_viewer():
+    return send_from_directory('.', 'viewer.html')
+
+@app.route('/controller')
+@app.route('/controller.html')
+def serve_controller():
+    return send_from_directory('.', 'controller.html')
+
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_from_directory('.', 'manifest.json', mimetype='application/manifest+json')
+
+@app.route('/sw.js')
+def serve_sw():
+    return send_from_directory('.', 'sw.js', mimetype='application/javascript')
+
+@app.route('/<path:path>')
+def serve_static(path):
+    return send_from_directory('.', path)
+
+# ─── API DE ESTADO Y SINCRONIZACIÓN (SSE) ───
+@app.route('/api/state')
+def get_state():
+    return jsonify(current_state)
+
+@app.route('/api/events')
+def sse_events():
+    """Stream de Server-Sent Events (SSE) para sincronización en tiempo real."""
+    q = queue.Queue(maxsize=50)
+    with listeners_lock:
+        event_listeners.add(q)
+        current_state["activeControllers"] = max(1, len(event_listeners))
+
+    # Enviar estado actual de inmediato al conectar
+    init_msg = json.dumps({"type": "sync_state", "data": current_state, "timestamp": time.time()})
+    q.put(f"event: sync_state\ndata: {init_msg}\n\n")
+
+    def event_stream():
+        try:
+            while True:
+                try:
+                    msg = q.get(timeout=15)
+                    yield msg
+                except queue.Empty:
+                    yield ": ping\n\n"
+        finally:
+            with listeners_lock:
+                event_listeners.discard(q)
+                current_state["activeControllers"] = len(event_listeners)
+
+    return Response(
+        event_stream(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@app.route('/api/action', methods=['POST'])
+def handle_action():
+    """Recibe acciones de cualquier controlador y las replica a todos los dispositivos."""
+    data = request.get_json(force=True, silent=True) or {}
+    action_type = data.get("action")
+    cfg = load_config()
+
+    if action_type == "play":
+        current_state["videoId"] = data.get("videoId", "")
+        current_state["title"] = data.get("title", "")
+        current_state["thumb"] = data.get("thumb", "")
+        current_state["isPlaying"] = True
+        current_state["lastAction"] = "play"
+        current_state["updatedAt"] = time.time()
+        
+        save_config({
+            "last_played_video_id": current_state["videoId"],
+            "last_played_title": current_state["title"]
+        })
+
+        if cfg.get("obs_enabled") and cfg.get("obs_scene_on_play"):
+            def _switch_obs():
+                obs = OBSController(
+                    host=cfg.get("obs_host", "localhost"),
+                    port=cfg.get("obs_port", 4455),
+                    password=cfg.get("obs_password", "")
+                )
+                obs.switch_scene(cfg.get("obs_scene_on_play"))
+            threading.Thread(target=_switch_obs, daemon=True).start()
+
+    elif action_type == "state":
+        if "playbackRate" in data:
+            current_state["playbackRate"] = float(data["playbackRate"])
+        if "muted" in data:
+            current_state["muted"] = bool(data["muted"])
+        current_state["lastAction"] = "state"
+        current_state["updatedAt"] = time.time()
+
+    elif action_type == "viewer_ready":
+        current_state["activeViewers"] = current_state.get("activeViewers", 0) + 1
+        current_state["lastAction"] = "viewer_ready"
+
+    elif action_type == "viewer_closed":
+        current_state["activeViewers"] = max(0, current_state.get("activeViewers", 1) - 1)
+        current_state["lastAction"] = "viewer_closed"
+
+    elif action_type == "obs_switch":
+        scene = data.get("scene")
+        if scene:
+            obs = OBSController(
+                host=cfg.get("obs_host", "localhost"),
+                port=cfg.get("obs_port", 4455),
+                password=cfg.get("obs_password", "")
+            )
+            result = obs.switch_scene(scene)
+            broadcast_event("obs_updated", {"scene": scene, "result": result})
+            return jsonify(result)
+
+    broadcast_event(action_type or "update", current_state)
+    return jsonify({"success": True, "state": current_state})
+
+# ─── API DE CONFIGURACIÓN Y SETUP ───
+@app.route('/api/config', methods=['GET', 'POST'])
+def manage_config():
+    if request.method == 'POST':
+        new_data = request.get_json(force=True, silent=True) or {}
+        saved = save_config(new_data)
+        broadcast_event("config_updated", {
+            "playlist_id": saved.get("playlist_id"),
+            "has_api_key": bool(saved.get("youtube_api_key")),
+            "obs_enabled": saved.get("obs_enabled"),
+            "auto_focus_viewer": saved.get("auto_focus_viewer", True)
+        })
+        return jsonify({"success": True, "config": saved})
+
+    cfg = load_config()
+    safe_cfg = cfg.copy()
+    raw_key = safe_cfg.get("youtube_api_key", "")
+    safe_cfg["has_api_key"] = bool(raw_key)
+    safe_cfg["youtube_api_key_masked"] = (raw_key[:4] + "..." + raw_key[-4:]) if len(raw_key) > 8 else ("***" if raw_key else "")
+    return jsonify(safe_cfg)
+
+# ─── API DE RED Y CÓDIGO QR PARA CELULAR ───
+@app.route('/api/network_info')
+def network_info():
+    cfg = load_config()
+    port = cfg.get("port", 8000)
+    lan_ip = get_lan_ip()
+    controller_url = f"http://{lan_ip}:{port}/controller.html"
+    viewer_url = f"http://localhost:{port}/viewer.html"
+
+    qr_svg = generate_qr_svg(controller_url, size=240)
+
+    return jsonify({
+        "lan_ip": lan_ip,
+        "port": port,
+        "controller_url": controller_url,
+        "viewer_url": viewer_url,
+        "qr_code_svg": qr_svg
+    })
+
+# ─── APERTURA DE VENTANAS EN NAVEGADOR DEL SISTEMA ───
+@app.route('/api/open_browser', methods=['POST'])
+def open_browser():
+    data = request.get_json(force=True, silent=True) or {}
+    target = data.get("target", "viewer")
+    cfg = load_config()
+    port = cfg.get("port", 8000)
+
+    url = f"http://localhost:{port}/viewer.html" if target == "viewer" else f"http://localhost:{port}/controller.html"
+    
+    def _open():
+        try:
+            webbrowser.open(url)
+        except Exception as e:
+            print(f"[browser] Error abriendo {url}: {e}")
+
+    threading.Thread(target=_open, daemon=True).start()
+    return jsonify({"success": True, "url": url})
+
+# ─── API OBS STUDIO EXPANDIDA ───
+@app.route('/api/obs/status')
+def get_obs_status():
+    cfg = load_config()
+    obs = OBSController(
+        host=cfg.get("obs_host", "localhost"),
+        port=cfg.get("obs_port", 4455),
+        password=cfg.get("obs_password", "")
+    )
+    return jsonify(obs.get_status())
+
+@app.route('/api/obs/scenes')
+def get_obs_scenes():
+    cfg = load_config()
+    obs = OBSController(
+        host=cfg.get("obs_host", "localhost"),
+        port=cfg.get("obs_port", 4455),
+        password=cfg.get("obs_password", "")
+    )
+    return jsonify(obs.get_scenes())
+
+@app.route('/api/obs/switch', methods=['POST'])
+def obs_switch():
+    data = request.get_json(force=True, silent=True) or {}
+    scene = data.get("scene")
+    cfg = load_config()
+    obs = OBSController(
+        host=cfg.get("obs_host", "localhost"),
+        port=cfg.get("obs_port", 4455),
+        password=cfg.get("obs_password", "")
+    )
+    res = obs.switch_scene(scene)
+    broadcast_event("obs_updated", {"scene": scene})
+    return jsonify(res)
+
+@app.route('/api/obs/toggle_stream', methods=['POST'])
+def obs_toggle_stream():
+    cfg = load_config()
+    obs = OBSController(
+        host=cfg.get("obs_host", "localhost"),
+        port=cfg.get("obs_port", 4455),
+        password=cfg.get("obs_password", "")
+    )
+    res = obs.toggle_stream()
+    broadcast_event("obs_status_changed", res)
+    return jsonify(res)
+
+@app.route('/api/obs/toggle_record', methods=['POST'])
+def obs_toggle_record():
+    cfg = load_config()
+    obs = OBSController(
+        host=cfg.get("obs_host", "localhost"),
+        port=cfg.get("obs_port", 4455),
+        password=cfg.get("obs_password", "")
+    )
+    res = obs.toggle_record()
+    broadcast_event("obs_status_changed", res)
+    return jsonify(res)
+
+# ─── API SPOTIFY REMOTE ───
+@app.route('/api/spotify/auth_url')
+def spotify_auth_url():
+    lan_ip = get_lan_ip()
+    port = load_config().get("port", 8000)
+    redirect_uri = f"http://{lan_ip}:{port}/api/spotify/callback"
+    url = spotify_mgr.get_auth_url(redirect_uri)
+    return jsonify({"auth_url": url, "redirect_uri": redirect_uri})
+
+@app.route('/api/spotify/callback')
+def spotify_callback():
+    code = request.args.get("code")
+    error = request.args.get("error")
+    if error or not code:
+        return f"<h3>Error autorizando Spotify: {error}</h3><p><a href='/controller.html'>Volver</a></p>", 400
+
+    lan_ip = get_lan_ip()
+    port = load_config().get("port", 8000)
+    redirect_uri = f"http://{lan_ip}:{port}/api/spotify/callback"
+    res = spotify_mgr.exchange_code(code, redirect_uri)
+    if res.get("success"):
+        return redirect("/controller.html#spotify")
+    return f"<h3>Error canjeando código: {res.get('error')}</h3>", 400
+
+@app.route('/api/spotify/state')
+def spotify_state():
+    return jsonify(spotify_mgr.get_playback_state())
+
+@app.route('/api/spotify/play', methods=['POST'])
+def spotify_play():
+    data = request.get_json(force=True, silent=True) or {}
+    return jsonify(spotify_mgr.play(context_uri=data.get("context_uri"), track_uris=data.get("track_uris")))
+
+@app.route('/api/spotify/pause', methods=['POST'])
+def spotify_pause():
+    return jsonify(spotify_mgr.pause())
+
+@app.route('/api/spotify/next', methods=['POST'])
+def spotify_next():
+    return jsonify(spotify_mgr.next_track())
+
+@app.route('/api/spotify/previous', methods=['POST'])
+def spotify_prev():
+    return jsonify(spotify_mgr.previous_track())
+
+@app.route('/api/spotify/volume', methods=['POST'])
+def spotify_volume():
+    data = request.get_json(force=True, silent=True) or {}
+    vol = data.get("volume", 50)
+    return jsonify(spotify_mgr.set_volume(vol))
+
+@app.route('/api/spotify/search')
+def spotify_search():
+    q = request.args.get("q", "")
+    return jsonify(spotify_mgr.search(q))
+
+@app.route('/api/spotify/queue', methods=['POST'])
+def spotify_queue():
+    data = request.get_json(force=True, silent=True) or {}
+    uri = data.get("uri", "")
+    return jsonify(spotify_mgr.add_to_queue(uri))
+
+@app.route('/api/spotify/play_track', methods=['POST'])
+def spotify_play_track():
+    data = request.get_json(force=True, silent=True) or {}
+    uri = data.get("uri", "")
+    if not uri: return jsonify({"error": "No uri"}), 400
+    return jsonify(spotify_mgr.play(track_uris=[uri]))
+
+# ─── API YOUTUBE LIVE MONITOR ───
+@app.route('/api/youtube/live')
+def youtube_live():
+    """Detecta o resuelve la transmisión en vivo del canal o video especificado."""
+    cfg = load_config()
+    api_key = cfg.get("youtube_api_key", "")
+    channel_id = cfg.get("youtube_channel_id", "")
+    live_vid = cfg.get("youtube_live_video_id", "")
+
+    # Si se configuró directamente un video ID de directo o URL
+    if live_vid:
+        return jsonify({
+            "is_live": True,
+            "video_id": live_vid,
+            "embed_url": f"https://www.youtube.com/embed/{live_vid}?autoplay=1&enablejsapi=1"
+        })
+
+    # Si se configuró Channel ID y API Key, buscar el directo activo del canal
+    if channel_id and api_key:
+        try:
+            url = (
+                f"https://www.googleapis.com/youtube/v3/search?part=snippet"
+                f"&channelId={channel_id}&eventType=live&type=video&key={api_key}"
+            )
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req, timeout=4) as res:
+                data = json.loads(res.read().decode('utf-8'))
+                items = data.get("items", [])
+                if items:
+                    v_id = items[0]["id"]["videoId"]
+                    title = items[0]["snippet"]["title"]
+                    return jsonify({
+                        "is_live": True,
+                        "video_id": v_id,
+                        "title": title,
+                        "embed_url": f"https://www.youtube.com/embed/{v_id}?autoplay=1&enablejsapi=1"
+                    })
+        except Exception as e:
+            print(f"[youtube_live] Error buscando directo: {e}")
+
+    return jsonify({
+        "is_live": False,
+        "video_id": "",
+        "message": "No hay transmisión activa detectada o falta configurar el ID de canal / video en Ajustes."
+    })
+
+# ─── RESOLUCIÓN DE VIDEO Y CACHE CON YT-DLP ───
+@app.route('/api/get_video_url')
+def get_video_url():
+    video_id = request.args.get('v')
+    if not video_id:
+        return jsonify({'error': 'No video id provided'}), 400
+
+    now = time.time()
+    if video_id in video_cache:
+        cached_data, exp_time = video_cache[video_id]
+        if now < exp_time:
+            return jsonify(cached_data)
+
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    ydl_opts = {
+        'format': 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best',
+        'quiet': True,
+        'no_warnings': True,
+        'noplaylist': True,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if 'requested_formats' in info:
+                video_url = info['requested_formats'][0]['url']
+                audio_url = info['requested_formats'][1]['url']
+            else:
+                video_url = info['url']
+                audio_url = info['url']
+
+            result = {'video_url': video_url, 'audio_url': audio_url}
+            video_cache[video_id] = (result, now + 7200)
+            return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ─── SERVICIO PRINCIPAL ───
+if __name__ == '__main__':
+    cfg = load_config()
+    puerto = int(sys.argv[1]) if len(sys.argv) > 1 else int(cfg.get("port", 8000))
+    host = cfg.get("host", "0.0.0.0")
+    print(f"[fondos-stream] Iniciando servidor en http://{host}:{puerto}")
+    app.run(host=host, port=puerto, threaded=True)

@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>🎛️ CONTROLLER — Fondos & Stream Hub</title>
+
+<!-- Favicon compatible con Firefox, Chrome y navegadores modernos -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎛️</text></svg>">
+<link rel="alternate icon" type="image/png" href="/assets/icon.png">
+<link rel="apple-touch-icon" href="/assets/icons/192x192/youtube-stream-controller.png">
+<link rel="manifest" href="/manifest.json">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface-hover: #1e1e1e;
+    --border: #242424;
+    --border-bright: #3a3a3a;
+    --accent: #e8ff47;
+    --accent-hover: #f3ff7a;
+    --accent2: #ff4757;
+    --accent-blue: #00d2d3;
+    --accent-spotify: #1db954;
+    --text: #eeeeee;
+    --muted: #777777;
+    --radius: 8px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── HEADER Y NAVEGACIÓN ─── */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 10, 0.95);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .logo-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .btn-back-hub {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  .btn-back-hub:hover { background: #222; border-color: var(--accent); }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    cursor: pointer;
+  }
+
+  .nav-pills {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .nav-pill {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .nav-pill:hover { color: var(--text); border-color: #555; }
+  .nav-pill.active {
+    color: #000;
+    background: var(--accent);
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+
+  .status-indicators {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .status-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+  .status-dot::before {
+    content: '';
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: all 0.3s;
+  }
+  .status-dot.connected::before {
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+  .status-dot.connected { color: var(--accent); }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    cursor: pointer;
+    border-radius: var(--radius);
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-accent { background: var(--accent); color: #000; font-weight: 700; border-color: var(--accent); }
+  .btn-accent:hover { background: var(--accent-hover); color: #000; }
+  .btn-spotify { background: var(--accent-spotify); color: #000; font-weight: 700; border-color: var(--accent-spotify); }
+  .btn-danger { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+
+  /* ─── VISTAS Y CONTENEDORES ─── */
+  .view-container {
+    display: none;
+    padding: 16px 20px 40px;
+    flex: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .view-container.active { display: block; }
+
+  /* ─── 1. MENÚ PRINCIPAL (HUB DASHBOARD) ─── */
+  .hub-header {
+    text-align: center;
+    margin: 24px 0 32px;
+  }
+  .hub-header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .hub-header p {
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .hub-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .hub-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hub-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  }
+  .hub-card-icon {
+    font-size: 38px;
+    line-height: 1;
+  }
+  .hub-card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .hub-card-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .hub-card-badge {
+    align-self: flex-start;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--accent);
+    border: 1px solid rgba(232, 255, 71, 0.2);
+  }
+
+  /* ─── 2. VISTA FONDOS STREAM ─── */
+  .now-playing-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .now-playing-row1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .title-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    max-width: 480px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .search-input {
+    background: #090909;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: var(--radius);
+    outline: none;
+    font-family: inherit;
+    font-size: 12px;
+    width: 260px;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .grid-videos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 14px;
+  }
+  .video-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .video-card:hover { transform: translateY(-2px); border-color: #555; }
+  .video-card.active { border-color: var(--accent); box-shadow: 0 0 12px rgba(232, 255, 71, 0.2); }
+  .video-card.active::after {
+    content: '▶ EN REPRODUCCIÓN';
+    position: absolute;
+    top: 6px; right: 6px;
+    background: var(--accent);
+    color: #000;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .thumb-wrap { width: 100%; aspect-ratio: 16/9; position: relative; background: #000; }
+  .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  .duration-badge {
+    position: absolute; bottom: 6px; right: 6px;
+    background: rgba(0, 0, 0, 0.85); color: #fff; font-size: 10px; padding: 2px 5px; border-radius: 2px;
+  }
+  .video-card-info { padding: 10px; font-size: 12px; color: #aaa; }
+
+  /* ─── 3. VISTA OBS STUDIO ─── */
+  .obs-status-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .obs-scenes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .obs-scene-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    transition: all 0.15s;
+  }
+  .obs-scene-card:hover { border-color: var(--accent-blue); transform: translateY(-2px); }
+  .obs-scene-card.active {
+    border-color: var(--accent);
+    background: rgba(232, 255, 71, 0.08);
+    color: var(--accent);
+    box-shadow: 0 0 14px rgba(232, 255, 71, 0.2);
+  }
+
+  /* ─── 4. VISTA SPOTIFY REMOTE ─── */
+  .spotify-player-card {
+    background: #121212;
+    border: 1px solid #282828;
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 650px;
+    margin: 0 auto 30px;
+  }
+  .spotify-track-info {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+  .spotify-art {
+    width: 110px; height: 110px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: #222;
+  }
+  .spotify-meta h3 { font-size: 18px; color: #fff; margin-bottom: 6px; }
+  .spotify-meta p { font-size: 13px; color: #aaa; }
+  .spotify-meta span { font-size: 11px; color: var(--accent-spotify); }
+  .spotify-controls-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 18px;
+  }
+  .spotify-search-box {
+    max-width: 650px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .spotify-results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .spotify-item-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  /* ─── 5. VISTA MONITOR DIRECTO ─── */
+  .live-monitor-container {
+    max-width: 960px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .live-video-frame {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .live-video-frame iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+  .live-controls-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 12px 18px;
+    border-radius: var(--radius);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* ─── MODAL AJUSTES Y QR ─── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 500;
+    display: none; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-content {
+    background: #121212; border: 1px solid var(--border-bright);
+    border-radius: 8px; width: 100%; max-width: 600px;
+    max-height: 90vh; overflow-y: auto; padding: 24px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-label { font-size: 11px; text-transform: uppercase; color: #bbb; }
+  .form-help { font-size: 10px; color: var(--muted); line-height: 1.4; }
+  .form-input {
+    background: #090909; border: 1px solid var(--border); color: #fff;
+    padding: 8px 12px; border-radius: 4px; font-family: inherit; font-size: 12px; outline: none;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .form-row { display: flex; gap: 12px; align-items: center; }
+
+  #toastNotice {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #1c1c1c; border: 1px solid var(--accent); color: var(--accent);
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 10px 22px; border-radius: 4px; z-index: 600; opacity: 0;
+    pointer-events: none; transition: opacity 0.3s ease;
+  }
+  #toastNotice.show { opacity: 1; }
+
+  @media (max-width: 768px) {
+    .nav-pills { display: none; }
+    header { padding: 10px 14px; }
+    .hub-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo-group">
+    <button class="btn-back-hub" id="btnBackHub" onclick="navigateTo('menu')">← Menú</button>
+    <div class="logo" onclick="navigateTo('menu')">⬡ STREAM HUB</div>
+  </div>
+
+  <!-- Pestañas de acceso directo en PC -->
+  <div class="nav-pills">
+    <button class="nav-pill active" id="pill-menu" onclick="navigateTo('menu')">🏠 Menú</button>
+    <button class="nav-pill" id="pill-fondos" onclick="navigateTo('fondos')">🎬 Fondos</button>
+    <button class="nav-pill" id="pill-obs" onclick="navigateTo('obs')">🎥 OBS</button>
+    <button class="nav-pill" id="pill-spotify" onclick="navigateTo('spotify')">🎵 Spotify</button>
+    <button class="nav-pill" id="pill-live" onclick="navigateTo('live')">🔴 Directo</button>
+  </div>
+
+  <div class="status-indicators">
+    <div class="status-dot" id="viewerStatusDot" onclick="openViewer()" title="Haz clic para abrir o conectar el Viewer">Sin viewer</div>
+  </div>
+
+  <div class="header-actions">
+    <button class="btn" onclick="openWebController()" title="Abrir en navegador">🌐 Web</button>
+    <button class="btn" onclick="openViewer()" title="Abrir pantalla completa del Viewer">📺 Viewer</button>
+    <button class="btn" onclick="openQRModal()" title="Código QR para conectar celular">📱</button>
+    <button class="btn" onclick="openSettingsModal()" title="Configuración">⚙️</button>
+  </div>
+</header>
+
+<!-- ─── 1. PANTALLA PRINCIPAL (MENÚ / HUB) ─── -->
+<div class="view-container active" id="view-menu">
+  <div class="hub-header">
+    <h1>Panel de Control Principal</h1>
+    <p>Selecciona la función que deseas controlar en tu sesión de streaming</p>
+  </div>
+
+  <div class="hub-grid">
+    <!-- Opción 1: Fondos & Videos -->
+    <div class="hub-card" onclick="navigateTo('fondos')">
+      <div class="hub-card-icon">🎬</div>
+      <div class="hub-card-title">Fondos &amp; Videos (Viewer)</div>
+      <div class="hub-card-desc">Explora la playlist, reproduce fondos sincronizados en 1080p, ajusta la velocidad y el audio del Viewer.</div>
+      <span class="hub-card-badge">Función Controller</span>
+    </div>
+
+    <!-- Opción 2: OBS Studio -->
+    <div class="hub-card" onclick="navigateTo('obs')">
+      <div class="hub-card-icon">🎥</div>
+      <div class="hub-card-title">Control de OBS Studio</div>
+      <div class="hub-card-desc">Cambia escenas al instante con botones grandes, inicia o detén la transmisión en vivo y la grabación.</div>
+      <span class="hub-card-badge" id="hubObsBadge">WebSocket v5</span>
+    </div>
+
+    <!-- Opción 3: Spotify Remote -->
+    <div class="hub-card" onclick="navigateTo('spotify')">
+      <div class="hub-card-icon">🎵</div>
+      <div class="hub-card-title">Spotify Remote (PC)</div>
+      <div class="hub-card-desc">Controla la música de Spotify en tu computadora: busca pistas, agrégalas a la cola, play/pause y cambia el volumen.</div>
+      <span class="hub-card-badge" id="hubSpotifyBadge">Spotify Connect</span>
+    </div>
+
+    <!-- Opción 4: Visualizador de Directo -->
+    <div class="hub-card" onclick="navigateTo('live')">
+      <div class="hub-card-icon">🔴</div>
+      <div class="hub-card-title">Visualizador de Directo</div>
+      <div class="hub-card-desc">Monitorea tu transmisión en vivo de YouTube en tiempo real con interfaz de YouTube y sonido conmutable.</div>
+      <span class="hub-card-badge">YouTube Live</span>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 2. VISTA FONDOS STREAM ─── -->
+<div class="view-container" id="view-fondos">
+  <div class="now-playing-bar">
+    <div class="now-playing-row1">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="color:var(--muted); font-size:11px;">REPRODUCIENDO:</span>
+        <span class="title-text" id="nowPlayingTitle">—</span>
+      </div>
+      <input type="text" id="searchInput" class="search-input" placeholder="Buscar video..." autocomplete="off">
+    </div>
+
+    <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; font-size:11px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="color:var(--muted);">VELOCIDAD:</span>
+        <input type="range" id="speedSlider" min="1.0" max="3.0" step="0.1" value="1.7" style="accent-color:var(--accent); width:110px;">
+        <span id="speedValue" style="color:var(--accent); font-weight:700;">1.7x</span>
+      </div>
+      <button class="btn" id="muteBtn" onclick="toggleMute()">Muted</button>
+    </div>
+  </div>
+
+  <div id="loadingVideos" style="text-align:center; padding:40px; color:var(--muted);">Cargando lista de fondos…</div>
+  <div class="grid-videos" id="gridVideos"></div>
+</div>
+
+<!-- ─── 3. VISTA OBS STUDIO ─── -->
+<div class="view-container" id="view-obs">
+  <div class="obs-status-box">
+    <div>
+      <h3 style="font-size:16px; margin-bottom:4px;">Estado de OBS Studio</h3>
+      <p style="font-size:12px; color:var(--muted);" id="obsStatusText">Consultando conexión…</p>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn" id="btnObsStream" onclick="toggleObsStream()">Iniciar Stream</button>
+      <button class="btn" id="btnObsRecord" onclick="toggleObsRecord()">Iniciar Grabación</button>
+    </div>
+  </div>
+
+  <h3 style="margin-bottom:12px; font-size:14px; text-transform:uppercase; color:var(--muted);">Escenas Disponibles:</h3>
+  <div class="obs-scenes-grid" id="obsScenesGrid">
+    <p style="color:var(--muted);">Cargando escenas de OBS…</p>
+  </div>
+</div>
+
+<!-- ─── 4. VISTA SPOTIFY REMOTE ─── -->
+<div class="view-container" id="view-spotify">
+  <div class="spotify-player-card">
+    <div class="spotify-track-info">
+      <img id="spTrackArt" class="spotify-art" src="/assets/icon.png" alt="Carátula">
+      <div class="spotify-meta">
+        <h3 id="spTrackTitle">Sin reproducción activa</h3>
+        <p id="spTrackArtist">—</p>
+        <span id="spDeviceName">Dispositivo: PC</span>
+      </div>
+    </div>
+
+    <!-- Controles -->
+    <div class="spotify-controls-row">
+      <button class="btn" onclick="spotifyAction('previous')" style="font-size:16px;">⏮</button>
+      <button class="btn btn-spotify" id="spPlayBtn" onclick="spotifyTogglePlay()" style="font-size:16px; padding:8px 20px;">▶</button>
+      <button class="btn" onclick="spotifyAction('next')" style="font-size:16px;">⏭</button>
+    </div>
+
+    <!-- Volumen de la PC -->
+    <div style="display:flex; align-items:center; gap:12px; justify-content:center;">
+      <span style="font-size:11px; color:#aaa;">🔊 Volumen PC:</span>
+      <input type="range" id="spVolumeSlider" min="0" max="100" value="50" onchange="spotifySetVolume(this.value)" style="accent-color:var(--accent-spotify); width:200px;">
+      <span id="spVolumeValue" style="font-size:11px; color:var(--accent-spotify);">50%</span>
+    </div>
+  </div>
+
+  <!-- Búsqueda y Cola de Reproducción -->
+  <div class="spotify-search-box">
+    <h3 style="font-size:14px; color:var(--muted); text-transform:uppercase;">Buscar canciones para reproducir en la PC:</h3>
+    <div style="display:flex; gap:8px;">
+      <input type="text" id="spSearchInput" class="form-input" style="flex:1;" placeholder="Buscar canción, artista o álbum en Spotify...">
+      <button class="btn btn-spotify" onclick="spotifySearch()">Buscar</button>
+    </div>
+    <div class="spotify-results-list" id="spResultsList"></div>
+  </div>
+</div>
+
+<!-- ─── 5. VISTA MONITOR DIRECTO (YOUTUBE LIVE) ─── -->
+<div class="view-container" id="view-live">
+  <div class="live-monitor-container">
+    <div class="live-controls-bar">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:12px; font-weight:700; color:var(--accent2);" id="liveBadgeStatus">🔴 DIRECTO</span>
+        <span style="font-size:12px;" id="liveTitleText">Monitoreando transmisión…</span>
+      </div>
+      <button class="btn" onclick="refreshLiveStream()">🔄 Recargar</button>
+    </div>
+
+    <div class="live-video-frame" id="liveVideoContainer">
+      <div style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted); flex-direction:column; gap:10px;">
+        <p>Buscando transmisión activa de tu canal…</p>
+        <button class="btn btn-accent" onclick="openSettingsModal()">⚙️ Configurar Canal de YouTube</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL DE CONFIGURACIÓN Y SETUP (⚙️) ─── -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal-content">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px;">
+      <div style="font-family:'Syne',sans-serif; font-size:18px; font-weight:700; color:var(--accent);">⚙️ Configuración del Sistema</div>
+      <button onclick="closeSettingsModal()" style="background:none; border:none; color:#aaa; font-size:20px; cursor:pointer;">&times;</button>
+    </div>
+
+    <!-- YouTube & Playlist -->
+    <div class="form-group">
+      <label class="form-label">YouTube Data API v3 Key</label>
+      <input type="password" id="cfgApiKey" class="form-input" placeholder="Pega aquí tu API Key de YouTube...">
+      <div class="form-help">Se almacena localmente de forma segura (ignorado por git).</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">ID o URL de la Playlist de Fondos</label>
+      <input type="text" id="cfgPlaylistId" class="form-input" placeholder="PL7E8lrk1ePfZVWMM2vsUkpQ6vbpbHi4G_">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">ID de Canal para Directos (YouTube Live)</label>
+      <input type="text" id="cfgChannelId" class="form-input" placeholder="UC... (o ID de tu canal)">
+      <div class="form-help">Utilizado para detectar automáticamente tu transmisión en vivo activa.</div>
+    </div>
+
+    <!-- Foco automático del Viewer -->
+    <div class="form-group">
+      <label class="form-label" style="display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="cfgAutoFocusViewer" checked> Poner en foco la ventana del Viewer al clickear un video
+      </label>
+      <div class="form-help">Al seleccionar o re-clickear un video, el Viewer pasa al primer plano automáticamente en el navegador.</div>
+    </div>
+
+    <!-- Spotify Credentials -->
+    <div class="form-group" style="border-top:1px solid var(--border); padding-top:10px;">
+      <label class="form-label">Spotify Client ID</label>
+      <input type="text" id="cfgSpotifyClientId" class="form-input" placeholder="Tu Client ID de Spotify Developer">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Spotify Client Secret</label>
+      <input type="password" id="cfgSpotifyClientSecret" class="form-input" placeholder="Tu Client Secret">
+      <div style="margin-top:6px;">
+        <button class="btn btn-spotify" type="button" onclick="loginSpotifyOAuth()">🔗 Vincular Cuenta de Spotify</button>
+      </div>
+    </div>
+
+    <!-- OBS Studio -->
+    <div class="form-group" style="border-top:1px solid var(--border); padding-top:10px;">
+      <label class="form-label" style="display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="cfgObsEnabled"> Habilitar Integración con OBS Studio (WebSocket v5)
+      </label>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2;">
+        <label class="form-label">Host OBS</label>
+        <input type="text" id="cfgObsHost" class="form-input" value="localhost">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label class="form-label">Puerto</label>
+        <input type="number" id="cfgObsPort" class="form-input" value="4455">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contraseña OBS</label>
+      <input type="password" id="cfgObsPassword" class="form-input" placeholder="Opcional">
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+      <button class="btn" onclick="closeSettingsModal()">Cancelar</button>
+      <button class="btn btn-accent" onclick="saveSettings()">Guardar Configuración</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CÓDIGO QR / CELULAR -->
+<div class="modal-overlay" id="qrModal">
+  <div class="modal-content" style="max-width: 440px; text-align:center;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="font-family:'Syne',sans-serif; color:var(--accent);">📱 Conectar Celular</h3>
+      <button onclick="closeQRModal()" style="background:none; border:none; color:#aaa; font-size:20px; cursor:pointer;">&times;</button>
+    </div>
+    <div id="qrCodeContainer" style="display:flex; justify-content:center; margin:16px 0;"></div>
+    <p style="font-size:12px; color:#aaa;">Escanea este código con la cámara de tu celular conectado a la misma red Wi-Fi para abrir el panel de control completo.</p>
+    <div id="qrLanUrl" style="background:#000; border:1px solid var(--border); padding:8px; border-radius:4px; font-size:11px; color:var(--accent); word-break:break-all;"></div>
+    <button class="btn" onclick="copyLanUrl()" style="margin-top:10px;">📋 Copiar Enlace</button>
+  </div>
+</div>
+
+<div id="toastNotice">Notificación</div>
+
+<script>
+// ─── ESTADO Y NAVEGACIÓN ───
+let config = {};
+let currentView = 'menu';
+let videoList = [];
+let currentIndex = -1;
+let currentPlaybackRate = 1.7;
+let isMuted = true;
+let viewerConnected = false;
+let viewerWindow = null;
+
+const channel = new BroadcastChannel('fondos_stream');
+
+// Manejo del botón atrás (Android Go Back & Browser Back)
+window.addEventListener('popstate', (e) => {
+  if (e.state && e.state.view) {
+    showView(e.state.view, false);
+  } else {
+    showView('menu', false);
+  }
+});
+
+function navigateTo(viewName) {
+  if (viewName === currentView) return;
+  history.pushState({ view: viewName }, '', '#' + viewName);
+  showView(viewName, false);
+}
+
+function showView(viewName, push = false) {
+  currentView = viewName;
+  document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
+
+  const targetView = document.getElementById('view-' + viewName) || document.getElementById('view-menu');
+  targetView.classList.add('active');
+
+  const pill = document.getElementById('pill-' + viewName);
+  if (pill) pill.classList.add('active');
+
+  const backBtn = document.getElementById('btnBackHub');
+  if (viewName === 'menu') {
+    backBtn.style.display = 'none';
+  } else {
+    backBtn.style.display = 'inline-flex';
+  }
+
+  // Cargar datos según la vista
+  if (viewName === 'obs') loadObsData();
+  if (viewName === 'spotify') loadSpotifyData();
+  if (viewName === 'live') loadLiveData();
+}
+
+// ─── INICIALIZACIÓN ───
+async function initApp() {
+  try {
+    const res = await fetch('/api/config');
+    config = await res.json();
+    if (config.auto_focus_viewer !== undefined) {
+      document.getElementById('cfgAutoFocusViewer').checked = config.auto_focus_viewer;
+    }
+  } catch(e) {}
+
+  // Verificar hash inicial en URL
+  const hash = window.location.hash.replace('#', '');
+  if (['fondos', 'obs', 'spotify', 'live'].includes(hash)) {
+    showView(hash, false);
+  } else {
+    showView('menu', false);
+  }
+
+  initSSE();
+  initBroadcastChannel();
+  loadPlaylist();
+  loadObsData();
+  loadSpotifyData();
+
+  // Polling ligero para Spotify
+  setInterval(() => {
+    if (currentView === 'spotify') loadSpotifyData();
+  }, 4000);
+}
+
+// ─── SINCRONIZACIÓN SSE ───
+function initSSE() {
+  const evtSource = new EventSource('/api/events');
+  evtSource.addEventListener('sync_state', (e) => {
+    try {
+      const data = JSON.parse(e.data).data;
+      if (data.videoId) highlightActiveCard(data.videoId);
+      if (data.title) document.getElementById('nowPlayingTitle').textContent = data.title;
+      if (data.activeViewers !== undefined) setConnected(data.activeViewers > 0);
+    } catch(err) {}
+  });
+
+  evtSource.addEventListener('play', (e) => {
+    try {
+      const data = JSON.parse(e.data).data;
+      if (data.videoId) highlightActiveCard(data.videoId);
+      if (data.title) document.getElementById('nowPlayingTitle').textContent = data.title;
+    } catch(err) {}
+  });
+
+  evtSource.addEventListener('viewer_ready', () => setConnected(true));
+}
+
+function initBroadcastChannel() {
+  channel.onmessage = (e) => {
+    if (e.data?.type === 'viewer_ready') setConnected(true);
+    if (e.data?.type === 'play' && e.data.videoId) highlightActiveCard(e.data.videoId);
+  };
+}
+
+// ─── 1. FONDOS STREAM LOGIC ───
+async function loadPlaylist() {
+  const loading = document.getElementById('loadingVideos');
+  loading.style.display = 'block';
+
+  const apiKey = config.youtube_api_key || "";
+  const playlistId = config.playlist_id || "PL7E8lrk1ePfZVWMM2vsUkpQ6vbpbHi4G_";
+
+  if (!apiKey) {
+    loading.innerHTML = `
+      <p style="color:var(--accent); margin-bottom:10px;">⚠️ Falta configurar tu YouTube Data API v3 Key para ver los fondos.</p>
+      <button class="btn btn-accent" onclick="openSettingsModal()">⚙️ Configurar API Key</button>
+    `;
+    return;
+  }
+
+  videoList = [];
+  let nextPageToken = "";
+  try {
+    do {
+      const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${apiKey}&pageToken=${nextPageToken}`);
+      const data = await res.json();
+      if (data.items) {
+        data.items.forEach(item => {
+          const videoId = item.snippet?.resourceId?.videoId;
+          const thumb = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
+          if (videoId && thumb) {
+            videoList.push({ videoId, title: item.snippet.title, thumb, duration: '' });
+          }
+        });
+      }
+      nextPageToken = data.nextPageToken || "";
+    } while (nextPageToken);
+
+    renderVideosGrid();
+    loading.style.display = 'none';
+  } catch (err) {
+    loading.textContent = 'Error cargando playlist: ' + err.message;
+  }
+}
+
+function renderVideosGrid() {
+  const grid = document.getElementById('gridVideos');
+  grid.innerHTML = '';
+  videoList.forEach((v, i) => {
+    const card = document.createElement('div');
+    card.className = 'video-card';
+    card.dataset.videoId = v.videoId;
+    card.innerHTML = `
+      <div class="thumb-wrap">
+        <img src="${v.thumb}" alt="${v.title}" loading="lazy">
+      </div>
+      <div class="video-card-info">
+        <p>${v.title}</p>
+      </div>
+    `;
+    card.onclick = () => playVideoByIndex(i);
+    grid.appendChild(card);
+  });
+}
+
+function playVideoByIndex(i) {
+  if (!videoList[i]) return;
+  const v = videoList[i];
+  currentIndex = i;
+  document.getElementById('nowPlayingTitle').textContent = v.title;
+  highlightActiveCard(v.videoId);
+
+  channel.postMessage({ type: 'play', videoId: v.videoId });
+
+  // Auto-foco del viewer si está habilitado
+  if (config.auto_focus_viewer !== false) {
+    if (viewerWindow && !viewerWindow.closed) {
+      try { viewerWindow.focus(); } catch(e) {}
+    }
+    channel.postMessage({ type: 'focus_viewer' });
+  }
+
+  fetch('/api/action', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'play', videoId: v.videoId, title: v.title, thumb: v.thumb })
+  }).catch(() => {});
+}
+
+function highlightActiveCard(videoId) {
+  document.querySelectorAll('.video-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.videoId === videoId);
+  });
+}
+
+document.getElementById('speedSlider').addEventListener('input', (e) => {
+  currentPlaybackRate = parseFloat(e.target.value);
+  document.getElementById('speedValue').textContent = currentPlaybackRate.toFixed(1) + 'x';
+  channel.postMessage({ type: 'state', playbackRate: currentPlaybackRate, muted: isMuted });
+  fetch('/api/action', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'state', playbackRate: currentPlaybackRate, muted: isMuted })
+  }).catch(() => {});
+});
+
+function toggleMute() {
+  isMuted = !isMuted;
+  const btn = document.getElementById('muteBtn');
+  btn.textContent = isMuted ? 'Muted' : 'Unmuted';
+  btn.classList.toggle('btn-accent', !isMuted);
+  channel.postMessage({ type: 'state', playbackRate: currentPlaybackRate, muted: isMuted });
+  fetch('/api/action', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'state', playbackRate: currentPlaybackRate, muted: isMuted })
+  }).catch(() => {});
+}
+
+// ─── 2. OBS STUDIO LOGIC ───
+async function loadObsData() {
+  try {
+    const res = await fetch('/api/obs/scenes');
+    const data = await res.json();
+    const grid = document.getElementById('obsScenesGrid');
+    grid.innerHTML = '';
+
+    if (data.scenes && data.scenes.length > 0) {
+      data.scenes.forEach(scene => {
+        const card = document.createElement('div');
+        card.className = 'obs-scene-card' + (scene === data.current_scene ? ' active' : '');
+        card.textContent = scene;
+        card.onclick = () => switchObsScene(scene);
+        grid.appendChild(card);
+      });
+      document.getElementById('obsStatusText').textContent = `Conectado a OBS (Escena actual: ${data.current_scene || 'Normal'})`;
+    } else {
+      grid.innerHTML = '<p style="color:var(--muted);">No se pudieron obtener escenas. Verifica que OBS Studio esté abierto con WebSocket v5.</p>';
+      document.getElementById('obsStatusText').textContent = 'OBS Studio no conectado';
+    }
+
+    const stRes = await fetch('/api/obs/status');
+    const st = await stRes.json();
+    if (st.connected) {
+      document.getElementById('btnObsStream').textContent = st.is_streaming ? 'Detener Stream' : 'Iniciar Stream';
+      document.getElementById('btnObsStream').className = st.is_streaming ? 'btn btn-danger' : 'btn';
+      document.getElementById('btnObsRecord').textContent = st.is_recording ? 'Detener Grabación' : 'Iniciar Grabación';
+      document.getElementById('btnObsRecord').className = st.is_recording ? 'btn btn-danger' : 'btn';
+    }
+  } catch(e) {}
+}
+
+async function switchObsScene(scene) {
+  showToast('Cambiando a escena: ' + scene);
+  await fetch('/api/obs/switch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scene })
+  });
+  loadObsData();
+}
+
+async function toggleObsStream() {
+  const res = await fetch('/api/obs/toggle_stream', { method: 'POST' });
+  const data = await res.json();
+  showToast(data.outputActive ? 'Stream iniciado' : 'Stream detenido');
+  loadObsData();
+}
+
+async function toggleObsRecord() {
+  const res = await fetch('/api/obs/toggle_record', { method: 'POST' });
+  const data = await res.json();
+  showToast(data.outputActive ? 'Grabación iniciada' : 'Grabación detenida');
+  loadObsData();
+}
+
+// ─── 3. SPOTIFY REMOTE LOGIC ───
+async function loadSpotifyData() {
+  try {
+    const res = await fetch('/api/spotify/state');
+    const state = await res.json();
+
+    if (state.available) {
+      document.getElementById('spTrackTitle').textContent = state.title || 'En pausa';
+      document.getElementById('spTrackArtist').textContent = state.artist || 'Spotify Desktop';
+      document.getElementById('spDeviceName').textContent = `Dispositivo: ${state.device_name || 'PC'}`;
+      if (state.album_art) {
+        document.getElementById('spTrackArt').src = state.album_art;
+      }
+      document.getElementById('spPlayBtn').textContent = state.is_playing ? '⏸' : '▶';
+      if (state.volume_percent !== undefined) {
+        document.getElementById('spVolumeSlider').value = state.volume_percent;
+        document.getElementById('spVolumeValue').textContent = state.volume_percent + '%';
+      }
+    }
+  } catch(e) {}
+}
+
+async function spotifyAction(action) {
+  await fetch('/api/spotify/' + action, { method: 'POST' });
+  setTimeout(loadSpotifyData, 400);
+}
+
+async function spotifyTogglePlay() {
+  const btn = document.getElementById('spPlayBtn');
+  if (btn.textContent === '⏸') {
+    await spotifyAction('pause');
+  } else {
+    await spotifyAction('play');
+  }
+}
+
+function spotifySetVolume(val) {
+  document.getElementById('spVolumeValue').textContent = val + '%';
+  fetch('/api/spotify/volume', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ volume: parseInt(val) })
+  });
+}
+
+async function spotifySearch() {
+  const q = document.getElementById('spSearchInput').value.trim();
+  if (!q) return;
+  const list = document.getElementById('spResultsList');
+  list.innerHTML = '<p style="color:var(--muted); font-size:12px;">Buscando en Spotify…</p>';
+
+  try {
+    const res = await fetch('/api/spotify/search?q=' + encodeURIComponent(q));
+    const data = await res.json();
+    list.innerHTML = '';
+
+    if (data.tracks && data.tracks.length > 0) {
+      data.tracks.forEach(track => {
+        const row = document.createElement('div');
+        row.className = 'spotify-item-row';
+        row.innerHTML = `
+          <div style="display:flex; align-items:center; gap:10px; overflow:hidden;">
+            <img src="${track.thumb || '/assets/icon.png'}" style="width:36px; height:36px; border-radius:4px;">
+            <div style="overflow:hidden;">
+              <p style="font-size:12px; font-weight:bold; color:#fff; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${track.title}</p>
+              <p style="font-size:11px; color:#888;">${track.artist}</p>
+            </div>
+          </div>
+          <div style="display:flex; gap:6px; flex-shrink:0;">
+            <button class="btn btn-spotify" style="padding:4px 8px; font-size:10px;" onclick="spotifyPlayTrack('${track.uri}')">▶ Reproducir</button>
+            <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="spotifyAddQueue('${track.uri}')">➕ Cola</button>
+          </div>
+        `;
+        list.appendChild(row);
+      });
+    } else {
+      list.innerHTML = '<p style="color:var(--muted); font-size:12px;">Sin resultados o vincula tu cuenta de Spotify en Ajustes.</p>';
+    }
+  } catch(e) {
+    list.innerHTML = '<p style="color:var(--accent2); font-size:12px;">Error en búsqueda de Spotify.</p>';
+  }
+}
+
+async function spotifyPlayTrack(uri) {
+  showToast('Reproduciendo en Spotify de la PC...');
+  await fetch('/api/spotify/play_track', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uri })
+  });
+  setTimeout(loadSpotifyData, 600);
+}
+
+async function spotifyAddQueue(uri) {
+  showToast('Añadido a la cola de Spotify ✓');
+  await fetch('/api/spotify/queue', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uri })
+  });
+}
+
+function loginSpotifyOAuth() {
+  fetch('/api/spotify/auth_url').then(r => r.json()).then(d => {
+    if (d.auth_url) {
+      window.location.href = d.auth_url;
+    } else {
+      alert("Ingresa primero tu Spotify Client ID en los campos de arriba.");
+    }
+  });
+}
+
+// ─── 4. YOUTUBE LIVE MONITOR LOGIC ───
+async function loadLiveData() {
+  const container = document.getElementById('liveVideoContainer');
+  const badge = document.getElementById('liveBadgeStatus');
+  const title = document.getElementById('liveTitleText');
+
+  try {
+    const res = await fetch('/api/youtube/live');
+    const data = await res.json();
+
+    if (data.is_live && data.video_id) {
+      badge.textContent = '🔴 EN VIVO';
+      badge.style.color = 'var(--accent2)';
+      title.textContent = data.title || 'Transmisión activa';
+      container.innerHTML = `
+        <iframe src="https://www.youtube.com/embed/${data.video_id}?autoplay=1&enablejsapi=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+      `;
+    } else {
+      badge.textContent = '⏸️ SIN DIRECTO ACTIVO';
+      badge.style.color = 'var(--muted)';
+      title.textContent = data.message || 'Configura tu canal de YouTube en Ajustes';
+      container.innerHTML = `
+        <div style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted); flex-direction:column; gap:12px; padding:20px; text-align:center;">
+          <p>No se detectó una transmisión en vivo activa en tu canal.</p>
+          <button class="btn btn-accent" onclick="openSettingsModal()">⚙️ Configurar ID de Canal / Video en Vivo</button>
+        </div>
+      `;
+    }
+  } catch(e) {}
+}
+
+function refreshLiveStream() {
+  showToast('Actualizando monitor de directo...');
+  loadLiveData();
+}
+
+// ─── APERTURA DE VENTANAS Y UTILIDADES ───
+function openViewer() {
+  viewerWindow = window.open('/viewer.html', 'FondosStreamViewer');
+  if (viewerWindow) {
+    try { viewerWindow.focus(); } catch(e) {}
+  }
+  fetch('/api/open_browser', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target: 'viewer' })
+  }).then(() => showToast('Abriendo / enfocando Viewer...'));
+}
+
+function openWebController() {
+  window.open('/controller.html', '_blank');
+}
+
+function setConnected(val) {
+  viewerConnected = Boolean(val);
+  const dot = document.getElementById('viewerStatusDot');
+  dot.textContent = viewerConnected ? 'Viewer conectado' : 'Sin viewer';
+  dot.className = 'status-dot' + (viewerConnected ? ' connected' : '');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toastNotice');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ─── MODAL AJUSTES ───
+function openSettingsModal() {
+  document.getElementById('cfgApiKey').value = config.youtube_api_key || '';
+  document.getElementById('cfgPlaylistId').value = config.playlist_id || '';
+  document.getElementById('cfgChannelId').value = config.youtube_channel_id || '';
+  document.getElementById('cfgAutoFocusViewer').checked = config.auto_focus_viewer !== false;
+  document.getElementById('cfgSpotifyClientId').value = config.spotify_client_id || '';
+  document.getElementById('cfgSpotifyClientSecret').value = config.spotify_client_secret || '';
+
+  document.getElementById('cfgObsEnabled').checked = Boolean(config.obs_enabled);
+  document.getElementById('cfgObsHost').value = config.obs_host || 'localhost';
+  document.getElementById('cfgObsPort').value = config.obs_port || 4455;
+  document.getElementById('cfgObsPassword').value = config.obs_password || '';
+
+  document.getElementById('settingsModal').classList.add('active');
+}
+
+function closeSettingsModal() {
+  document.getElementById('settingsModal').classList.remove('active');
+}
+
+async function saveSettings() {
+  let pl = document.getElementById('cfgPlaylistId').value.trim();
+  if (pl.includes('list=')) {
+    try { pl = new URL(pl).searchParams.get('list') || pl; } catch(e) {}
+  }
+
+  const payload = {
+    youtube_api_key: document.getElementById('cfgApiKey').value.trim(),
+    playlist_id: pl,
+    youtube_channel_id: document.getElementById('cfgChannelId').value.trim(),
+    auto_focus_viewer: document.getElementById('cfgAutoFocusViewer').checked,
+    spotify_client_id: document.getElementById('cfgSpotifyClientId').value.trim(),
+    spotify_client_secret: document.getElementById('cfgSpotifyClientSecret').value.trim(),
+    obs_enabled: document.getElementById('cfgObsEnabled').checked,
+    obs_host: document.getElementById('cfgObsHost').value.trim(),
+    obs_port: parseInt(document.getElementById('cfgObsPort').value),
+    obs_password: document.getElementById('cfgObsPassword').value
+  };
+
+  const res = await fetch('/api/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  config = data.config;
+  closeSettingsModal();
+  showToast('Configuración guardada ✓');
+  loadPlaylist();
+  loadObsData();
+}
+
+// ─── MODAL QR ───
+let currentLanUrl = '';
+async function openQRModal() {
+  document.getElementById('qrModal').classList.add('active');
+  try {
+    const res = await fetch('/api/network_info');
+    const data = await res.json();
+    currentLanUrl = data.controller_url;
+    document.getElementById('qrLanUrl').textContent = data.controller_url;
+    document.getElementById('qrCodeContainer').innerHTML = data.qr_code_svg;
+  } catch(e) {
+    document.getElementById('qrLanUrl').textContent = window.location.href;
+  }
+}
+
+function closeQRModal() {
+  document.getElementById('qrModal').classList.remove('active');
+}
+
+function copyLanUrl() {
+  navigator.clipboard.writeText(currentLanUrl || window.location.href).then(() => {
+    showToast('Enlace copiado al portapapeles');
+  });
+}
+
+window.addEventListener('DOMContentLoaded', initApp);
+</script>
+</body>
+</html>

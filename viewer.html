@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🔴 VIEWER — REC</title>
+
+<!-- Favicon compatible con Firefox, Chrome y navegadores modernos -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔴</text></svg>">
+<link rel="alternate icon" type="image/png" href="/assets/icon.png">
+
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    font-family: 'Space Mono', 'Courier New', monospace;
+  }
+
+  #player-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+  }
+
+  #video-player {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+
+  #audio-player {
+    display: none;
+  }
+
+  #loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #e8ff47;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    transition: opacity 0.4s ease;
+    opacity: 0;
+    pointer-events: none;
+    gap: 12px;
+  }
+  #loading-overlay.active { opacity: 1; }
+
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid #333;
+    border-top-color: #e8ff47;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #waiting {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    z-index: 20;
+    gap: 18px;
+    color: #444;
+    transition: opacity 0.6s;
+  }
+  #waiting.hidden { opacity: 0; pointer-events: none; }
+  #waiting svg { opacity: 0.25; }
+  #waiting p { font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; }
+
+  /* Controles flotantes mínimos (Pantalla completa / PiP) */
+  #pipControls {
+    position: fixed;
+    bottom: 14px; right: 14px;
+    z-index: 30;
+    display: flex;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  body:hover #pipControls { opacity: 1; }
+  .btn-pip {
+    background: rgba(20, 20, 20, 0.75);
+    border: 1px solid #333;
+    color: #aaa;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    backdrop-filter: blur(8px);
+  }
+  .btn-pip:hover { color: #fff; border-color: #e8ff47; }
+</style>
+</head>
+<body>
+
+<div id="waiting">
+  <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+    <circle cx="32" cy="32" r="28" stroke="#555" stroke-width="2"/>
+    <path d="M26 20 L46 32 L26 44 Z" fill="#555"/>
+  </svg>
+  <p>Esperando selección desde el controlador…</p>
+</div>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p>RESOLVIENDO STREAM 1080P...</p>
+</div>
+
+<div id="player-container">
+  <video id="video-player" playsinline muted></video>
+  <audio id="audio-player"></audio>
+</div>
+
+<div id="pipControls">
+  <button class="btn-pip" onclick="toggleFullScreen()">⛶ Pantalla Completa</button>
+  <button class="btn-pip" onclick="togglePiP()">🗖 Picture-in-Picture</button>
+</div>
+
+<script>
+const video = document.getElementById('video-player');
+const audio = document.getElementById('audio-player');
+const waitingScreen = document.getElementById('waiting');
+const loadingOverlay = document.getElementById('loading-overlay');
+
+let currentPlaybackRate = 1.7;
+let isMuted = true;
+let currentPlayingId = '';
+
+// ─── SINCRONIZACIÓN DE VIDEO Y AUDIO HTML5 ───
+video.addEventListener('play', () => audio.play().catch(() => {}));
+video.addEventListener('pause', () => audio.pause());
+video.addEventListener('waiting', () => audio.pause());
+
+video.addEventListener('playing', () => {
+  if (Math.abs(video.currentTime - audio.currentTime) > 0.3) {
+    audio.currentTime = video.currentTime;
+  }
+  audio.play().catch(e => console.warn("Esperando interacción para audio", e));
+});
+
+video.addEventListener('seeked', () => {
+  audio.currentTime = video.currentTime;
+});
+
+// Bucle continuo sin cortes
+video.addEventListener('timeupdate', () => {
+  if (video.duration && (video.duration - video.currentTime) <= 0.25) {
+    video.currentTime = 0;
+    audio.currentTime = 0;
+  }
+});
+
+function applyState() {
+  video.playbackRate = currentPlaybackRate;
+  audio.playbackRate = currentPlaybackRate;
+  audio.muted = isMuted;
+}
+
+// ─── RESOLUCIÓN Y REPRODUCCIÓN ───
+async function playVideo(videoId, title = "") {
+  if (!videoId) return;
+  currentPlayingId = videoId;
+  waitingScreen.classList.add('hidden');
+  loadingOverlay.classList.add('active');
+
+  if (title) {
+    document.title = `🔴 ${title} — VIEWER`;
+  }
+
+  try {
+    const response = await fetch(`/api/get_video_url?v=${videoId}`);
+    const data = await response.json();
+
+    if (data.video_url && data.audio_url) {
+      video.src = data.video_url;
+      audio.src = data.audio_url;
+
+      applyState();
+
+      video.oncanplay = () => {
+        loadingOverlay.classList.remove('active');
+        video.play().catch(e => console.error("Error autoplay video:", e));
+      };
+    } else {
+      console.error("Error al obtener URL del video:", data.error);
+    }
+  } catch (err) {
+    console.error("Fallo de conexión con backend:", err);
+  }
+}
+
+let autoFocusEnabled = true;
+
+// Cargar preferencia de autofoco desde el backend
+fetch('/api/config').then(r => r.json()).then(cfg => {
+  if (cfg.auto_focus_viewer !== undefined) autoFocusEnabled = Boolean(cfg.auto_focus_viewer);
+}).catch(() => {});
+
+// ─── DOBLE CANAL DE SINCRONIZACIÓN: BROADCASTCHANNEL + SSE ───
+// 1. BroadcastChannel (Para pestañas en el mismo navegador local)
+const channel = new BroadcastChannel('fondos_stream');
+
+channel.onmessage = (e) => {
+  if (e.data?.type === 'play' && e.data.videoId) {
+    playVideo(e.data.videoId);
+    if (autoFocusEnabled) {
+      try { window.focus(); } catch(err) {}
+    }
+  }
+  if (e.data?.type === 'focus_viewer') {
+    try { window.focus(); } catch(err) {}
+  }
+  if (e.data?.type === 'state') {
+    if (e.data.playbackRate !== undefined) currentPlaybackRate = e.data.playbackRate;
+    if (e.data.muted !== undefined) isMuted = e.data.muted;
+    applyState();
+  }
+};
+
+// 2. Server-Sent Events (SSE) (Para sincronizar con Desktop App y Celular)
+function initSSE() {
+  const evtSource = new EventSource('/api/events');
+
+  evtSource.addEventListener('sync_state', (e) => {
+    try {
+      const payload = JSON.parse(e.data);
+      const state = payload.data;
+      if (state) {
+        if (state.playbackRate !== undefined) currentPlaybackRate = state.playbackRate;
+        if (state.muted !== undefined) isMuted = state.muted;
+        applyState();
+        if (state.videoId && state.videoId !== currentPlayingId) {
+          playVideo(state.videoId, state.title);
+        }
+      }
+    } catch(err) {}
+  });
+
+  evtSource.addEventListener('play', (e) => {
+    try {
+      const payload = JSON.parse(e.data);
+      if (payload.data?.videoId) {
+        playVideo(payload.data.videoId, payload.data.title);
+        if (autoFocusEnabled) {
+          try { window.focus(); } catch(err) {}
+        }
+      }
+    } catch(err) {}
+  });
+
+  evtSource.addEventListener('config_updated', (e) => {
+    fetch('/api/config').then(r => r.json()).then(cfg => {
+      if (cfg.auto_focus_viewer !== undefined) autoFocusEnabled = Boolean(cfg.auto_focus_viewer);
+    }).catch(() => {});
+  });
+
+  evtSource.addEventListener('state', (e) => {
+    try {
+      const payload = JSON.parse(e.data);
+      if (payload.data) {
+        if (payload.data.playbackRate !== undefined) currentPlaybackRate = payload.data.playbackRate;
+        if (payload.data.muted !== undefined) isMuted = payload.data.muted;
+        applyState();
+      }
+    } catch(err) {}
+  });
+}
+
+initSSE();
+
+// Avisar que el Viewer está listo
+function notifyReady() {
+  channel.postMessage({ type: 'viewer_ready' });
+  fetch('/api/action', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'viewer_ready' })
+  }).catch(() => {});
+}
+
+notifyReady();
+setTimeout(notifyReady, 1500);
+
+// Notificar desconexión al cerrar pestaña
+window.addEventListener('beforeunload', () => {
+  fetch('/api/action', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'viewer_closed' }),
+    keepalive: true
+  }).catch(() => {});
+});
+
+// ─── PANTALLA COMPLETA Y PICTURE-IN-PICTURE ───
+function toggleFullScreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+
+async function togglePiP() {
+  try {
+    if (document.pictureInPictureElement) {
+      await document.exitPictureInPicture();
+    } else if (document.pictureInPictureEnabled && video) {
+      await video.requestPictureInPicture();
+    }
+  } catch (err) {
+    console.warn("PiP no soportado o denegado:", err);
+  }
+}
+</script>
+</body>
+</html>
