@@ -17,6 +17,7 @@ from obs_client import OBSController
 from spotify_manager import SpotifyManager
 from soundboard_manager import SoundboardManager
 from browser_manager import BrowserManager
+from overlay_manager import OverlayManager
 from qr_svg import generate_qr_svg
 
 app = Flask(__name__, static_folder='.', static_url_path='')
@@ -76,6 +77,9 @@ def broadcast_event(event_type: str, data: dict):
         for dead in dead_queues:
             event_listeners.discard(dead)
 
+# Gestor de Overlays y Temporizador
+overlay_mgr = OverlayManager(broadcast_event, load_config, save_config)
+
 def get_lan_ip():
     """Detecta la IP local de la máquina en la red Wi-Fi / Ethernet."""
     try:
@@ -106,6 +110,11 @@ def serve_viewer():
 @app.route('/controller.html')
 def serve_controller():
     return send_from_directory('.', 'controller.html')
+
+@app.route('/overlay')
+@app.route('/overlay.html')
+def serve_overlay():
+    return send_from_directory('.', 'overlay.html')
 
 @app.route('/manifest.json')
 def serve_manifest():
@@ -270,8 +279,7 @@ def network_info():
 
 # ─── APERTURA INTELIGENTE DEL VIEWER Y NAVEGADOR DEL SISTEMA ───
 @app.route('/api/open_viewer', methods=['GET', 'POST'])
-@app.route('/api/open_browser', methods=['POST'])
-def open_browser():
+def open_smart_viewer():
     data = request.get_json(force=True, silent=True) or {}
     target = data.get("target", "viewer")
     cfg = load_config()
@@ -635,6 +643,55 @@ def soundboard_account():
         "volume": cfg.get("soundboard_volume", 80),
         "favorites_count": len(cfg.get("soundboard_favorites", []))
     })
+
+# ─── API DE TEMPORIZADOR Y OVERLAYS ───
+@app.route('/api/timer/status')
+def timer_status():
+    return jsonify(overlay_mgr.get_status())
+
+@app.route('/api/timer/start', methods=['POST'])
+def timer_start():
+    data = request.json or {}
+    duration = int(data.get('duration', 300))
+    title = data.get('title', 'Ya Vuelvo')
+    phrase = data.get('phrase', '')
+    state = overlay_mgr.start_timer(duration=duration, title=title, phrase=phrase)
+    return jsonify({"success": True, "state": state})
+
+@app.route('/api/timer/pause', methods=['POST'])
+def timer_pause():
+    state = overlay_mgr.pause_timer()
+    return jsonify({"success": True, "state": state})
+
+@app.route('/api/timer/stop', methods=['POST'])
+def timer_stop():
+    state = overlay_mgr.stop_timer()
+    return jsonify({"success": True, "state": state})
+
+@app.route('/api/timer/phrase', methods=['POST'])
+def timer_set_phrase():
+    data = request.json or {}
+    phrase = data.get('phrase', '')
+    state = overlay_mgr.set_phrase(phrase)
+    return jsonify({"success": True, "state": state})
+
+@app.route('/api/timer/phrases', methods=['GET'])
+def timer_get_phrases():
+    return jsonify({"phrases": overlay_mgr.get_phrases()})
+
+@app.route('/api/timer/phrases/add', methods=['POST'])
+def timer_add_phrase():
+    data = request.json or {}
+    phrase = data.get('phrase', '')
+    phrases = overlay_mgr.add_phrase(phrase)
+    return jsonify({"success": True, "phrases": phrases})
+
+@app.route('/api/timer/phrases/remove', methods=['POST'])
+def timer_remove_phrase():
+    data = request.json or {}
+    phrase = data.get('phrase', '')
+    phrases = overlay_mgr.remove_phrase(phrase)
+    return jsonify({"success": True, "phrases": phrases})
 
 # ─── RESOLUCIÓN DE VIDEO Y CACHE CON YT-DLP ───
 @app.route('/api/get_video_url')

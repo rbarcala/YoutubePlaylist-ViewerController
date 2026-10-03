@@ -36,7 +36,24 @@ DEFAULT_CONFIG = {
     "soundboard_session_cookie": "",
     "soundboard_csrf_token": "",
     "soundboard_volume": 80,
-    "soundboard_favorites": []
+    "soundboard_favorites": [],
+    "overlay_now_playing": True,
+    "overlay_now_playing_pos": "bottom-left",
+    "overlay_timer_sound": True,
+    "student_phrases": [
+        "Compilando cerebro... (42 warnings, 0 errors)",
+        "Buscando la respuesta en Stack Overflow...",
+        "El código compila en mi máquina, profe.",
+        "git commit -m 'ya vuelvo me fui a buscar cafe'",
+        "Segfault: paciencia dumped at 0x7fff",
+        "while (clase.estaPesada()) { cafe.tomar(); }",
+        "Esperando que termine el build de C++...",
+        "El profe: 'Esto entra en el final'. Yo: 💀",
+        "Analizando la complejidad O(n!) de este tema...",
+        "Reiniciando el router mental...",
+        "TODO: Entender lo que el profe acaba de explicar",
+        "rm -rf /dudas/dificiles --no-preserve-root"
+    ]
 }
 
 USER_CONFIG_DIR = Path.home() / ".config" / "youtube-playlist-vc"

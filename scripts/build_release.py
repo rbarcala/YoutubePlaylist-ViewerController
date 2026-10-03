@@ -41,7 +41,8 @@ def build_deb():
     app_files = [
         "app.py", "server.py", "config_manager.py", "obs_client.py",
         "spotify_manager.py", "soundboard_manager.py", "browser_manager.py", "qr_svg.py",
-        "controller.html", "viewer.html",
+        "overlay_manager.py", "mdns_service.py",
+        "controller.html", "viewer.html", "overlay.html",
         "manifest.json", "sw.js", "config.example.json", "requirements.txt"
     ]
     for f in app_files:

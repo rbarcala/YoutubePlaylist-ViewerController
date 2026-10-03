@@ -700,15 +700,152 @@
   }
   #toastNotice.show { opacity: 1; }
 
+  /* ─── 7. ESTILOS OVERLAYS Y TEMPORIZADOR ─── */
+  .overlays-dashboard {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .overlay-obs-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .overlay-obs-url-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .overlay-timer-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+  }
+  .timer-clock-display {
+    font-family: 'Space Mono', monospace;
+    font-size: 64px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-shadow: 0 0 25px rgba(232, 255, 71, 0.4);
+    line-height: 1;
+    margin: 6px 0;
+  }
+  .timer-status-badge {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 4px 12px;
+    border-radius: 20px;
+    text-transform: uppercase;
+  }
+  .timer-status-inactive { background: rgba(255,255,255,0.06); color: var(--muted); }
+  .timer-status-running { background: rgba(232, 255, 71, 0.2); color: var(--accent); border: 1px solid var(--accent); }
+  .timer-status-paused { background: rgba(255, 170, 0, 0.2); color: #ffaa00; border: 1px solid #ffaa00; }
+  .timer-status-finished { background: rgba(74, 222, 128, 0.2); color: #4ade80; border: 1px solid #4ade80; }
+
+  .timer-progress-wrap {
+    width: 100%;
+    max-width: 480px;
+    height: 8px;
+    background: #111;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid #222;
+  }
+  .timer-progress-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, var(--accent), #4ade80);
+    transition: width 0.4s ease;
+  }
+  .timer-quick-grid {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .timer-quick-btn {
+    background: #111;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .timer-quick-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .timer-phrase-section {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+  }
+  .phrases-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #111;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    gap: 10px;
+  }
+
   @media (max-width: 768px) {
     .nav-pills { display: none; }
-    header { padding: 10px 14px; }
-    .hub-grid { grid-template-columns: 1fr; }
+    header { padding: 8px 12px; }
+    .view-container { padding: 8px 10px 16px; }
+    .hub-header { margin: 4px 0 10px; text-align: center; }
+    .hub-header h1 { font-size: 16px; margin-bottom: 2px; }
+    .hub-header p { display: none; }
+    .hub-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .hub-card {
+      padding: 10px 8px;
+      gap: 4px;
+      border-radius: 8px;
+      min-height: unset;
+    }
+    .hub-card:hover { transform: none; }
+    .hub-card-icon { font-size: 24px; margin-bottom: 2px; }
+    .hub-card-title { font-size: 12px; line-height: 1.2; font-weight: 700; }
+    .hub-card-desc { font-size: 10px; line-height: 1.2; color: var(--muted); }
+    .hub-card-badge { display: none; }
     .soundboard-topbar {
       top: 52px;
       padding: 8px 10px;
       gap: 8px;
     }
+    .timer-clock-display { font-size: 46px; }
+  }
+  @media (max-width: 380px) {
+    .hub-card { padding: 8px 6px; }
+    .hub-card-icon { font-size: 20px; }
+    .hub-card-title { font-size: 11px; }
+    .hub-card-desc { font-size: 9px; }
   }
 </style>
 </head>
@@ -729,6 +866,7 @@
     <button class="nav-pill" id="pill-spotify" onclick="navigateTo('spotify')">🎵 Spotify</button>
     <button class="nav-pill" id="pill-live" onclick="navigateTo('live')">🔴 Directo</button>
     <button class="nav-pill" id="pill-soundboard" onclick="navigateTo('soundboard')">🔊 Botonera</button>
+    <button class="nav-pill" id="pill-overlays" onclick="navigateTo('overlays')">📺 Overlays</button>
   </div>
 
   <div class="status-indicators">
@@ -755,7 +893,7 @@
     <div class="hub-card" onclick="navigateTo('fondos')">
       <div class="hub-card-icon">🎬</div>
       <div class="hub-card-title">Fondos &amp; Videos (Viewer)</div>
-      <div class="hub-card-desc">Explora la playlist, reproduce fondos sincronizados en 1080p, ajusta la velocidad y el audio del Viewer.</div>
+      <div class="hub-card-desc">Playlist y fondos en 1080p con velocidad y audio sincronizados.</div>
       <span class="hub-card-badge">Función Controller</span>
     </div>
 
@@ -763,7 +901,7 @@
     <div class="hub-card" onclick="navigateTo('obs')">
       <div class="hub-card-icon">🎥</div>
       <div class="hub-card-title">Control de OBS Studio</div>
-      <div class="hub-card-desc">Cambia escenas al instante con botones grandes, inicia o detén la transmisión en vivo y la grabación.</div>
+      <div class="hub-card-desc">Cambio instantáneo de escenas, transmisión y grabación en vivo.</div>
       <span class="hub-card-badge" id="hubObsBadge">WebSocket v5</span>
     </div>
 
@@ -771,7 +909,7 @@
     <div class="hub-card" onclick="navigateTo('spotify')">
       <div class="hub-card-icon">🎵</div>
       <div class="hub-card-title">Spotify Remote (PC)</div>
-      <div class="hub-card-desc">Controla la música de Spotify en tu computadora: busca pistas, agrégalas a la cola, play/pause y cambia el volumen.</div>
+      <div class="hub-card-desc">Control de música en tu PC, buscador de temas y cola.</div>
       <span class="hub-card-badge" id="hubSpotifyBadge">Spotify Connect</span>
     </div>
 
@@ -779,7 +917,7 @@
     <div class="hub-card" onclick="navigateTo('live')">
       <div class="hub-card-icon">🔴</div>
       <div class="hub-card-title">Visualizador de Directo</div>
-      <div class="hub-card-desc">Monitorea tu transmisión en vivo de YouTube en tiempo real con interfaz de YouTube y sonido conmutable.</div>
+      <div class="hub-card-desc">Monitorea tu transmisión en vivo de YouTube en tiempo real.</div>
       <span class="hub-card-badge">YouTube Live</span>
     </div>
 
@@ -787,8 +925,16 @@
     <div class="hub-card" onclick="navigateTo('soundboard')">
       <div class="hub-card-icon">🔊</div>
       <div class="hub-card-title">Botonera (MyInstants)</div>
-      <div class="hub-card-desc">Reproduce efectos de sonido y memes en vivo directo en tu computadora. Búsqueda instantánea, más usados y favoritos sincronizados.</div>
+      <div class="hub-card-desc">Efectos de sonido y memes reproducidos en tu PC.</div>
       <span class="hub-card-badge">MyInstants SFX</span>
+    </div>
+
+    <!-- Opción 6: Overlays & Recreo -->
+    <div class="hub-card" onclick="navigateTo('overlays')">
+      <div class="hub-card-icon">📺</div>
+      <div class="hub-card-title">Overlays &amp; Ya Vuelvo</div>
+      <div class="hub-card-desc">Temporizador con memes de ingeniería y barra Now Playing.</div>
+      <span class="hub-card-badge">OBS Browser</span>
     </div>
   </div>
 </div>
@@ -962,6 +1108,103 @@
       <button class="btn" id="sbBtnLoadMore" onclick="loadMoreSounds()" style="display:none; margin:0 auto;">⬇ Cargar más sonidos</button>
     </div>
     <div id="sbScrollSentinel" style="height:20px; width:100%;"></div>
+  </div>
+</div>
+
+<!-- ─── 7. VISTA OVERLAYS Y TEMPORIZADOR ─── -->
+<div class="view-container" id="view-overlays">
+  <div class="overlays-dashboard">
+    
+    <!-- Tarjeta OBS Browser Source URL -->
+    <div class="overlay-obs-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:15px; color:var(--accent);">
+          📺 Fuente Navegador para OBS Studio
+        </div>
+        <span style="font-size:11px; color:var(--muted);">1920x1080 (Fondo transparente)</span>
+      </div>
+      <div class="overlay-obs-url-row">
+        <input type="text" id="obsOverlayUrlInput" class="form-input" style="flex:1; font-family:'Space Mono', monospace;" readonly>
+        <button class="btn btn-accent" onclick="copyObsOverlayUrl()">📋 Copiar URL</button>
+      </div>
+      <div style="font-size:11px; color:var(--muted); line-height:1.4;">
+        💡 En OBS: Crea una fuente <strong>Navegador (Browser Source)</strong>, pega esta URL con ancho 1920 y alto 1080.
+      </div>
+    </div>
+
+    <!-- Tarjeta de Temporizador "Ya Vuelvo / Recreo" -->
+    <div class="overlay-timer-card">
+      <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+        <span style="font-size:12px; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:0.05em;">⏱ Recreo / Pausa Cósmica</span>
+        <span class="timer-status-badge timer-status-inactive" id="timerStatusBadge">Inactivo</span>
+      </div>
+
+      <!-- Reloj Grande -->
+      <div class="timer-clock-display" id="timerClockDisplay">05:00</div>
+
+      <!-- Barra de progreso -->
+      <div class="timer-progress-wrap">
+        <div class="timer-progress-fill" id="timerProgressFill" style="width: 100%;"></div>
+      </div>
+
+      <!-- Título de la pausa -->
+      <div style="width:100%; max-width:480px; text-align:left;">
+        <label class="form-label">Título en Pantalla</label>
+        <input type="text" id="timerTitleInput" class="form-input" value="Ya Vuelvo" placeholder="Ej: Ya Vuelvo, Recreo, Cargando café..." style="width:100%;">
+      </div>
+
+      <!-- Botones rápidos de duración -->
+      <div style="width:100%; max-width:520px; text-align:center;">
+        <div class="form-label" style="margin-bottom:8px;">Duración rápida</div>
+        <div class="timer-quick-grid">
+          <button class="timer-quick-btn" onclick="startTimerWithMinutes(1)">+1 min</button>
+          <button class="timer-quick-btn" onclick="startTimerWithMinutes(3)">+3 min</button>
+          <button class="timer-quick-btn" onclick="startTimerWithMinutes(5)">+5 min</button>
+          <button class="timer-quick-btn" onclick="startTimerWithMinutes(10)">+10 min</button>
+          <button class="timer-quick-btn" onclick="startTimerWithMinutes(15)">+15 min</button>
+          <button class="timer-quick-btn" onclick="startTimerWithMinutes(20)">+20 min</button>
+        </div>
+      </div>
+
+      <!-- Selector de Memes / Chistes de Estudiante -->
+      <div class="timer-phrase-section">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label class="form-label">Meme / Chiste de Informática en Pantalla</label>
+          <div style="display:flex; gap:6px;">
+            <button class="btn" style="padding:3px 8px; font-size:10px;" onclick="randomizeTimerPhrase()">🎲 Aleatorio</button>
+            <button class="btn" style="padding:3px 8px; font-size:10px;" onclick="openManagePhrasesModal()">✏️ Gestionar</button>
+          </div>
+        </div>
+        <select id="timerPhraseSelect" class="form-input" style="width:100%;" onchange="changeTimerPhrase(this.value)">
+          <!-- Poblado dinámicamente -->
+        </select>
+        <div id="timerPhrasePreview" style="font-size:11px; color:var(--accent); font-style:italic; padding-top:2px;"></div>
+      </div>
+
+      <!-- Controles de Inicio / Pausa / Detener -->
+      <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:8px;">
+        <button class="btn btn-accent" id="btnTimerStart" onclick="startCustomTimer()" style="font-size:13px; padding:10px 20px;">
+          ▶ Iniciar
+        </button>
+        <button class="btn" id="btnTimerPause" onclick="pauseOverlayTimer()" style="font-size:13px; padding:10px 20px;">
+          ⏸ Pausar
+        </button>
+        <button class="btn btn-danger" id="btnTimerStop" onclick="stopOverlayTimer()" style="font-size:13px; padding:10px 20px;">
+          ⏹ Ocultar Overlay
+        </button>
+      </div>
+    </div>
+
+    <!-- Barra Now Playing informativa -->
+    <div class="overlay-obs-box">
+      <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:14px; color:#fff; margin-bottom:4px;">
+        🎵 Barra "Now Playing" en vivo
+      </div>
+      <div style="font-size:12px; color:var(--muted); line-height:1.5;">
+        Esta barra flotante aparece automáticamente en la esquina inferior del stream cuando escuchas música en <strong>Spotify</strong> o reproduces un video en el <strong>Viewer</strong>. Si no hay nada sonando, se desvanece suavemente para no tapar nada.
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1156,6 +1399,37 @@
   </div>
 </div>
 
+<!-- ─── MODAL GESTIÓN DE FRASES / MEMES DE ESTUDIANTE ─── -->
+<div class="modal-overlay" id="phrasesModal">
+  <div class="modal-content" style="max-width: 580px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px;">
+      <div style="font-family:'Syne',sans-serif; font-size:16px; font-weight:700; color:var(--accent);">
+        🎓 Chistes y Memes de Informática / Ingeniería
+      </div>
+      <button onclick="closeManagePhrasesModal()" style="background:none; border:none; color:#aaa; font-size:20px; cursor:pointer;">&times;</button>
+    </div>
+
+    <div style="font-size:11px; color:var(--muted); line-height:1.4;">
+      Estas frases se muestran en el overlay durante los recreos. Puedes agregar nuevos memes del profesor, de exámenes, de bugs en código o eliminar las que no quieras.
+    </div>
+
+    <!-- Agregar nueva frase -->
+    <div style="display:flex; gap:8px;">
+      <input type="text" id="newPhraseInput" class="form-input" placeholder="Ej: Compilando... no hagan preguntas que se rompe" style="flex:1;">
+      <button class="btn btn-accent" onclick="addTimerPhrase()">➕ Agregar</button>
+    </div>
+
+    <!-- Lista de frases existentes -->
+    <div id="phrasesModalList" style="display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto; padding-right:4px;">
+      <!-- Llenado dinámicamente -->
+    </div>
+
+    <div style="text-align:right; border-top:1px solid var(--border); padding-top:10px;">
+      <button class="btn" onclick="closeManagePhrasesModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toastNotice">Notificación</div>
 <button class="sb-floating-top-btn" id="sbFloatingTopBtn" onclick="scrollToTopSoundboard()" title="Subir al inicio">⬆️</button>
 
@@ -1224,6 +1498,7 @@ function showView(viewName, push = false) {
   if (viewName === 'spotify') loadSpotifyData();
   if (viewName === 'live') loadLiveData();
   if (viewName === 'soundboard') loadSoundboardView();
+  if (viewName === 'overlays') loadOverlaysView();
 }
 
 // ─── INICIALIZACIÓN ───
@@ -1241,7 +1516,7 @@ async function initApp() {
 
   // Verificar hash inicial en URL
   const hash = window.location.hash.replace('#', '');
-  if (['fondos', 'obs', 'spotify', 'live', 'soundboard'].includes(hash)) {
+  if (['fondos', 'obs', 'spotify', 'live', 'soundboard', 'overlays'].includes(hash)) {
     showView(hash, false);
   } else {
     showView('menu', false);
@@ -1430,6 +1705,18 @@ function initSSE() {
   evtSource.addEventListener('obs_status_changed', () => loadObsData());
 
   evtSource.addEventListener('viewer_ready', () => setConnected(true));
+
+  // Temporizador y Overlays OBS
+  evtSource.addEventListener('timer_update', (e) => {
+    try {
+      const data = JSON.parse(e.data).data;
+      if (data) updateTimerUI(data);
+    } catch(err) {}
+  });
+
+  evtSource.addEventListener('timer_finished', () => {
+    showToast('⏰ ¡El temporizador de recreo ha finalizado!');
+  });
 }
 
 // ─── SINCRONIZACIÓN LOCAL (BroadcastChannel) ───
@@ -2520,6 +2807,283 @@ function copyLanUrl() {
   navigator.clipboard.writeText(currentLanUrl || window.location.href).then(() => {
     showToast('Enlace copiado al portapapeles');
   });
+}
+
+// ─── OVERLAYS Y TEMPORIZADOR "YA VUELVO" ───
+let timerPhrasesList = [];
+let currentTimerState = { active: false, running: false, remaining: 300, duration: 300, title: 'Ya Vuelvo', phrase: '' };
+
+function getOverlayUrl() {
+  const host = window.location.hostname || 'localhost';
+  const port = window.location.port || '8000';
+  return `http://${host}:${port}/overlay.html`;
+}
+
+function copyObsOverlayUrl() {
+  const url = getOverlayUrl();
+  navigator.clipboard.writeText(url).then(() => {
+    showToast('Enlace de Overlay copiado ✓');
+  }).catch(() => {
+    const input = document.getElementById('obsOverlayUrlInput');
+    if (input) {
+      input.select();
+      document.execCommand('copy');
+      showToast('Enlace de Overlay copiado ✓');
+    }
+  });
+}
+
+async function loadOverlaysView() {
+  const urlInput = document.getElementById('obsOverlayUrlInput');
+  if (urlInput) urlInput.value = getOverlayUrl();
+
+  try {
+    const res = await fetch('/api/timer/status');
+    const state = await res.json();
+    updateTimerUI(state);
+  } catch(e) {}
+
+  await loadTimerPhrases();
+}
+
+async function loadTimerPhrases() {
+  try {
+    const res = await fetch('/api/timer/phrases');
+    const data = await res.json();
+    timerPhrasesList = data.phrases || [];
+    renderTimerPhraseSelect();
+  } catch(e) {}
+}
+
+function renderTimerPhraseSelect() {
+  const select = document.getElementById('timerPhraseSelect');
+  if (!select) return;
+  const currentVal = currentTimerState.phrase || select.value;
+  select.innerHTML = '<option value="">-- Sin frase / Solo temporizador --</option>' +
+    timerPhrasesList.map(p => {
+      const escaped = p.replace(/"/g, '&quot;');
+      const selected = p === currentVal ? 'selected' : '';
+      return `<option value="${escaped}" ${selected}>${p}</option>`;
+    }).join('');
+
+  const preview = document.getElementById('timerPhrasePreview');
+  if (preview) {
+    preview.textContent = currentVal ? `"${currentVal}"` : '';
+  }
+}
+
+function updateTimerUI(state) {
+  if (!state) return;
+  currentTimerState = state;
+
+  const rem = Math.max(0, parseInt(state.remaining || 0, 10));
+  const mins = Math.floor(rem / 60);
+  const secs = rem % 60;
+  const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+  const clockEl = document.getElementById('timerClockDisplay');
+  if (clockEl) clockEl.textContent = timeStr;
+
+  const badge = document.getElementById('timerStatusBadge');
+  if (badge) {
+    badge.className = 'timer-status-badge';
+    if (!state.active) {
+      badge.classList.add('timer-status-inactive');
+      badge.textContent = 'Inactivo (Oculto en OBS)';
+    } else if (state.running) {
+      badge.classList.add('timer-status-running');
+      badge.textContent = 'En vivo (Corriendo)';
+    } else if (rem === 0) {
+      badge.classList.add('timer-status-finished');
+      badge.textContent = '¡Terminado! (00:00)';
+    } else {
+      badge.classList.add('timer-status-paused');
+      badge.textContent = 'Pausado';
+    }
+  }
+
+  const progressFill = document.getElementById('timerProgressFill');
+  if (progressFill) {
+    const dur = Math.max(1, parseInt(state.duration || 300, 10));
+    const pct = Math.min(100, Math.max(0, (rem / dur) * 100));
+    progressFill.style.width = pct + '%';
+  }
+
+  const titleInput = document.getElementById('timerTitleInput');
+  if (titleInput && (!state.active || document.activeElement !== titleInput)) {
+    if (state.title) titleInput.value = state.title;
+  }
+
+  const select = document.getElementById('timerPhraseSelect');
+  if (select && state.phrase) {
+    select.value = state.phrase;
+  }
+  const preview = document.getElementById('timerPhrasePreview');
+  if (preview) {
+    preview.textContent = state.phrase ? `"${state.phrase}"` : '';
+  }
+
+  const btnPause = document.getElementById('btnTimerPause');
+  if (btnPause) {
+    btnPause.textContent = (state.active && state.running) ? '⏸ Pausar' : '▶ Reanudar';
+    btnPause.style.display = state.active ? 'inline-flex' : 'none';
+  }
+  const btnStop = document.getElementById('btnTimerStop');
+  if (btnStop) {
+    btnStop.style.display = state.active ? 'inline-flex' : 'none';
+  }
+}
+
+async function startTimerWithMinutes(mins) {
+  const titleInput = document.getElementById('timerTitleInput');
+  const title = (titleInput && titleInput.value.trim()) || 'Ya Vuelvo';
+  const phrase = getSelectedOrRandomPhrase();
+  const duration = mins * 60;
+
+  try {
+    const res = await fetch('/api/timer/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ duration, title, phrase })
+    });
+    const data = await res.json();
+    if (data.state) updateTimerUI(data.state);
+    showToast(`⏱ Temporizador iniciado: ${mins} min`);
+  } catch(e) {
+    showToast('Error al iniciar temporizador');
+  }
+}
+
+async function startCustomTimer() {
+  const clockText = document.getElementById('timerClockDisplay').textContent;
+  const parts = clockText.split(':');
+  let mins = 5;
+  if (parts.length === 2) {
+    mins = parseInt(parts[0], 10) || 5;
+  }
+  startTimerWithMinutes(mins > 0 ? mins : 5);
+}
+
+async function pauseOverlayTimer() {
+  try {
+    const res = await fetch('/api/timer/pause', { method: 'POST' });
+    const data = await res.json();
+    if (data.state) updateTimerUI(data.state);
+  } catch(e) {}
+}
+
+async function stopOverlayTimer() {
+  try {
+    const res = await fetch('/api/timer/stop', { method: 'POST' });
+    const data = await res.json();
+    if (data.state) updateTimerUI(data.state);
+    showToast('Overlay ocultado');
+  } catch(e) {}
+}
+
+function getSelectedOrRandomPhrase() {
+  const select = document.getElementById('timerPhraseSelect');
+  if (select && select.value) return select.value;
+  if (timerPhrasesList.length > 0) {
+    const idx = Math.floor(Math.random() * timerPhrasesList.length);
+    return timerPhrasesList[idx];
+  }
+  return '';
+}
+
+async function changeTimerPhrase(val) {
+  const preview = document.getElementById('timerPhrasePreview');
+  if (preview) preview.textContent = val ? `"${val}"` : '';
+
+  if (currentTimerState.active) {
+    try {
+      const res = await fetch('/api/timer/phrase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phrase: val })
+      });
+      const data = await res.json();
+      if (data.state) updateTimerUI(data.state);
+    } catch(e) {}
+  }
+}
+
+function randomizeTimerPhrase() {
+  if (!timerPhrasesList || timerPhrasesList.length === 0) return;
+  const random = timerPhrasesList[Math.floor(Math.random() * timerPhrasesList.length)];
+  const select = document.getElementById('timerPhraseSelect');
+  if (select) {
+    select.value = random;
+    changeTimerPhrase(random);
+  }
+}
+
+// Modal de gestión de frases / memes
+function openManagePhrasesModal() {
+  renderPhrasesModalList();
+  document.getElementById('phrasesModal').classList.add('active');
+}
+
+function closeManagePhrasesModal() {
+  document.getElementById('phrasesModal').classList.remove('active');
+}
+
+function renderPhrasesModalList() {
+  const container = document.getElementById('phrasesModalList');
+  if (!container) return;
+  if (timerPhrasesList.length === 0) {
+    container.innerHTML = '<div style="color:var(--muted); font-size:12px; padding:10px 0;">No hay frases configuradas.</div>';
+    return;
+  }
+  container.innerHTML = timerPhrasesList.map((phrase, idx) => {
+    return `
+      <div class="phrases-list-item">
+        <span style="flex:1;">${phrase}</span>
+        <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteTimerPhrase(${idx})">🗑</button>
+      </div>
+    `;
+  }).join('');
+}
+
+async function addTimerPhrase() {
+  const input = document.getElementById('newPhraseInput');
+  const val = input ? input.value.trim() : '';
+  if (!val) return;
+
+  try {
+    const res = await fetch('/api/timer/phrases/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phrase: val })
+    });
+    const data = await res.json();
+    timerPhrasesList = data.phrases || [];
+    input.value = '';
+    renderPhrasesModalList();
+    renderTimerPhraseSelect();
+    showToast('Meme de informática agregado ✓');
+  } catch(e) {
+    showToast('Error al agregar frase');
+  }
+}
+
+async function deleteTimerPhrase(idx) {
+  const phrase = timerPhrasesList[idx];
+  if (!phrase) return;
+  try {
+    const res = await fetch('/api/timer/phrases/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phrase })
+    });
+    const data = await res.json();
+    timerPhrasesList = data.phrases || [];
+    renderPhrasesModalList();
+    renderTimerPhraseSelect();
+    showToast('Frase eliminada');
+  } catch(e) {
+    showToast('Error al eliminar frase');
+  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {

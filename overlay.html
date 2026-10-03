@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OBS Stream Overlay — Fondos & Now Playing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-card: rgba(10, 10, 10, 0.90);
+    --border: rgba(255, 255, 255, 0.12);
+    --accent: #e8ff47;
+    --accent-glow: rgba(232, 255, 71, 0.35);
+    --text: #ffffff;
+    --muted: #a0a0a0;
+    --spotify: #1DB954;
+    --youtube: #ff0033;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: transparent !important;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+  }
+
+  /* ─── 1. BARRITA NOW PLAYING FLOTANTE ─── */
+  .now-playing-container {
+    position: fixed;
+    bottom: 32px;
+    left: 32px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--bg-card);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 10px 18px 10px 12px;
+    max-width: 480px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65), 0 0 16px rgba(0,0,0,0.5);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+  }
+  .now-playing-container.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .np-cover {
+    width: 46px;
+    height: 46px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: #181818;
+    border: 1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
+  }
+
+  .np-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+  }
+
+  .np-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .np-badge.spotify { color: var(--spotify); }
+  .np-badge.youtube { color: var(--youtube); }
+
+  .np-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 320px;
+  }
+
+  .np-subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 320px;
+  }
+
+  /* Ecualizador animado */
+  .np-eq {
+    display: flex;
+    align-items: flex-end;
+    gap: 2.5px;
+    height: 14px;
+    margin-left: 6px;
+  }
+  .np-eq-bar {
+    width: 3px;
+    background: currentColor;
+    border-radius: 2px;
+    animation: eqBounce 1s infinite ease-in-out;
+  }
+  .np-eq-bar:nth-child(1) { height: 6px; animation-delay: 0.1s; }
+  .np-eq-bar:nth-child(2) { height: 14px; animation-delay: 0.3s; }
+  .np-eq-bar:nth-child(3) { height: 9px; animation-delay: 0.2s; }
+
+  @keyframes eqBounce {
+    0%, 100% { transform: scaleY(0.4); }
+    50% { transform: scaleY(1); }
+  }
+
+  /* ─── 2. TEMPORIZADOR "YA VUELVO / RECREO" ─── */
+  .break-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+  }
+  .break-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .break-card {
+    background: rgba(12, 12, 12, 0.94);
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+    border: 2px solid var(--accent);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8), 0 0 32px var(--accent-glow);
+    border-radius: 28px;
+    padding: 36px 48px;
+    max-width: 680px;
+    width: 90%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    transform: scale(0.92);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .break-overlay.visible .break-card {
+    transform: scale(1);
+  }
+
+  .break-header-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(232, 255, 71, 0.12);
+    border: 1px solid var(--accent);
+    padding: 6px 18px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .break-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.1;
+  }
+
+  .break-timer {
+    font-family: 'Space Mono', monospace;
+    font-size: 76px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -2px;
+    text-shadow: 0 0 24px var(--accent-glow);
+    margin: 4px 0;
+  }
+  .break-timer.finished {
+    color: #ff4757;
+    text-shadow: 0 0 30px rgba(255, 71, 87, 0.6);
+    animation: flashTimer 1s infinite alternate;
+  }
+
+  @keyframes flashTimer {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.04); opacity: 0.7; }
+  }
+
+  /* Barra de progreso */
+  .break-progress-track {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .break-progress-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 100%;
+    transition: width 0.4s linear;
+    box-shadow: 0 0 10px var(--accent);
+  }
+
+  /* Frase de estudiante de ingeniería */
+  .break-phrase-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 14px;
+    padding: 14px 20px;
+    width: 100%;
+    font-size: 15px;
+    color: #d0d0d0;
+    font-style: italic;
+    font-family: 'Space Mono', monospace;
+    line-height: 1.4;
+  }
+  .break-phrase-box span {
+    color: var(--accent);
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── 1. BARRITA NOW PLAYING (SPOTIFY / YOUTUBE) ─── -->
+<div class="now-playing-container" id="nowPlayingContainer">
+  <img class="np-cover" id="npCover" src="" alt="Cover" />
+  <div class="np-info">
+    <div class="np-badge" id="npBadge">
+      <span id="npSourceIcon">🎵</span>
+      <span id="npSourceText">REPRODUCIENDO</span>
+      <div class="np-eq">
+        <div class="np-eq-bar"></div>
+        <div class="np-eq-bar"></div>
+        <div class="np-eq-bar"></div>
+      </div>
+    </div>
+    <div class="np-title" id="npTitle">Cargando...</div>
+    <div class="np-subtitle" id="npSubtitle">Artista / Canal</div>
+  </div>
+</div>
+
+<!-- ─── 2. OVERLAY TEMPORIZADOR "YA VUELVO / RECREO" ─── -->
+<div class="break-overlay" id="breakOverlay">
+  <div class="break-card">
+    <div class="break-header-pill">
+      <span>⏱️</span> PAUSA DE STREAM &amp; CLASE
+    </div>
+
+    <div class="break-title" id="breakTitleText">Ya vuelvo</div>
+
+    <div class="break-timer" id="breakTimerText">05:00</div>
+
+    <div class="break-progress-track">
+      <div class="break-progress-bar" id="breakProgressBar"></div>
+    </div>
+
+    <div class="break-phrase-box" id="breakPhraseBox">
+      “<span id="breakPhraseText">Compilando cerebro... (42 warnings, 0 errors)</span>”
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentTimerState = { active: false, running: false, remaining_seconds: 300, total_seconds: 300 };
+  let currentSpotify = { is_playing: false, title: '', artist: '', cover_url: '' };
+  let currentYouTube = { is_playing: false, title: '', video_id: '' };
+  let lastChimePlayedFor = 0;
+
+  // ─── AUDIO CHIME CON WEBAUDIO (SIN ASSETS EXTERNOS) ───
+  function playSchoolBellChime() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        const startTime = ctx.currentTime + (idx * 0.22);
+        gain.gain.setValueAtTime(0.01, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.35, startTime + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.8);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + 0.85);
+      });
+    } catch(e) {}
+  }
+
+  // ─── ACTUALIZAR TEMPORIZADOR ───
+  function updateTimerUI(data) {
+    if (!data) return;
+    currentTimerState = data;
+    const overlay = document.getElementById('breakOverlay');
+    const timerText = document.getElementById('breakTimerText');
+    const titleText = document.getElementById('breakTitleText');
+    const phraseText = document.getElementById('breakPhraseText');
+    const bar = document.getElementById('breakProgressBar');
+
+    if (!data.active) {
+      overlay.classList.remove('visible');
+      timerText.classList.remove('finished');
+      return;
+    }
+
+    overlay.classList.add('visible');
+
+    const rem = Math.max(0, data.remaining_seconds || 0);
+    const m = Math.floor(rem / 60);
+    const s = rem % 60;
+    const timeStr = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    timerText.textContent = timeStr;
+
+    if (data.title) titleText.textContent = data.title;
+    if (data.phrase) phraseText.textContent = data.phrase;
+
+    // Barra de progreso
+    const total = data.total_seconds || 300;
+    const pct = Math.max(0, Math.min(100, (rem / total) * 100));
+    bar.style.width = pct + '%';
+
+    if (rem <= 0) {
+      timerText.classList.add('finished');
+      timerText.textContent = '00:00';
+      bar.style.width = '0%';
+      // Reproducir timbre una sola vez al terminar
+      const now = Date.now();
+      if (data.play_sound && (now - lastChimePlayedFor > 8000)) {
+        lastChimePlayedFor = now;
+        playSchoolBellChime();
+      }
+    } else {
+      timerText.classList.remove('finished');
+    }
+  }
+
+  // ─── ACTUALIZAR NOW PLAYING BAR ───
+  function updateNowPlayingUI() {
+    const container = document.getElementById('nowPlayingContainer');
+    const cover = document.getElementById('npCover');
+    const badge = document.getElementById('npBadge');
+    const icon = document.getElementById('npSourceIcon');
+    const sourceText = document.getElementById('npSourceText');
+    const title = document.getElementById('npTitle');
+    const sub = document.getElementById('npSubtitle');
+
+    // 1. Prioridad: Spotify si está sonando
+    if (currentSpotify && currentSpotify.is_playing && currentSpotify.title) {
+      container.classList.add('visible');
+      badge.className = 'np-badge spotify';
+      icon.textContent = '🎵';
+      sourceText.textContent = 'SPOTIFY';
+      title.textContent = currentSpotify.title;
+      sub.textContent = currentSpotify.artist || 'Música en PC';
+      cover.src = currentSpotify.cover_url || 'https://via.placeholder.com/80/1DB954/FFFFFF?text=Spotify';
+      cover.style.display = 'block';
+      return;
+    }
+
+    // 2. Prioridad: Video de YouTube del Viewer si está reproduciéndose
+    if (currentYouTube && currentYouTube.is_playing && currentYouTube.title) {
+      container.classList.add('visible');
+      badge.className = 'np-badge youtube';
+      icon.textContent = '▶️';
+      sourceText.textContent = 'FONDO / YOUTUBE';
+      title.textContent = currentYouTube.title;
+      sub.textContent = 'YouTube Stream';
+      if (currentYouTube.video_id) {
+        cover.src = `https://img.youtube.com/vi/${currentYouTube.video_id}/mqdefault.jpg`;
+        cover.style.display = 'block';
+      } else {
+        cover.style.display = 'none';
+      }
+      return;
+    }
+
+    // 3. Silencio / Detenido: ocultar barrita
+    container.classList.remove('visible');
+  }
+
+  // ─── CONEXIÓN A SERVER-SENT EVENTS (SSE) ───
+  function initSSE() {
+    const evtSource = new EventSource('/api/events');
+
+    evtSource.addEventListener('timer_update', (e) => {
+      try { updateTimerUI(JSON.parse(e.data).data); } catch(err) {}
+    });
+
+    evtSource.addEventListener('timer_finished', (e) => {
+      try {
+        const d = JSON.parse(e.data).data;
+        updateTimerUI(d);
+        playSchoolBellChime();
+      } catch(err) {}
+    });
+
+    evtSource.addEventListener('spotify_state', (e) => {
+      try {
+        currentSpotify = JSON.parse(e.data).data || {};
+        updateNowPlayingUI();
+      } catch(err) {}
+    });
+
+    evtSource.addEventListener('state', (e) => {
+      try {
+        const d = JSON.parse(e.data).data || {};
+        currentYouTube.is_playing = (d.status === 'playing');
+        if (d.title) currentYouTube.title = d.title;
+        if (d.videoId) currentYouTube.video_id = d.videoId;
+        updateNowPlayingUI();
+      } catch(err) {}
+    });
+
+    evtSource.addEventListener('play', (e) => {
+      try {
+        const d = JSON.parse(e.data).data || {};
+        currentYouTube.is_playing = true;
+        if (d.title) currentYouTube.title = d.title;
+        if (d.videoId) currentYouTube.video_id = d.videoId;
+        updateNowPlayingUI();
+      } catch(err) {}
+    });
+
+    evtSource.addEventListener('pause', () => {
+      currentYouTube.is_playing = false;
+      updateNowPlayingUI();
+    });
+
+    evtSource.onerror = () => {
+      // Reintentar en 3 segundos
+      setTimeout(initSSE, 3000);
+    };
+  }
+
+  // Carga de estado inicial por polling
+  async function fetchInitialState() {
+    try {
+      const resT = await fetch('/api/timer/status');
+      const dataT = await resT.json();
+      updateTimerUI(dataT);
+    } catch(e) {}
+
+    try {
+      const resS = await fetch('/api/state');
+      const dataS = await resS.json();
+      currentYouTube.is_playing = (dataS.status === 'playing');
+      currentYouTube.title = dataS.title || '';
+      currentYouTube.video_id = dataS.videoId || '';
+      updateNowPlayingUI();
+    } catch(e) {}
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    fetchInitialState();
+    initSSE();
+  });
+</script>
+
+</body>
+</html>
