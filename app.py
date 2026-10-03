@@ -289,6 +289,9 @@ def launch_native_window(url: str, title: str = "YouTube Stream Controller"):
         webbrowser.open(url)
         return
 
+    # Configurar nombre de programa para que coincida con .desktop y cargue el icono
+    GLib.set_prgname("youtube-stream-controller")
+
     # Crear ventana GTK
     window = Gtk.Window(title=title)
     window.set_default_size(1220, 840)
