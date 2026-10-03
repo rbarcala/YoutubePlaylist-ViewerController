@@ -902,6 +902,15 @@
     <!-- Grid de Botones -->
     <div id="sbLoadingIndicator" style="text-align:center; padding:30px; color:var(--muted); display:none;">Cargando sonidos de MyInstants…</div>
     <div class="soundboard-grid" id="soundboardGrid"></div>
+
+    <!-- Indicador de carga inferior para scroll infinito -->
+    <div id="sbLoadingMore" style="text-align:center; padding:20px 0; color:var(--accent); font-size:12px; display:none;">
+      ⏳ Cargando más sonidos al deslizar…
+    </div>
+    <div style="text-align:center; margin-top:14px; margin-bottom:10px;">
+      <button class="btn" id="sbBtnLoadMore" onclick="loadMoreSounds()" style="display:none; margin:0 auto;">⬇ Cargar más sonidos</button>
+    </div>
+    <div id="sbScrollSentinel" style="height:20px; width:100%;"></div>
   </div>
 </div>
 
@@ -1465,14 +1474,22 @@ function refreshLiveStream() {
 
 // ─── 6. BOTONERA / SOUNDBOARD (MYINSTANTS) LOGIC ───
 let currentSbTab = 'arg';
+let currentSbPage = 1;
+let sbHasMore = true;
+let sbIsLoadingMore = false;
+let sbAllLoadedSounds = [];
 let savedFavorites = [];
 let sbVolume = 80;
 let playingResetTimer = null;
+let sbIntersectionObserver = null;
 
 async function loadSoundboardView() {
   updateSoundboardAccountDisplay();
   await loadSavedFavoritesList();
-  loadSoundboardTab(currentSbTab);
+  currentSbPage = 1;
+  sbHasMore = true;
+  loadSoundboardTab(currentSbTab, 1);
+  setupSoundboardInfiniteScroll();
 }
 
 async function updateSoundboardAccountDisplay() {
@@ -1505,6 +1522,10 @@ async function loadSavedFavoritesList() {
 
 function switchSoundboardTab(tab) {
   currentSbTab = tab;
+  currentSbPage = 1;
+  sbHasMore = true;
+  sbAllLoadedSounds = [];
+
   document.querySelectorAll('.sb-tab-btn').forEach(btn => btn.classList.remove('active'));
   const activeBtn = document.getElementById('sbTab-' + tab);
   if (activeBtn) activeBtn.classList.add('active');
@@ -1519,42 +1540,103 @@ function switchSoundboardTab(tab) {
       return;
     }
   }
-  loadSoundboardTab(tab);
+  loadSoundboardTab(tab, 1);
 }
 
-async function loadSoundboardTab(tab) {
+async function loadSoundboardTab(tab, page = 1) {
   const loading = document.getElementById('sbLoadingIndicator');
+  const loadingMore = document.getElementById('sbLoadingMore');
+  const btnMore = document.getElementById('sbBtnLoadMore');
   const grid = document.getElementById('soundboardGrid');
-  loading.style.display = 'block';
-  grid.innerHTML = '';
+
+  if (page === 1) {
+    loading.style.display = 'block';
+    if (btnMore) btnMore.style.display = 'none';
+    grid.innerHTML = '';
+  } else {
+    if (loadingMore) loadingMore.style.display = 'block';
+  }
 
   try {
     let sounds = [];
-    if (['arg', 'latam', 'usa', 'global'].includes(tab)) {
-      const res = await fetch('/api/soundboard/regional?region=' + tab);
-      sounds = await res.json();
+    if (['arg', 'ar', 'latam', 'usa', 'us', 'global'].includes(tab)) {
+      const regCode = (tab === 'arg') ? 'ar' : (tab === 'usa' ? 'us' : tab);
+      const res = await fetch(`/api/soundboard/regional?region=${regCode}&page=${page}`);
+      const data = await res.json();
+      sounds = Array.isArray(data) ? data : (data.sounds || []);
+      sbHasMore = Boolean(data.has_more !== undefined ? data.has_more : (sounds.length >= 20));
     } else if (tab === 'favorites') {
       await loadSavedFavoritesList();
       sounds = savedFavorites;
+      sbHasMore = false;
     } else if (tab === 'search') {
       const q = document.getElementById('sbSearchInput').value.trim();
       if (q) {
-        const res = await fetch('/api/soundboard/search?q=' + encodeURIComponent(q));
-        sounds = await res.json();
+        const res = await fetch(`/api/soundboard/search?q=${encodeURIComponent(q)}&page=${page}`);
+        const data = await res.json();
+        sounds = Array.isArray(data) ? data : (data.sounds || []);
+        sbHasMore = Boolean(data.has_more !== undefined ? data.has_more : (sounds.length >= 20));
       } else {
         loading.style.display = 'none';
+        if (loadingMore) loadingMore.style.display = 'none';
         grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted);">Escribe en el buscador de arriba para buscar sonidos en MyInstants.</div>';
         return;
       }
     }
 
     loading.style.display = 'none';
-    renderSoundboardGrid(sounds);
+    if (loadingMore) loadingMore.style.display = 'none';
+
+    if (page === 1) {
+      sbAllLoadedSounds = sounds;
+      renderSoundboardGrid(sounds, false);
+    } else {
+      sbAllLoadedSounds = sbAllLoadedSounds.concat(sounds);
+      renderSoundboardGrid(sounds, true);
+    }
+
+    if (btnMore) {
+      btnMore.style.display = (sbHasMore && tab !== 'favorites') ? 'inline-flex' : 'none';
+    }
   } catch(e) {
     loading.style.display = 'none';
-    grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--accent2);">Error al cargar sonidos. Revisa tu conexión.</div>';
+    if (loadingMore) loadingMore.style.display = 'none';
+    if (page === 1) {
+      grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--accent2);">Error al cargar sonidos. Revisa tu conexión con MyInstants.</div>';
+    }
   }
 }
+
+async function loadMoreSounds() {
+  if (!sbHasMore || sbIsLoadingMore || currentSbTab === 'favorites') return;
+  sbIsLoadingMore = true;
+  currentSbPage++;
+  await loadSoundboardTab(currentSbTab, currentSbPage);
+  sbIsLoadingMore = false;
+}
+
+function setupSoundboardInfiniteScroll() {
+  if (sbIntersectionObserver) {
+    sbIntersectionObserver.disconnect();
+  }
+  const sentinel = document.getElementById('sbScrollSentinel');
+  if (!sentinel) return;
+
+  sbIntersectionObserver = new IntersectionObserver((entries) => {
+    if (entries[0] && entries[0].isIntersecting && sbHasMore && !sbIsLoadingMore && currentView === 'soundboard') {
+      loadMoreSounds();
+    }
+  }, { rootMargin: '400px' });
+
+  sbIntersectionObserver.observe(sentinel);
+}
+
+window.addEventListener('scroll', () => {
+  if (currentView !== 'soundboard' || !sbHasMore || sbIsLoadingMore || currentSbTab === 'favorites') return;
+  if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 600)) {
+    loadMoreSounds();
+  }
+}, { passive: true });
 
 function executeSoundboardSearch() {
   const q = document.getElementById('sbSearchInput').value.trim();
@@ -1563,10 +1645,12 @@ function executeSoundboardSearch() {
     return;
   }
   currentSbTab = 'search';
+  currentSbPage = 1;
+  sbHasMore = true;
   document.querySelectorAll('.sb-tab-btn').forEach(btn => btn.classList.remove('active'));
   const activeBtn = document.getElementById('sbTab-search');
   if (activeBtn) activeBtn.classList.add('active');
-  loadSoundboardTab('search');
+  loadSoundboardTab('search', 1);
 }
 
 function clearSoundboardSearch() {
@@ -1582,14 +1666,14 @@ function isSoundFavorite(sound) {
   );
 }
 
-function renderSoundboardGrid(sounds) {
+function renderSoundboardGrid(sounds, append = false) {
   const grid = document.getElementById('soundboardGrid');
-  if (!sounds || sounds.length === 0) {
+  if (!append && (!sounds || sounds.length === 0)) {
     grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted);">No se encontraron sonidos en esta sección.</div>';
     return;
   }
 
-  grid.innerHTML = sounds.map(s => {
+  const html = sounds.map(s => {
     const isFav = isSoundFavorite(s);
     const safeTitle = (s.title || '').replace(/"/g, '&quot;');
     const safeMp3 = (s.mp3 || '').replace(/"/g, '&quot;');
@@ -1608,6 +1692,12 @@ function renderSoundboardGrid(sounds) {
       </div>
     `;
   }).join('');
+
+  if (append) {
+    grid.insertAdjacentHTML('beforeend', html);
+  } else {
+    grid.innerHTML = html;
+  }
 }
 
 async function triggerPlaySound(mp3Url, title, cardEl) {

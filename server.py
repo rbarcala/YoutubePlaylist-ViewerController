@@ -448,15 +448,23 @@ def youtube_live():
 @app.route('/api/soundboard/regional')
 @app.route('/api/soundboard/trending')
 def soundboard_regional():
-    """Devuelve sonidos por región: arg (Argentina), latam, usa, global."""
-    region = request.args.get('region') or request.args.get('mode') or 'arg'
-    return jsonify(soundboard_mgr.get_regional(region))
+    """Devuelve sonidos por región: ar (Argentina), latam, us, global con paginación."""
+    region = request.args.get('region') or request.args.get('mode') or 'ar'
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (ValueError, TypeError):
+        page = 1
+    return jsonify(soundboard_mgr.get_regional(region, page))
 
 @app.route('/api/soundboard/search')
 def soundboard_search():
-    """Busca sonidos en MyInstants."""
+    """Busca sonidos en MyInstants con paginación."""
     q = request.args.get('q', '').strip()
-    return jsonify(soundboard_mgr.search(q))
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (ValueError, TypeError):
+        page = 1
+    return jsonify(soundboard_mgr.search(q, page))
 
 @app.route('/api/soundboard/favorites', methods=['GET', 'POST'])
 def soundboard_favorites():

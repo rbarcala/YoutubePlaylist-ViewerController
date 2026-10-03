@@ -1,8 +1,8 @@
 """
-Módulo de Gestión de Botonera (Soundboard) integrado con MyInstants.
-Permite buscar sonidos, explorar los rankings regionales (Argentina, LATAM, USA, Global),
-sincronizar favoritos de cuenta MyInstants (o inicio con Google), guardar favoritos locales
-y reproducir el audio directamente en la computadora anfitriona (Linux PipeWire/ALSA).
+Módulo de Gestión de Botonera (Soundboard) integrado 100% en vivo con MyInstants.
+Sin listas fijas ni URLs predefinidas: busca y extrae en tiempo real los sonidos
+directamente desde MyInstants para cada país o región (Argentina, LATAM, USA, Global)
+con soporte completo para paginación y scroll infinito (más y más sonidos al deslizar).
 """
 
 import os
@@ -15,318 +15,26 @@ import subprocess
 import threading
 from pathlib import Path
 
-# ─── TOP CURADO POR REGIONES (DISPONIBLES ONLINE Y OFFLINE) ───
-
-TOP_ARG_SOUNDS = [
-    {
-        "id": "sapeee",
-        "title": "¡SAPEEEE! - El Bananero",
-        "mp3": "https://www.myinstants.com/media/sounds/sapeee.mp3",
-        "color": "#0099FF",
-        "region": "arg"
-    },
-    {
-        "id": "ricardo-fort-miameee",
-        "title": "Ricardo Fort - ¡MIAMEEE!",
-        "mp3": "https://www.myinstants.com/media/sounds/ricardo-fort-miameee.mp3",
-        "color": "#FFD700",
-        "region": "arg"
-    },
-    {
-        "id": "ricardo-fort-mamaaaa",
-        "title": "Ricardo Fort - Mamá cortaste toda la loz",
-        "mp3": "https://www.myinstants.com/media/sounds/ricardo-fort-mamaaaa.mp3",
-        "color": "#FF9500",
-        "region": "arg"
-    },
-    {
-        "id": "hermosa-manana-verdad",
-        "title": "Francella - Hermosa mañana, ¿verdad?",
-        "mp3": "https://www.myinstants.com/media/sounds/hermosa-manana-verdad.mp3",
-        "color": "#34C759",
-        "region": "arg"
-    },
-    {
-        "id": "arrepentirse-samid",
-        "title": "Samid - Usted se tiene que arrepentir",
-        "mp3": "https://www.myinstants.com/media/sounds/arrepentirse-samid.mp3",
-        "color": "#FF2D55",
-        "region": "arg"
-    },
-    {
-        "id": "a-comerla",
-        "title": "Francella - ¡A comerla!",
-        "mp3": "https://www.myinstants.com/media/sounds/a-comerla.mp3",
-        "color": "#AF52DE",
-        "region": "arg"
-    },
-    {
-        "id": "maradona-eeee",
-        "title": "Diego Maradona - Eeeeeeeee",
-        "mp3": "https://www.myinstants.com/media/sounds/maradona-eeee.mp3",
-        "color": "#75AADB",
-        "region": "arg"
-    },
-    {
-        "id": "muchachos-arg",
-        "title": "Muchachos - ¡Ahora nos volvimo a ilusionar!",
-        "mp3": "https://www.myinstants.com/media/sounds/muchachos-ahora-nos-volvimo-a-ilusionar.mp3",
-        "color": "#007AFF",
-        "region": "arg"
-    },
-    {
-        "id": "nashe_2",
-        "title": "Coscu - ¡NASHEEE!",
-        "mp3": "https://www.myinstants.com/media/sounds/nashe_2.mp3",
-        "color": "#FF3B30",
-        "region": "arg"
-    },
-    {
-        "id": "boee",
-        "title": "Boee",
-        "mp3": "https://www.myinstants.com/media/sounds/boee.mp3",
-        "color": "#30B0C7",
-        "region": "arg"
-    },
-    {
-        "id": "buenas-tardes-grupo",
-        "title": "Buenas tardes grupo",
-        "mp3": "https://www.myinstants.com/media/sounds/buenas-tardes-grupo.mp3",
-        "color": "#A3FFB8",
-        "region": "arg"
-    },
-    {
-        "id": "alarma-de-auron-play",
-        "title": "Alarma Auronplay",
-        "mp3": "https://www.myinstants.com/media/sounds/alarma-de-auron-play.mp3",
-        "color": "#2EFF85",
-        "region": "arg"
-    }
-]
-
-TOP_LATAM_SOUNDS = [
-    {
-        "id": "gato-riendo",
-        "title": "Gato Riendo",
-        "mp3": "https://www.myinstants.com/media/sounds/gato-riendo_6bOc2ur.mp3",
-        "color": "#FF9500",
-        "region": "latam"
-    },
-    {
-        "id": "eso-tilin_2",
-        "title": "¡Eso Tilín! ¡Vaya Tilín!",
-        "mp3": "https://www.myinstants.com/media/sounds/eso-tilin_2.mp3",
-        "color": "#FF2D55",
-        "region": "latam"
-    },
-    {
-        "id": "ay-miguel-miguel",
-        "title": "¡Ay Miguel, Miguel!",
-        "mp3": "https://www.myinstants.com/media/sounds/ay-miguel-miguel.mp3",
-        "color": "#AF52DE",
-        "region": "latam"
-    },
-    {
-        "id": "el-pepe",
-        "title": "El Pepe",
-        "mp3": "https://www.myinstants.com/media/sounds/el-pepe_yCsqW8h.mp3",
-        "color": "#007AFF",
-        "region": "latam"
-    },
-    {
-        "id": "potasio",
-        "title": "Con arroz blanco... Potaxio",
-        "mp3": "https://www.myinstants.com/media/sounds/potasio.mp3",
-        "color": "#FFCC00",
-        "region": "latam"
-    },
-    {
-        "id": "se-va-a-caer",
-        "title": "¡Se va a caer, se cayó!",
-        "mp3": "https://www.myinstants.com/media/sounds/se-va-a-caer.mp3",
-        "color": "#FF3B30",
-        "region": "latam"
-    },
-    {
-        "id": "1500-es-hora-y-media",
-        "title": "1500 es hora y media",
-        "mp3": "https://www.myinstants.com/media/sounds/1500-es-hora-y-media.mp3",
-        "color": "#34C759",
-        "region": "latam"
-    },
-    {
-        "id": "duermete-alv-ya",
-        "title": "Duérmete alv ya",
-        "mp3": "https://www.myinstants.com/media/sounds/duermete-alv-ya.mp3",
-        "color": "#5856D6",
-        "region": "latam"
-    },
-    {
-        "id": "pi-pi-pi-el-chavo-del-8",
-        "title": "El Chavo del 8 (Pipipi)",
-        "mp3": "https://www.myinstants.com/media/sounds/pi-pi-pi-el-chavo-del-8.mp3",
-        "color": "#FF9500",
-        "region": "latam"
-    },
-    {
-        "id": "oh-no-no-no-laugh",
-        "title": "Risa Oh No No No",
-        "mp3": "https://www.myinstants.com/media/sounds/oh-no-no-no-laugh.mp3",
-        "color": "#FFD700",
-        "region": "latam"
-    }
-]
-
-TOP_USA_SOUNDS = [
-    {
-        "id": "vine-boom",
-        "title": "Vine Boom Sound",
-        "mp3": "https://www.myinstants.com/media/sounds/vine-boom.mp3",
-        "color": "#FF3B30",
-        "region": "usa"
-    },
-    {
-        "id": "rizz-sound-effect",
-        "title": "Rizz Sound Effect",
-        "mp3": "https://www.myinstants.com/media/sounds/rizz-sound-effect.mp3",
-        "color": "#AF52DE",
-        "region": "usa"
-    },
-    {
-        "id": "emotional-damage-meme",
-        "title": "Emotional Damage",
-        "mp3": "https://www.myinstants.com/media/sounds/emotional-damage-meme.mp3",
-        "color": "#FF2D55",
-        "region": "usa"
-    },
-    {
-        "id": "movie_1",
-        "title": "Bruh",
-        "mp3": "https://www.myinstants.com/media/sounds/movie_1.mp3",
-        "color": "#FF9500",
-        "region": "usa"
-    },
-    {
-        "id": "fbi-open-up-sfx",
-        "title": "FBI Open Up!",
-        "mp3": "https://www.myinstants.com/media/sounds/fbi-open-up-sfx.mp3",
-        "color": "#007AFF",
-        "region": "usa"
-    },
-    {
-        "id": "what-the-dog-doin",
-        "title": "What the Dog Doin",
-        "mp3": "https://www.myinstants.com/media/sounds/what-the-dog-doin.mp3",
-        "color": "#FFCC00",
-        "region": "usa"
-    },
-    {
-        "id": "mlg-airhorn",
-        "title": "MLG Airhorn",
-        "mp3": "https://www.myinstants.com/media/sounds/mlg-airhorn.mp3",
-        "color": "#FF3B30",
-        "region": "usa"
-    },
-    {
-        "id": "roblox-death-sound_1",
-        "title": "Roblox OOF",
-        "mp3": "https://www.myinstants.com/media/sounds/roblox-death-sound_1.mp3",
-        "color": "#34C759",
-        "region": "usa"
-    },
-    {
-        "id": "no-god-please-no-noooooooooo",
-        "title": "No God Please No!",
-        "mp3": "https://www.myinstants.com/media/sounds/no-god-please-no-noooooooooo.mp3",
-        "color": "#FF2D55",
-        "region": "usa"
-    },
-    {
-        "id": "can-you-feel-my-heart",
-        "title": "GigaChad Theme",
-        "mp3": "https://www.myinstants.com/media/sounds/can-you-feel-my-heart.mp3",
-        "color": "#5856D6",
-        "region": "usa"
-    }
-]
-
-TOP_GLOBAL_SOUNDS = [
-    {
-        "id": "discord-notification",
-        "title": "Discord Notification",
-        "mp3": "https://www.myinstants.com/media/sounds/discord-notification.mp3",
-        "color": "#5865F2",
-        "region": "global"
-    },
-    {
-        "id": "ba-dum-tss",
-        "title": "Ba Dum Tss",
-        "mp3": "https://www.myinstants.com/media/sounds/ba-dum-tss.mp3",
-        "color": "#FFCC00",
-        "region": "global"
-    },
-    {
-        "id": "sad-violin",
-        "title": "Sad Violin",
-        "mp3": "https://www.myinstants.com/media/sounds/sad-violin.mp3",
-        "color": "#5856D6",
-        "region": "global"
-    },
-    {
-        "id": "aplausos_2",
-        "title": "Aplausos / Cheer",
-        "mp3": "https://www.myinstants.com/media/sounds/aplausos_2.mp3",
-        "color": "#34C759",
-        "region": "global"
-    },
-    {
-        "id": "sad-trombone",
-        "title": "Sad Trombone (Wah Wah)",
-        "mp3": "https://www.myinstants.com/media/sounds/sad-trombone.mp3",
-        "color": "#FF9500",
-        "region": "global"
-    },
-    {
-        "id": "ding-sound-effect_2",
-        "title": "Ding Campana",
-        "mp3": "https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3",
-        "color": "#34C759",
-        "region": "global"
-    },
-    {
-        "id": "anime-wow-sound-effect",
-        "title": "Anime WOW!",
-        "mp3": "https://www.myinstants.com/media/sounds/anime-wow-sound-effect.mp3",
-        "color": "#AF52DE",
-        "region": "global"
-    },
-    {
-        "id": "windows-xp-error",
-        "title": "Windows XP Error",
-        "mp3": "https://www.myinstants.com/media/sounds/windows-xp-error.mp3",
-        "color": "#FF2D55",
-        "region": "global"
-    },
-    {
-        "id": "x-files-theme-song-copy",
-        "title": "Illuminati / X-Files",
-        "mp3": "https://www.myinstants.com/media/sounds/x-files-theme-song-copy.mp3",
-        "color": "#007AFF",
-        "region": "global"
-    },
-    {
-        "id": "cricket",
-        "title": "Grillos / Silencio",
-        "mp3": "https://www.myinstants.com/media/sounds/cricket.mp3",
-        "color": "#30B0C7",
-        "region": "global"
-    }
-]
-
 VIBRANT_PALETTE = [
     "#FF0055", "#007AFF", "#34C759", "#FF9500", "#AF52DE",
     "#FFCC00", "#5856D6", "#FF2D55", "#00C7BE", "#32ADE6"
 ]
+
+# Códigos de países y regiones soportados en MyInstants
+REGION_URL_TEMPLATES = {
+    "ar": "https://www.myinstants.com/en/index/ar/?page={page}",
+    "arg": "https://www.myinstants.com/en/index/ar/?page={page}",
+    "latam": "https://www.myinstants.com/en/index/mx/?page={page}",
+    "mx": "https://www.myinstants.com/en/index/mx/?page={page}",
+    "cl": "https://www.myinstants.com/en/index/cl/?page={page}",
+    "co": "https://www.myinstants.com/en/index/co/?page={page}",
+    "pe": "https://www.myinstants.com/en/index/pe/?page={page}",
+    "es": "https://www.myinstants.com/en/index/es/?page={page}",
+    "us": "https://www.myinstants.com/en/index/us/?page={page}",
+    "usa": "https://www.myinstants.com/en/index/us/?page={page}",
+    "global": "https://www.myinstants.com/en/best_of_all_time/?page={page}",
+    "trending": "https://www.myinstants.com/en/trending/?page={page}"
+}
 
 class SoundboardManager:
     def __init__(self, config_loader, config_saver):
@@ -334,7 +42,7 @@ class SoundboardManager:
         self.save_config = config_saver
         self.active_processes = []
         self.lock = threading.Lock()
-        
+
         # Directorio de caché local para reproducción instantánea con 0 latencia
         self.cache_dir = Path.home() / ".cache" / "youtube-stream-controller" / "sounds"
         try:
@@ -357,7 +65,7 @@ class SoundboardManager:
         a través de ffplay directamente en el servidor Linux.
         """
         if not mp3_url:
-            return {"success": False, "error": "No mp3 URL provided"}
+            return {"success": False, "error": "No se proporcionó URL de MP3"}
 
         target_file = self._resolve_local_audio(mp3_url)
 
@@ -424,29 +132,30 @@ class SoundboardManager:
         if os.path.exists(mp3_url):
             return mp3_url
 
-        filename = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', mp3_url.split('/')[-1])
-        if not filename.endswith('.mp3'):
-            filename += '.mp3'
+        # Generar nombre de archivo único y seguro
+        clean_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', mp3_url.split('/')[-1])
+        if not clean_name.endswith('.mp3'):
+            clean_name += '.mp3'
 
-        local_path = self.cache_dir / filename
+        local_path = self.cache_dir / clean_name
         if local_path.exists() and local_path.stat().st_size > 1024:
             return str(local_path)
 
         try:
             req = urllib.request.Request(mp3_url, headers=self._headers)
-            with urllib.request.urlopen(req, timeout=6) as resp:
+            with urllib.request.urlopen(req, timeout=8) as resp:
                 data = resp.read()
                 with open(local_path, "wb") as f:
                     f.write(data)
             return str(local_path)
         except Exception as e:
-            print(f"[soundboard] Advertencia: No se pudo descargar a caché ({e}), pasando URL directa.")
+            print(f"[soundboard] Advertencia descargando a caché: {e}. Pasando URL directa.")
             return mp3_url
 
     # ─── PARSING DE MYINSTANTS ───
 
     def _parse_instants_html(self, html: str) -> list[dict]:
-        """Extrae botones de sonido desde el HTML de MyInstants."""
+        """Extrae botones de sonido 100% reales desde el HTML de MyInstants."""
         sounds = []
         blocks = html.split('<div class="instant">')[1:]
         color_idx = 0
@@ -484,78 +193,67 @@ class SoundboardManager:
 
         return sounds
 
-    # ─── RANKINGS REGIONALES (ARG, LATAM, USA, GLOBAL) ───
+    # ─── BÚSQUEDA Y RANKINGS EN VIVO CON PAGINACIÓN ───
 
-    def get_regional(self, region: str = "arg") -> list[dict]:
+    def get_regional(self, region: str = "ar", page: int = 1) -> dict:
         """
-        Devuelve el TOP de sonidos para la región especificada:
-        - arg: Top Argentina (en vivo de MyInstants /index/ar/ + clásicos meme argentinos)
-        - latam: Top Latinoamérica (en vivo /index/mx/ + clásicos meme latam)
-        - usa: Top Estados Unidos (/index/us/ + memes virales USA)
-        - global: Top Mundial (/best_of_all_time/ + clásicos de stream)
+        Obtiene los sonidos en vivo directamente desde MyInstants para el país o región.
+        Soporta paginación: page 1, 2, 3, etc. (36 sonidos por página).
         """
-        region_clean = (region or "arg").lower().strip()
-
-        region_urls = {
-            "arg": "https://www.myinstants.com/en/index/ar/",
-            "latam": "https://www.myinstants.com/en/index/mx/",
-            "usa": "https://www.myinstants.com/en/index/us/",
-            "global": "https://www.myinstants.com/en/best_of_all_time/"
-        }
-
-        fallback_maps = {
-            "arg": TOP_ARG_SOUNDS,
-            "latam": TOP_LATAM_SOUNDS,
-            "usa": TOP_USA_SOUNDS,
-            "global": TOP_GLOBAL_SOUNDS
-        }
-
-        curated = fallback_maps.get(region_clean, TOP_GLOBAL_SOUNDS)
-        target_url = region_urls.get(region_clean, region_urls["global"])
+        reg = (region or "ar").lower().strip()
+        template = REGION_URL_TEMPLATES.get(reg, REGION_URL_TEMPLATES["ar"])
+        target_url = template.format(page=max(1, int(page)))
 
         try:
             req = urllib.request.Request(target_url, headers=self._headers)
-            with urllib.request.urlopen(req, timeout=5) as res:
+            with urllib.request.urlopen(req, timeout=6) as res:
                 html = res.read().decode('utf-8', errors='ignore')
-                live_sounds = self._parse_instants_html(html)
-                if live_sounds:
-                    # Mezclar: poner primero los clásicos más icónicos y luego las tendencias en vivo sin duplicados
-                    seen_mp3 = {s["mp3"] for s in curated}
-                    merged = list(curated)
-                    for s in live_sounds:
-                        if s["mp3"] not in seen_mp3:
-                            merged.append(s)
-                            seen_mp3.add(s["mp3"])
-                    return merged
-        except Exception as e:
-            print(f"[soundboard] Advertencia cargando región '{region_clean}': {e}")
-
-        return curated
-
-    def search(self, query: str) -> list[dict]:
-        """Busca sonidos en MyInstants con la consulta del usuario."""
-        query = query.strip()
-        if not query:
-            return self.get_regional("arg")
-
-        url = f"https://www.myinstants.com/en/search/?name={urllib.parse.quote(query)}"
-        try:
-            req = urllib.request.Request(url, headers=self._headers)
-            with urllib.request.urlopen(req, timeout=5) as res:
-                html = res.read().decode('utf-8', errors='ignore')
-                results = self._parse_instants_html(html)
-                return results
+                sounds = self._parse_instants_html(html)
+                return {
+                    "sounds": sounds,
+                    "page": int(page),
+                    "has_more": len(sounds) >= 20,
+                    "region": reg
+                }
         except urllib.error.HTTPError as e:
             if e.code == 404:
-                return []
-            print(f"[soundboard] HTTPError buscando '{query}': {e}")
+                return {"sounds": [], "page": int(page), "has_more": False, "region": reg}
+            print(f"[soundboard] HTTPError cargando región '{reg}' pág {page}: {e}")
         except Exception as e:
-            print(f"[soundboard] Error buscando '{query}': {e}")
+            print(f"[soundboard] Error cargando región '{reg}' pág {page}: {e}")
 
-        # Fallback local de búsqueda sobre todos los predefinidos
-        q_lower = query.lower()
-        all_curated = TOP_ARG_SOUNDS + TOP_LATAM_SOUNDS + TOP_USA_SOUNDS + TOP_GLOBAL_SOUNDS
-        return [s for s in all_curated if q_lower in s["title"].lower()]
+        return {"sounds": [], "page": int(page), "has_more": False, "region": reg}
+
+    def search(self, query: str, page: int = 1) -> dict:
+        """
+        Busca sonidos en vivo en MyInstants con la consulta del usuario y paginación.
+        """
+        query = query.strip()
+        if not query:
+            return self.get_regional("ar", page)
+
+        p = max(1, int(page))
+        url = f"https://www.myinstants.com/en/search/?name={urllib.parse.quote(query)}&page={p}"
+        try:
+            req = urllib.request.Request(url, headers=self._headers)
+            with urllib.request.urlopen(req, timeout=6) as res:
+                html = res.read().decode('utf-8', errors='ignore')
+                sounds = self._parse_instants_html(html)
+                return {
+                    "sounds": sounds,
+                    "page": p,
+                    "has_more": len(sounds) >= 20,
+                    "query": query
+                }
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                # MyInstants devuelve 404 cuando una búsqueda no tiene resultados o se llegó al final
+                return {"sounds": [], "page": p, "has_more": False, "query": query}
+            print(f"[soundboard] HTTPError buscando '{query}' pág {p}: {e}")
+        except Exception as e:
+            print(f"[soundboard] Error buscando '{query}' pág {p}: {e}")
+
+        return {"sounds": [], "page": p, "has_more": False, "query": query}
 
     # ─── CUENTA DE USUARIO Y FAVORITOS ───
 
@@ -575,7 +273,7 @@ class SoundboardManager:
         url = f"https://www.myinstants.com/en/profile/{urllib.parse.quote(user)}/"
         try:
             req = urllib.request.Request(url, headers=self._headers)
-            with urllib.request.urlopen(req, timeout=5) as res:
+            with urllib.request.urlopen(req, timeout=6) as res:
                 html = res.read().decode('utf-8', errors='ignore')
                 return self._parse_instants_html(html)
         except Exception as e:
@@ -585,10 +283,7 @@ class SoundboardManager:
     def get_saved_favorites(self) -> list[dict]:
         """Devuelve la lista persistida de favoritos en config.json."""
         cfg = self.load_config()
-        favs = cfg.get("soundboard_favorites", [])
-        if not favs:
-            return TOP_ARG_SOUNDS[:6] + TOP_GLOBAL_SOUNDS[:6]
-        return favs
+        return cfg.get("soundboard_favorites", [])
 
     def add_favorite(self, sound: dict) -> list[dict]:
         """Agrega un sonido a la lista de favoritos persistida."""
