@@ -4,14 +4,15 @@ APP_NAME := youtube-stream-controller
 VERSION := 1.0.0
 PREFIX ?= $(HOME)/.local
 
-.PHONY: help install install-deb uninstall run run-web viewer release clean
+.PHONY: help install install-deb uninstall run run-web viewer release clean setup-obs
 
 help:
 	@echo "================================================================="
 	@echo "               YouTube Stream Controller — Makefile              "
 	@echo "================================================================="
 	@echo "Comandos disponibles:"
-	@echo "  make install       -> Instala la app en Ubuntu (~/.local) y buscador del OS"
+	@echo "  make install       -> Instala la app en Ubuntu (~/.local) y vincula OBS"
+	@echo "  make setup-obs     -> Vincula OBS (WebSocket) e inyecta la capa de Overlay"
 	@echo "  make run           -> Inicia la aplicación Controller nativa de escritorio"
 	@echo "  make run-web       -> Inicia el Controller en modo navegador web"
 	@echo "  make viewer        -> Abre directamente la pantalla de fondo (Viewer)"
@@ -51,10 +52,16 @@ install:
 	@if command -v gtk-update-icon-cache >/dev/null 2>&1; then \
 		gtk-update-icon-cache -q -t -f $(PREFIX)/share/icons/hicolor || true; \
 	fi
+	@echo "[install] Vinculando automáticamente con OBS Studio y agregando capa de Overlay..."
+	@python3 scripts/setup_obs.py || true
 	@echo "✓ Instalación completada con éxito."
 	@echo "✓ Para asegurar que el sistema tenga todos los paquetes, ejecuta en la terminal:"
 	@echo "    sudo apt install -y python3-flask yt-dlp python3-requests"
 	@echo "✓ Ahora puedes abrir la aplicación buscando 'YouTube Stream Controller' en el buscador de Ubuntu (tecla Super/Windows)!"
+
+# Configuración y vinculación automática con OBS Studio
+setup-obs:
+	@python3 scripts/setup_obs.py
 
 # Instalación del paquete Debian para todo el sistema
 install-deb: release

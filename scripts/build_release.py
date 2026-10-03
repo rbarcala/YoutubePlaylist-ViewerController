@@ -50,9 +50,11 @@ def build_deb():
         if src.exists():
             shutil.copy2(src, usr_share_app / f)
 
-    # Copiar carpetas assets y bin
+    # Copiar carpetas assets, bin y scripts
     shutil.copytree(BASE_DIR / "assets", usr_share_app / "assets", dirs_exist_ok=True)
     shutil.copytree(BASE_DIR / "bin", usr_share_app / "bin", dirs_exist_ok=True)
+    if (BASE_DIR / "scripts").exists():
+        shutil.copytree(BASE_DIR / "scripts", usr_share_app / "scripts", dirs_exist_ok=True)
 
     # Copiar extension
     if (BASE_DIR / "extension").exists():
@@ -102,6 +104,9 @@ if command -v update-desktop-database >/dev/null 2>&1; then
 fi
 if command -v gtk-update-icon-cache >/dev/null 2>&1; then
     gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
+fi
+if [ -n "$SUDO_USER" ] && [ -f /usr/share/youtube-stream-controller/scripts/setup_obs.py ]; then
+    su - "$SUDO_USER" -c "python3 /usr/share/youtube-stream-controller/scripts/setup_obs.py" || true
 fi
 exit 0
 """
