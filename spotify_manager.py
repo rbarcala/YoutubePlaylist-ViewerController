@@ -191,6 +191,23 @@ class SpotifyManager:
     def previous_track(self) -> dict:
         return self._api_request("me/player/previous", method="POST")
 
+    def seek(self, position_ms: int) -> dict:
+        """Adelanta o retrocede a un minuto/segundo específico de la canción."""
+        pos = max(0, int(position_ms))
+        res = self._api_request(f"me/player/seek?position_ms={pos}", method="PUT")
+        if "error" in res:
+            try:
+                import subprocess
+                subprocess.run([
+                    "gdbus", "call", "--session", "--dest", "org.mpris.MediaPlayer2.spotify",
+                    "--object-path", "/org/mpris/MediaPlayer2", "--method",
+                    "org.mpris.MediaPlayer2.Player.SetPosition",
+                    "/org/mpris/MediaPlayer2/TrackList/NoTrack", str(pos * 1000)
+                ], capture_output=True, timeout=1)
+            except Exception:
+                pass
+        return res
+
     def set_volume(self, volume_percent: int) -> dict:
         vol = max(0, min(100, int(volume_percent)))
         return self._api_request(f"me/player/volume?volume_percent={vol}", method="PUT")
@@ -213,7 +230,7 @@ class SpotifyManager:
                     "title": t.get("name"),
                     "artist": ", ".join([a.get("name", "") for a in t.get("artists", [])]),
                     "album": t.get("album", {}).get("name", ""),
-                    "thumb": t.get("album", {}).get("images", [{}])[-1].get("url", "") if t.get("album", {}).get("images") else "",
+                    "thumb": (t.get("album", {}).get("images", [{}])[1].get("url") if len(t.get("album", {}).get("images", [])) > 1 else t.get("album", {}).get("images", [{}])[0].get("url", "")) if t.get("album", {}).get("images") else "",
                     "duration_ms": t.get("duration_ms", 0)
                 })
             return {"tracks": items}
@@ -257,7 +274,8 @@ class SpotifyManager:
             thumb = ""
             album = t.get("album")
             if isinstance(album, dict) and album.get("images"):
-                thumb = album["images"][-1].get("url", "")
+                imgs = album["images"]
+                thumb = imgs[1].get("url", "") if len(imgs) > 1 else (imgs[0].get("url", "") if imgs else "")
 
             # Formatear artistas
             artists = ", ".join([a.get("name", "") for a in t.get("artists", []) if isinstance(a, dict) and a.get("name")])

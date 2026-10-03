@@ -243,13 +243,12 @@ def manage_config():
     if request.method == 'POST':
         new_data = request.get_json(force=True, silent=True) or {}
         saved = save_config(new_data)
-        broadcast_event("config_updated", {
-            "playlist_id": saved.get("playlist_id"),
-            "has_api_key": bool(saved.get("youtube_api_key")),
-            "obs_enabled": saved.get("obs_enabled"),
-            "auto_focus_viewer": saved.get("auto_focus_viewer", True),
-            "overlay_enabled": saved.get("overlay_enabled", True)
-        })
+        safe_broadcast = saved.copy()
+        safe_broadcast.pop("youtube_api_key", None)
+        safe_broadcast.pop("spotify_client_secret", None)
+        safe_broadcast.pop("spotify_access_token", None)
+        safe_broadcast.pop("spotify_refresh_token", None)
+        broadcast_event("config_updated", safe_broadcast)
         return jsonify({"success": True, "config": saved})
 
     cfg = load_config()
@@ -391,6 +390,13 @@ def spotify_callback():
     if res.get("success"):
         return redirect("/controller.html#spotify")
     return f"<h3>Error canjeando código: {res.get('error')}</h3>", 400
+
+@app.route('/api/spotify/seek', methods=['POST'])
+def spotify_seek_route():
+    data = request.get_json(force=True, silent=True) or {}
+    pos = int(data.get("position_ms", 0))
+    res = spotify_mgr.seek(pos)
+    return jsonify(res)
 
 @app.route('/api/spotify/state')
 def spotify_state():
@@ -868,3 +874,20 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"[mDNS] No se pudo iniciar publicador mDNS: {e}")
     app.run(host=host, port=puerto, threaded=True)
+
+
+# ─── MONITOR EN SEGUNDO PLANO DE SPOTIFY (TIEMPO REAL) ───
+def start_spotify_monitor():
+    def _loop():
+        time.sleep(2)
+        while True:
+            try:
+                time.sleep(1)
+                st = spotify_mgr.get_playback_state()
+                if st and st.get("available"):
+                    broadcast_event("spotify_state", st)
+            except Exception:
+                pass
+    threading.Thread(target=_loop, daemon=True).start()
+
+start_spotify_monitor()

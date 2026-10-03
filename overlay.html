@@ -363,6 +363,9 @@
 <script>
   let overlayConfig = {
     overlay_enabled: true,
+    overlay_timer_enabled: true,
+    overlay_now_playing_enabled: true,
+    overlay_source_mode: 'both',
     overlay_show_song_title: true,
     overlay_show_video_title: true,
     overlay_show_artist: true,
@@ -564,7 +567,7 @@
     const phraseText = document.getElementById('breakPhraseText');
     const bar = document.getElementById('breakProgressBar');
 
-    if (!data.active || overlayConfig.overlay_enabled === false) {
+    if (!data.active || overlayConfig.overlay_enabled === false || overlayConfig.overlay_timer_enabled === false) {
       overlay.classList.remove('visible');
       timerText.classList.remove('finished');
       return;
@@ -607,14 +610,16 @@
     const title = document.getElementById('npTitle');
     const sub = document.getElementById('npSubtitle');
 
-    if (overlayConfig.overlay_enabled === false) {
+    const mode = overlayConfig.overlay_source_mode || 'both';
+
+    if (overlayConfig.overlay_enabled === false || overlayConfig.overlay_now_playing_enabled === false || mode === 'none') {
       container.classList.remove('visible');
       if (lyricsEl) lyricsEl.classList.remove('visible');
       return;
     }
 
-    // 1. Spotify
-    if (currentSpotify && currentSpotify.is_playing && currentSpotify.title) {
+    // 1. Spotify (si está permitido en el modo)
+    if (mode !== 'youtube_only' && currentSpotify && currentSpotify.is_playing && currentSpotify.title) {
       container.classList.add('visible');
       badge.className = 'np-badge spotify';
       icon.textContent = '🎵';
@@ -635,8 +640,8 @@
       return;
     }
 
-    // 2. YouTube
-    if (currentYouTube && currentYouTube.is_playing && currentYouTube.title) {
+    // 2. YouTube (si está permitido en el modo)
+    if (mode !== 'spotify_only' && currentYouTube && currentYouTube.is_playing && currentYouTube.title) {
       if (overlayConfig.overlay_require_focus && !viewerFocused) {
         container.classList.remove('visible');
         if (lyricsEl) lyricsEl.classList.remove('visible');

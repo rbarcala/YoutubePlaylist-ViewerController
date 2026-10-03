@@ -370,12 +370,65 @@
 
   
     /* ─── 4. VISTA SPOTIFY REMOTE (WIDESCREEN DASHBOARD & MATRIX GRID) ─── */
+  #view-spotify {
+    height: calc(100vh - var(--header-h, 52px));
+    max-height: calc(100vh - var(--header-h, 52px));
+    overflow: hidden !important;
+    padding: 10px 18px 14px;
+    box-sizing: border-box;
+  }
   .spotify-dashboard-grid {
     display: grid;
     grid-template-columns: 320px 1fr;
     gap: 16px;
-    align-items: start;
+    align-items: stretch;
     width: 100%;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+  }
+  .spotify-side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+  }
+  .spotify-saved-box {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #spSavedPlaylists {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .spotify-main-panel {
+    min-width: 0;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .spotify-search-box {
+    width: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
   }
   @media (max-width: 900px) {
     .spotify-dashboard-grid {
@@ -470,12 +523,13 @@
   }
   /* MATRIZ DE CUADRADOS EN TODO EL ESPACIO DERECHO */
   .spotify-results-list {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow-y: auto !important;
     display: grid !important;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
     gap: 10px !important;
-    width: 100% !important;
-    max-height: calc(100vh - 180px) !important;
-    overflow-y: auto !important;
     padding-right: 6px;
     align-content: start;
   }
@@ -882,11 +936,44 @@
   .form-group { display: flex; flex-direction: column; gap: 6px; }
   .form-label { font-size: 11px; text-transform: uppercase; color: #bbb; }
   .form-help { font-size: 10px; color: var(--muted); line-height: 1.4; }
-  .form-input {
-    background: #090909; border: 1px solid var(--border); color: #fff;
-    padding: 8px 12px; border-radius: 4px; font-family: inherit; font-size: 12px; outline: none;
+    .form-input {
+    background: #141414; border: 1px solid rgba(255,255,255,0.16); color: #fff;
+    padding: 8px 12px; border-radius: 6px; font-family: inherit; font-size: 12px; outline: none;
   }
   .form-input:focus { border-color: var(--accent); }
+  
+  /* Selects con alto contraste en WebKit/Linux */
+  select.form-input, select {
+    background-color: #161616 !important;
+    background: #161616 !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    padding: 8px 32px 8px 12px !important;
+    border-radius: 6px !important;
+    font-family: inherit !important;
+    font-size: 12px !important;
+    outline: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23e8ff47%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    cursor: pointer !important;
+  }
+  select.form-input option, select option {
+    background-color: #161616 !important;
+    color: #ffffff !important;
+    padding: 8px 10px !important;
+  }
+  select.form-input:focus, select:focus {
+    border-color: var(--accent) !important;
+  }
+  input[type="number"].form-input {
+    background-color: #161616 !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  }
   .form-row { display: flex; gap: 12px; align-items: center; }
 
   #toastNotice {
@@ -1198,11 +1285,20 @@
           </div>
         </div>
 
-        <!-- Controles -->
+                <!-- Controles -->
         <div class="spotify-controls-row">
           <button class="btn" onclick="spotifyAction('previous')" style="font-size:15px; padding:6px 14px;">⏮</button>
           <button class="btn btn-spotify" id="spPlayBtn" onclick="spotifyTogglePlay()" style="font-size:15px; padding:8px 22px;">▶</button>
           <button class="btn" onclick="spotifyAction('next')" style="font-size:15px; padding:6px 14px;">⏭</button>
+        </div>
+
+        <!-- Barra de Progreso y Tiempo de Reproducción -->
+        <div style="display:flex; flex-direction:column; gap:2px; width:100%; margin-top:2px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span id="spTimeCurrent" style="font-size:10px; color:var(--muted); font-family:'Space Mono', monospace; width:34px; text-align:right;">0:00</span>
+            <input type="range" id="spProgressSlider" min="0" max="1000" value="0" style="flex:1; accent-color:var(--accent-spotify); cursor:pointer;" oninput="onSpotifySeekInput(this.value)" onchange="onSpotifySeekChange(this.value)">
+            <span id="spTimeTotal" style="font-size:10px; color:var(--muted); font-family:'Space Mono', monospace; width:34px;">0:00</span>
+          </div>
         </div>
 
         <!-- Volumen de la PC -->
@@ -1339,7 +1435,7 @@
 <div class="view-container" id="view-overlays">
   <div class="overlays-dashboard">
     
-    <!-- Tarjeta OBS Browser Source URL -->
+    <!-- 1. Tarjeta OBS Browser Source URL -->
     <div class="overlay-obs-box">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:15px; color:var(--accent);">
@@ -1352,14 +1448,17 @@
         <button class="btn btn-accent" onclick="copyObsOverlayUrl()">📋 Copiar URL</button>
       </div>
       <div style="font-size:11px; color:var(--muted); line-height:1.4;">
-        💡 En OBS: Crea una fuente <strong>Navegador (Browser Source)</strong>, pega esta URL con ancho 1920 y alto 1080.
+        💡 En OBS Studio: Crea una fuente <strong>Navegador (Browser Source)</strong> con ancho 1920 y alto 1080 apuntando a esta URL.
       </div>
     </div>
 
-    <!-- Tarjeta de Temporizador "Ya Vuelvo / Recreo" -->
+    <!-- 2. Tarjeta de Temporizador "Ya Vuelvo / Recreo" con Interruptor de Activación -->
     <div class="overlay-timer-card">
-      <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-        <span style="font-size:12px; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:0.05em;">⏱ Recreo / Pausa Cósmica</span>
+      <div style="display:flex; justify-content:space-between; width:100%; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:12px;">
+        <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-weight:700; font-size:13px; color:var(--accent);">
+          <input type="checkbox" id="ovCfgTimerEnabled" checked onchange="saveOverlayToggle('overlay_timer_enabled', this.checked)">
+          ⏱ Habilitar Temporizador en el Overlay
+        </label>
         <span class="timer-status-badge timer-status-inactive" id="timerStatusBadge">Inactivo</span>
       </div>
 
@@ -1419,11 +1518,47 @@
       </div>
     </div>
 
-    
-    <!-- Tarjeta de Personalización Avanzada del Overlay -->
-    <div class="overlay-obs-box" style="margin-top:16px;">
+    <!-- 3. Tarjeta Activa de Control "Now Playing" (No placeholder) -->
+    <div class="overlay-obs-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+        <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-weight:700; font-size:14px; color:var(--accent);">
+          <input type="checkbox" id="ovCfgNowPlayingEnabled" checked onchange="saveOverlayToggle('overlay_now_playing_enabled', this.checked)">
+          🎵 Barra Flotante "Now Playing" en vivo
+        </label>
+        <span style="font-size:11px; color:var(--muted);">Control de fuentes en vivo</span>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px; margin-top:6px;">
+        <div>
+          <label class="form-label" style="font-size:11px; margin-bottom:4px;">¿Qué fuentes mostrar en la barra flotante?</label>
+          <select id="ovCfgSourceMode" class="form-input" style="width:100%;" onchange="saveOverlayToggle('overlay_source_mode', this.value)">
+            <option value="both">🎵 Música de Spotify + 🎬 Fondos de YouTube (Ambos)</option>
+            <option value="spotify_only">🎵 Solo música de Spotify (Ocultar videos de fondos)</option>
+            <option value="youtube_only">🎬 Solo videos de YouTube (Ocultar música de Spotify)</option>
+            <option value="none">⛔ Nada / Desactivar contenido</option>
+          </select>
+          <div style="font-size:10px; color:var(--muted); margin-top:4px;">
+            Permite elegir exactamente si deseas mostrar canciones de Spotify, videos o ninguno.
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px; justify-content:center; font-size:12px;">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="ovCfgLyricsQuick" checked onchange="saveOverlayToggle('overlay_show_lyrics', this.checked)">
+            Mostrar Letras / Lyrics automáticas de Spotify
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="ovCfgRequireFocusQuick" onchange="saveOverlayToggle('overlay_require_focus', this.checked)">
+            Solo mostrar video de YouTube si el Viewer está en foco
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Tarjeta de Personalización Avanzada del Overlay -->
+    <div class="overlay-obs-box" style="margin-top:6px;">
       <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:15px; color:var(--accent); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-        <span>🎨 Personalización Total del Overlay (OBS Studio / Viewer)</span>
+        <span>🎨 Personalización Visual del Rectángulo y Tipografía</span>
         <span style="font-size:11px; color:var(--muted);">Sincronización en vivo a 0 clics</span>
       </div>
 
@@ -1532,16 +1667,6 @@
 
       <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
         <button class="btn btn-accent" onclick="saveOverlayCustomization()" style="padding:10px 24px; font-size:13px; font-weight:700;">💾 Guardar y Aplicar Cambios al Overlay</button>
-      </div>
-    </div>
-
-    <!-- Barra Now Playing informativa -->
-    <div class="overlay-obs-box">
-      <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:14px; color:#fff; margin-bottom:4px;">
-        🎵 Barra "Now Playing" en vivo
-      </div>
-      <div style="font-size:12px; color:var(--muted); line-height:1.5;">
-        Esta barra flotante aparece automáticamente en la esquina inferior del stream cuando escuchas música en <strong>Spotify</strong> o reproduces un video en el <strong>Viewer</strong>. Si no hay nada sonando, se desvanece suavemente para no tapar nada.
       </div>
     </div>
 
@@ -1898,7 +2023,26 @@ async function initApp() {
   // Polling ligero para Spotify
   setInterval(() => {
     if (currentView === 'spotify') loadSpotifyData();
-  }, 4000);
+  }, 2000);
+
+  // Ticker de avance suave del slider de Spotify cada segundo
+  setInterval(() => {
+    if (spCurrentDurationMs > 0 && !spIsSeeking) {
+      const playBtn = document.getElementById('spPlayBtn');
+      if (playBtn && playBtn.textContent === '⏸') {
+        spCurrentProgressMs += 1000;
+        if (spCurrentProgressMs <= spCurrentDurationMs) {
+          const curEl = document.getElementById('spTimeCurrent');
+          const sliderEl = document.getElementById('spProgressSlider');
+          if (curEl) curEl.textContent = formatDurationMs(spCurrentProgressMs);
+          if (sliderEl) {
+            sliderEl.value = Math.min(1000, Math.round((spCurrentProgressMs / spCurrentDurationMs) * 1000));
+          }
+        }
+      }
+    }
+  }, 1000);
+
 
   // Asegurar que el Viewer esté abierto automáticamente si no está conectado
   setTimeout(() => {
@@ -2059,7 +2203,15 @@ function initSSE() {
   });
 
   evtSource.addEventListener('spotify_action', () => {
-    setTimeout(loadSpotifyData, 400);
+    setTimeout(loadSpotifyData, 200);
+  });
+
+  evtSource.addEventListener('spotify_state', (e) => {
+    try {
+      const d = JSON.parse(e.data);
+      const st = d.data || d;
+      updateSpotifyPlayerUI(st);
+    } catch(err) {}
   });
 
   // OBS actualizado
@@ -2324,20 +2476,73 @@ async function toggleObsRecord() {
 let spCurrentLoadedTracks = [];
 let spCurrentPlaylistInfo = null;
 let spFilterDebounce = null;
+let spIsSeeking = false;
+let spCurrentProgressMs = 0;
+let spCurrentDurationMs = 0;
+
+function onSpotifySeekInput(val) {
+  spIsSeeking = true;
+  if (spCurrentDurationMs > 0) {
+    const targetMs = (parseInt(val, 10) / 1000) * spCurrentDurationMs;
+    const curEl = document.getElementById('spTimeCurrent');
+    if (curEl) curEl.textContent = formatDurationMs(targetMs);
+  }
+}
+
+async function onSpotifySeekChange(val) {
+  if (spCurrentDurationMs > 0) {
+    const targetMs = Math.round((parseInt(val, 10) / 1000) * spCurrentDurationMs);
+    try {
+      await fetch('/api/spotify/seek', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ position_ms: targetMs })
+      });
+      spCurrentProgressMs = targetMs;
+    } catch(e) {}
+  }
+  setTimeout(() => { spIsSeeking = false; }, 400);
+}
+
+function updateSpotifyPlayerUI(state) {
+  if (!state || !state.available) return;
+  const titleEl = document.getElementById('spTrackTitle');
+  const artistEl = document.getElementById('spTrackArtist');
+  const artEl = document.getElementById('spTrackArt');
+  const playBtn = document.getElementById('spPlayBtn');
+  const devEl = document.getElementById('spDeviceName');
+  const curEl = document.getElementById('spTimeCurrent');
+  const totEl = document.getElementById('spTimeTotal');
+  const sliderEl = document.getElementById('spProgressSlider');
+
+  if (titleEl && state.title) titleEl.textContent = state.title;
+  if (artistEl && state.artist) artistEl.textContent = state.artist;
+  if (artEl && state.album_art) artEl.src = state.album_art;
+  if (playBtn) playBtn.textContent = state.is_playing ? '⏸' : '▶';
+  if (devEl) devEl.textContent = `Dispositivo: ${state.device_name || 'PC'}`;
+
+  if (state.duration_ms) {
+    spCurrentDurationMs = state.duration_ms;
+    if (totEl) totEl.textContent = formatDurationMs(state.duration_ms);
+  }
+  if (state.progress_ms !== undefined) {
+    spCurrentProgressMs = state.progress_ms;
+    if (!spIsSeeking) {
+      if (curEl) curEl.textContent = formatDurationMs(state.progress_ms);
+      if (sliderEl && spCurrentDurationMs > 0) {
+        const pct = Math.min(1000, Math.round((state.progress_ms / spCurrentDurationMs) * 1000));
+        sliderEl.value = pct;
+      }
+    }
+  }
+}
 
 async function loadSpotifyData() {
   try {
     const res = await fetch('/api/spotify/state');
     const state = await res.json();
-
     if (state.available) {
-      document.getElementById('spTrackTitle').textContent = state.title || 'En pausa';
-      document.getElementById('spTrackArtist').textContent = state.artist || 'Spotify Desktop';
-      document.getElementById('spDeviceName').textContent = `Dispositivo: ${state.device_name || 'PC'}`;
-      if (state.album_art) {
-        document.getElementById('spTrackArt').src = state.album_art;
-      }
-      document.getElementById('spPlayBtn').textContent = state.is_playing ? '⏸' : '▶';
+      updateSpotifyPlayerUI(state);
       if (state.volume_percent !== undefined) {
         document.getElementById('spVolumeSlider').value = state.volume_percent;
         document.getElementById('spVolumeValue').textContent = state.volume_percent + '%';
@@ -3695,6 +3900,145 @@ async function deleteTimerPhrase(idx) {
     showToast('Error al eliminar frase');
   }
 }
+
+// ─── CONTROL Y PERSONALIZACIÓN DINÁMICA DEL OVERLAY ───
+function populateOverlayCustomizationForm(cfg) {
+  if (!cfg) return;
+  const setCheck = (id, val, defVal = true) => {
+    const el = document.getElementById(id);
+    if (el) el.checked = (val !== undefined ? Boolean(val) : defVal);
+  };
+  const setVal = (id, val, defVal = '') => {
+    const el = document.getElementById(id);
+    if (el) el.value = (val !== undefined ? val : defVal);
+  };
+
+  // Switches específicos de cada sección
+  setCheck('ovCfgTimerEnabled', cfg.overlay_timer_enabled, true);
+  setCheck('ovCfgNowPlayingEnabled', cfg.overlay_now_playing_enabled, true);
+  setVal('ovCfgSourceMode', cfg.overlay_source_mode, 'both');
+  setCheck('ovCfgLyricsQuick', cfg.overlay_show_lyrics, true);
+  setCheck('ovCfgRequireFocusQuick', cfg.overlay_require_focus, false);
+
+  // Toggles de contenido en personalización
+  setCheck('ovCfgSongTitle', cfg.overlay_show_song_title, true);
+  setCheck('ovCfgVideoTitle', cfg.overlay_show_video_title, true);
+  setCheck('ovCfgArtist', cfg.overlay_show_artist, true);
+  setCheck('ovCfgCover', cfg.overlay_show_cover, true);
+  setCheck('ovCfgBadge', cfg.overlay_show_badge, true);
+  setCheck('ovCfgEq', cfg.overlay_show_equalizer, true);
+  setCheck('ovCfgLyrics', cfg.overlay_show_lyrics, true);
+  setCheck('ovCfgRequireFocus', cfg.overlay_require_focus, false);
+
+  setVal('ovCfgPosition', cfg.overlay_position, 'bottom-left');
+  setVal('ovCfgPosX', cfg.overlay_pos_x, 28);
+  setVal('ovCfgPosY', cfg.overlay_pos_y, 28);
+  setVal('ovCfgScale', cfg.overlay_scale, 1.0);
+  const scaleVal = document.getElementById('ovCfgScaleVal');
+  if (scaleVal) scaleVal.textContent = (cfg.overlay_scale || 1.0) + 'x';
+
+  setVal('ovCfgBgColor', cfg.overlay_bg_color, '#0a0a0a');
+  setVal('ovCfgBgOpacity', cfg.overlay_bg_opacity, 78);
+  const opVal = document.getElementById('ovCfgOpacityVal');
+  if (opVal) opVal.textContent = (cfg.overlay_bg_opacity || 78) + '%';
+
+  setVal('ovCfgBorderRadius', cfg.overlay_border_radius, 12);
+  const radVal = document.getElementById('ovCfgRadiusVal');
+  if (radVal) radVal.textContent = (cfg.overlay_border_radius || 12) + 'px';
+
+  setVal('ovCfgTextColor', cfg.overlay_text_color, '#ffffff');
+  setVal('ovCfgFont', cfg.overlay_font_family, 'system-ui');
+
+  setVal('ovCfgWave', cfg.overlay_text_wave, 0);
+  const waveVal = document.getElementById('ovCfgWaveVal');
+  if (waveVal) waveVal.textContent = (cfg.overlay_text_wave == 0 || !cfg.overlay_text_wave) ? '0 (Desactivado)' : cfg.overlay_text_wave;
+
+  setVal('ovCfgExtraText', cfg.overlay_extra_text, '');
+}
+
+async function saveOverlayToggle(key, val) {
+  try {
+    const payload = {};
+    payload[key] = val;
+
+    // Sincronizar checkboxes duplicados
+    if (key === 'overlay_show_lyrics') {
+      const q = document.getElementById('ovCfgLyricsQuick');
+      const c = document.getElementById('ovCfgLyrics');
+      if (q) q.checked = val;
+      if (c) c.checked = val;
+    }
+    if (key === 'overlay_require_focus') {
+      const q = document.getElementById('ovCfgRequireFocusQuick');
+      const c = document.getElementById('ovCfgRequireFocus');
+      if (q) q.checked = val;
+      if (c) c.checked = val;
+    }
+
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    config[key] = val;
+    showToast('Ajuste de Overlay actualizado en vivo ✓');
+  } catch(e) {
+    showToast('Error al actualizar ajuste');
+  }
+}
+
+async function saveOverlayCustomization() {
+  const ovCfg = {
+    overlay_timer_enabled: document.getElementById('ovCfgTimerEnabled').checked,
+    overlay_now_playing_enabled: document.getElementById('ovCfgNowPlayingEnabled').checked,
+    overlay_source_mode: document.getElementById('ovCfgSourceMode').value,
+
+    overlay_show_song_title: document.getElementById('ovCfgSongTitle').checked,
+    overlay_show_video_title: document.getElementById('ovCfgVideoTitle').checked,
+    overlay_show_artist: document.getElementById('ovCfgArtist').checked,
+    overlay_show_cover: document.getElementById('ovCfgCover').checked,
+    overlay_show_badge: document.getElementById('ovCfgBadge').checked,
+    overlay_show_equalizer: document.getElementById('ovCfgEq').checked,
+    overlay_show_lyrics: document.getElementById('ovCfgLyrics').checked,
+    overlay_require_focus: document.getElementById('ovCfgRequireFocus').checked,
+
+    overlay_position: document.getElementById('ovCfgPosition').value,
+    overlay_pos_x: parseInt(document.getElementById('ovCfgPosX').value, 10) || 28,
+    overlay_pos_y: parseInt(document.getElementById('ovCfgPosY').value, 10) || 28,
+    overlay_scale: parseFloat(document.getElementById('ovCfgScale').value) || 1.0,
+
+    overlay_bg_color: document.getElementById('ovCfgBgColor').value,
+    overlay_bg_opacity: parseInt(document.getElementById('ovCfgBgOpacity').value, 10) || 78,
+    overlay_border_radius: parseInt(document.getElementById('ovCfgBorderRadius').value, 10) || 12,
+    overlay_text_color: document.getElementById('ovCfgTextColor').value,
+    overlay_font_family: document.getElementById('ovCfgFont').value,
+
+    overlay_text_wave: parseInt(document.getElementById('ovCfgWave').value, 10) || 0,
+    overlay_extra_text: document.getElementById('ovCfgExtraText').value.trim()
+  };
+
+  try {
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ovCfg)
+    });
+    config = Object.assign({}, config, ovCfg);
+    showToast('¡Configuración del Overlay guardada y sincronizada en OBS! ✨');
+  } catch(e) {
+    showToast('Error al guardar configuración del overlay');
+  }
+}
+
+function updateHeaderHeight() {
+  const h = document.querySelector('header');
+  if (h) {
+    const height = Math.max(48, h.offsetHeight);
+    document.documentElement.style.setProperty('--header-h', height + 'px');
+  }
+}
+window.addEventListener('resize', updateHeaderHeight, { passive: true });
+window.addEventListener('DOMContentLoaded', updateHeaderHeight);
 
 window.addEventListener('DOMContentLoaded', () => {
   initApp();
