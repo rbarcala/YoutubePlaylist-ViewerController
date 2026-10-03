@@ -87,8 +87,9 @@ run-web:
 viewer:
 	@./bin/$(APP_NAME) --viewer
 
-# Generar releases (.deb y .apk)
+# Generar releases (.deb y .apk) con instalación automática de dependencias
 release:
+	@bash scripts/install_deps.sh
 	@python3 scripts/build_release.py
 
 # Limpiar archivos temporales

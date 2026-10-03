@@ -750,8 +750,21 @@
       <h3 style="font-family:'Syne',sans-serif; color:var(--accent);">📱 Conectar Celular</h3>
       <button onclick="closeQRModal()" style="background:none; border:none; color:#aaa; font-size:20px; cursor:pointer;">&times;</button>
     </div>
-    <div id="qrCodeContainer" style="display:flex; justify-content:center; margin:16px 0;"></div>
-    <p style="font-size:12px; color:#aaa;">Escanea este código con la cámara de tu celular conectado a la misma red Wi-Fi para abrir el panel de control completo.</p>
+    
+    <!-- Tarjeta blanca de alto contraste para lectura rápida de cámara -->
+    <div style="background:#ffffff; padding:16px; border-radius:14px; display:inline-flex; justify-content:center; align-items:center; margin:16px auto; box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+      <div id="qrCodeContainer" style="display:flex; justify-content:center; align-items:center;"></div>
+    </div>
+
+    <!-- Indicador de dígitos rápidos para la app -->
+    <div style="margin:4px 0 14px 0; background:rgba(232, 255, 71, 0.08); border:1px solid var(--accent); border-radius:8px; padding:10px 14px;">
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#bbb; margin-bottom:4px;">⚡ Para la App de Celular (Dígitos Rápidos):</div>
+      <div style="font-size:18px; font-weight:bold; color:#fff; font-family:'Space Mono', monospace;">
+        Solo ingresa: <span id="qrQuickDigits" style="background:#000; color:var(--accent); padding:2px 10px; border-radius:6px; border:1px solid var(--accent); font-size:22px; display:inline-block;">...</span>
+      </div>
+    </div>
+
+    <p style="font-size:12px; color:#aaa; margin-bottom:8px;">O escanea el código QR con la cámara de la app en tu celular en la misma red Wi-Fi.</p>
     <div id="qrLanUrl" style="background:#000; border:1px solid var(--border); padding:8px; border-radius:4px; font-size:11px; color:var(--accent); word-break:break-all;"></div>
     <button class="btn" onclick="copyLanUrl()" style="margin-top:10px;">📋 Copiar Enlace</button>
   </div>
@@ -1285,8 +1298,21 @@ async function openQRModal() {
     currentLanUrl = data.controller_url;
     document.getElementById('qrLanUrl').textContent = data.controller_url;
     document.getElementById('qrCodeContainer').innerHTML = data.qr_code_svg;
+    
+    // Extraer los últimos dígitos de la IP local para la app móvil
+    const ip = data.lan_ip || '';
+    const parts = ip.split('.');
+    const lastDigits = parts.length > 0 ? parts[parts.length - 1] : ip;
+    const quickDigitsEl = document.getElementById('qrQuickDigits');
+    if (quickDigitsEl) {
+      quickDigitsEl.textContent = lastDigits || ip;
+    }
   } catch(e) {
     document.getElementById('qrLanUrl').textContent = window.location.href;
+    const quickDigitsEl = document.getElementById('qrQuickDigits');
+    if (quickDigitsEl) {
+      quickDigitsEl.textContent = '8000';
+    }
   }
 }
 

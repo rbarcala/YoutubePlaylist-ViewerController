@@ -83,7 +83,7 @@ Version: {VERSION}
 Section: video
 Priority: optional
 Architecture: all
-Depends: python3, python3-flask, yt-dlp, python3-requests, gir1.2-gtk-3.0, gir1.2-webkit2-4.1
+Depends: python3, python3-flask, yt-dlp, python3-requests, python3-qrcode, gir1.2-gtk-3.0, gir1.2-webkit2-4.1
 Maintainer: Ramiro Barcala Roca <rbarcala@fi.uba.ar>
 Description: YouTube Playlist & Video Backgrounds Stream Controller
  Controlador en tiempo real de fondos de video para streaming, Google Meet y OBS Studio.
@@ -150,9 +150,49 @@ exit 0
     print(f"✓ Paquete Debian generado con éxito: {deb_dest}")
     return deb_dest
 
+def find_android_jar():
+    candidates = [
+        "/usr/lib/android-sdk/platforms/android-23/android.jar",
+        "/usr/share/androidsdk/platforms/android-23/android.jar",
+        "/usr/share/java/android-23.jar",
+        "/usr/share/java/android.jar",
+    ]
+    for c in candidates:
+        if os.path.isfile(c):
+            return c
+    for env_var in ["ANDROID_HOME", "ANDROID_SDK_ROOT"]:
+        sdk = os.environ.get(env_var)
+        if sdk:
+            found = sorted(list(Path(sdk).glob("platforms/android-*/android.jar")))
+            if found:
+                return str(found[-1])
+    for p in sorted(list(Path("/usr/lib/android-sdk/platforms").glob("android-*/android.jar"))):
+        return str(p)
+    for p in sorted(list(Path("/usr/share/java").glob("android*.jar"))):
+        return str(p)
+    return None
+
+def find_dx():
+    for cmd in ["dx", "dalvik-exchange", "d8"]:
+        w = shutil.which(cmd)
+        if w:
+            return w
+    for env_var in ["ANDROID_HOME", "ANDROID_SDK_ROOT"]:
+        sdk = os.environ.get(env_var)
+        if sdk:
+            found = list(Path(sdk).glob("build-tools/*/[dd][x8]"))
+            if found:
+                return str(found[-1])
+    return None
+
 def build_apk():
-    print("\n[build] Verificando entorno para compilación de Android (.apk)...")
+    print("\n[build] Generando paquete instalable para Android (.apk)...")
     android_dir = BASE_DIR / "android"
+    manifest_path = android_dir / "app" / "src" / "main" / "AndroidManifest.xml"
+    res_dir = android_dir / "app" / "src" / "main" / "res"
+    java_src = android_dir / "app" / "src" / "main" / "java" / "com" / "fondosstream" / "controller" / "MainActivity.java"
+
+    # 1. Probar compilación con Gradle si está disponible
     gradle_cmd = None
     if (android_dir / "gradlew").exists() and os.access(android_dir / "gradlew", os.X_OK):
         gradle_cmd = str(android_dir / "gradlew")
@@ -163,24 +203,146 @@ def build_apk():
 
     if gradle_cmd and has_sdk:
         try:
-            print("  Compilando APK nativo con Gradle...")
+            print("  Intentando compilar APK con Gradle...")
             subprocess.run([gradle_cmd, "assembleRelease"], cwd=android_dir, check=True)
             apk_candidates = list((android_dir / "app" / "build" / "outputs" / "apk").glob("**/*.apk"))
             if apk_candidates:
                 apk_dest = RELEASE_DIR / f"{PACKAGE_NAME}.apk"
                 shutil.copy2(apk_candidates[0], apk_dest)
-                print(f"✓ Paquete Android APK generado con éxito: {apk_dest}")
+                print(f"✓ Paquete Android APK generado con éxito vía Gradle: {apk_dest}")
                 return apk_dest
         except Exception as e:
-            print(f"⚠️ Error al compilar con Gradle: {e}")
+            print(f"  Gradle no disponible o no configurado ({e}). Continuando con pipeline nativo...")
 
-    print("ℹ️ Android SDK / Gradle no detectados en este sistema para compilar APK binario.")
-    print("ℹ️ Recomendación para Android:")
-    print("   1. Modo PWA (Recomendado sin instalación manual):")
-    print("      Abre http://<IP_LOCAL>:8000/controller.html en Chrome/Brave en tu celular y pulsa 'Agregar a la pantalla de inicio'.")
-    print("   2. Para compilar el APK nativo:")
-    print("      Abre la carpeta 'android/' en Android Studio y selecciona Build > Build APK.")
-    return None
+    # 2. Compilación directa con herramientas oficiales de Debian/Ubuntu (aapt, javac, dx, zipalign, apksigner)
+    android_jar = find_android_jar()
+    dx_bin = find_dx()
+    aapt_bin = shutil.which("aapt")
+    zipalign_bin = shutil.which("zipalign")
+    apksigner_bin = shutil.which("apksigner")
+    javac_bin = shutil.which("javac")
+    keytool_bin = shutil.which("keytool")
+
+    missing = []
+    if not android_jar: missing.append("android.jar (paquete: libandroid-23-java)")
+    if not dx_bin: missing.append("dx (paquete: dalvik-exchange)")
+    if not aapt_bin: missing.append("aapt")
+    if not zipalign_bin: missing.append("zipalign")
+    if not apksigner_bin: missing.append("apksigner")
+    if not javac_bin: missing.append("javac (paquete: default-jdk-headless)")
+
+    if missing:
+        print(f"ℹ️ Para compilar el APK binario, faltan herramientas en el sistema:")
+        for m in missing:
+            print(f"   • {m}")
+        print("ℹ️ Se instalarán automáticamente ejecutando: make release (o sudo apt install -y aapt dalvik-exchange libandroid-23-java zipalign apksigner default-jdk-headless)")
+        return None
+
+    apk_build_dir = BUILD_DIR / "apk_build"
+    if apk_build_dir.exists():
+        shutil.rmtree(apk_build_dir)
+    gen_dir = apk_build_dir / "gen"
+    classes_dir = apk_build_dir / "classes"
+    assets_dir = apk_build_dir / "assets"
+    gen_dir.mkdir(parents=True, exist_ok=True)
+    classes_dir.mkdir(parents=True, exist_ok=True)
+    assets_dir.mkdir(parents=True, exist_ok=True)
+
+    # Copiar recursos web a los assets del APK
+    for wf in ["controller.html", "manifest.json", "sw.js"]:
+        p = BASE_DIR / wf
+        if p.exists():
+            shutil.copy2(p, assets_dir / wf)
+    if (BASE_DIR / "assets" / "icon.png").exists():
+        shutil.copy2(BASE_DIR / "assets" / "icon.png", assets_dir / "icon.png")
+    connect_html = android_dir / "app" / "src" / "main" / "assets" / "connect.html"
+    if connect_html.exists():
+        shutil.copy2(connect_html, assets_dir / "connect.html")
+
+    try:
+        # Paso 1: Generar R.java
+        print("  [1/5] Generando R.java y recursos con aapt...")
+        subprocess.run([
+            aapt_bin, "package", "-f", "-m",
+            "-J", str(gen_dir),
+            "-M", str(manifest_path),
+            "-S", str(res_dir),
+            "-I", str(android_jar)
+        ], check=True)
+
+        # Paso 2: Compilar Java
+        print("  [2/5] Compilando código Java con javac...")
+        r_java = list(gen_dir.glob("**/R.java"))[0]
+        subprocess.run([
+            javac_bin, "-source", "1.8", "-target", "1.8",
+            "-bootclasspath", str(android_jar),
+            "-cp", str(gen_dir),
+            "-d", str(classes_dir),
+            str(java_src), str(r_java)
+        ], check=True)
+
+        # Paso 3: Generar classes.dex
+        print("  [3/5] Generando bytecode Dalvik (classes.dex) con dx...")
+        dex_output = apk_build_dir / "classes.dex"
+        if "d8" in Path(dx_bin).name:
+            class_files = [str(f) for f in classes_dir.glob("**/*.class")]
+            subprocess.run([dx_bin, "--output", str(apk_build_dir), "--lib", str(android_jar)] + class_files, check=True)
+        else:
+            subprocess.run([dx_bin, "--dex", f"--output={dex_output}", str(classes_dir)], check=True)
+
+        # Paso 4: Empaquetar APK base con aapt
+        print("  [4/5] Empaquetando y alineando APK...")
+        unaligned_apk = apk_build_dir / "app-unaligned.apk"
+        subprocess.run([
+            aapt_bin, "package", "-f",
+            "-M", str(manifest_path),
+            "-S", str(res_dir),
+            "-A", str(assets_dir),
+            "-I", str(android_jar),
+            "-F", str(unaligned_apk)
+        ], check=True)
+
+        # Añadir classes.dex al APK
+        with zipfile.ZipFile(unaligned_apk, 'a') as z:
+            z.write(dex_output, "classes.dex")
+
+        # Zipalign
+        aligned_apk = apk_build_dir / "app-aligned.apk"
+        subprocess.run([zipalign_bin, "-f", "-p", "4", str(unaligned_apk), str(aligned_apk)], check=True)
+
+        # Paso 5: Firmar con apksigner
+        print("  [5/5] Firmando APK con apksigner...")
+        keystore = apk_build_dir / "release.keystore"
+        if not keystore.exists():
+            subprocess.run([
+                keytool_bin or "keytool", "-genkeypair", "-v",
+                "-keystore", str(keystore),
+                "-alias", "streamctrl",
+                "-keyalg", "RSA",
+                "-keysize", "2048",
+                "-validity", "10000",
+                "-storepass", "android",
+                "-keypass", "android",
+                "-dname", "CN=StreamController, O=FondosStream, C=ES"
+            ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        apk_dest = RELEASE_DIR / f"{PACKAGE_NAME}.apk"
+        subprocess.run([
+            apksigner_bin, "sign",
+            "--ks", str(keystore),
+            "--ks-pass", "pass:android",
+            "--key-pass", "pass:android",
+            "--out", str(apk_dest),
+            str(aligned_apk)
+        ], check=True)
+
+        # Verificar APK final
+        subprocess.run([apksigner_bin, "verify", str(apk_dest)], check=True, stdout=subprocess.DEVNULL)
+        print(f"✓ Paquete Android APK nativo compilado y firmado: {apk_dest}")
+        return apk_dest
+    except Exception as e:
+        print(f"⚠️ Error durante la compilación del APK: {e}")
+        return None
 
 def generate_checksums(files):
     valid_files = [f for f in files if f and Path(f).exists()]

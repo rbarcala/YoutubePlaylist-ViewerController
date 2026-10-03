@@ -79,7 +79,7 @@ sudo apt install -y ./release/youtube-stream-controller_1.0.0_all.deb
 | `make run` | Inicia la aplicación Controller nativa de escritorio |
 | `make run-web` | Inicia el Controller directamente en el navegador web |
 | `make viewer` | Abre la pantalla de reproducción a pantalla completa (Viewer) |
-| `make release` | Compila los instalables (`.deb` para Ubuntu y `.apk` para Android) |
+| `make release` | Instala dependencias automáticamente y compila los instalables (`.deb` y `.apk`) |
 | `make clean` | Limpia archivos temporales y caché |
 
 ---
@@ -101,10 +101,12 @@ En el panel de configuración puedes definir y recordar:
 En la carpeta `release/` encontrarás:
 
 - 🐧 **Ubuntu / Debian**: `release/youtube-stream-controller_1.0.0_all.deb`
-- 📱 **Android**: Acceso PWA instantáneo con QR o proyecto nativo en carpeta `android/`
+- 🤖 **Android**: `release/youtube-stream-controller.apk` (APK nativo compilado y firmado)
+- 📱 **Modo Web / PWA**: Acceso directo instantáneo con QR sin necesidad de instalar APK
 - 🔒 **Sumas SHA256**: `release/checksums.sha256`
 
 Para recompilar los paquetes en cualquier momento:
 ```bash
 make release
 ```
+> `make release` verificará tus dependencias y las instalará automáticamente con `apt` si falta alguna antes de compilar los ejecutables.
