@@ -1026,7 +1026,8 @@ def get_video_url():
         return jsonify({'error': 'No video id provided'}), 400
 
     cfg = load_config()
-    playback_mode = cfg.get('video_playback_mode', 'original')
+    force_combined = request.args.get('fallback') == 'combined'
+    playback_mode = 'combined' if force_combined else cfg.get('video_playback_mode', 'original')
     now = time.time()
     cached_path = _cached_video_path(video_id)
     if cached_path and playback_mode in ('cache', 'adaptive'):
@@ -1035,7 +1036,7 @@ def get_video_url():
         video_cache[video_id] = (result, now + 7200)
         return jsonify(result)
 
-    if video_id in video_cache:
+    if not force_combined and video_id in video_cache:
         cached_data, exp_time = video_cache[video_id]
         if now < exp_time:
             return jsonify(cached_data)

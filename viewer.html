@@ -94,7 +94,7 @@
     opacity: 0;
     transition: opacity 0.3s;
   }
-  body:hover #pipControls { opacity: 1; }
+  #pipControls:hover { opacity: 1; }
   .btn-pip {
     background: rgba(20, 20, 20, 0.75);
     border: 1px solid #333;
@@ -146,12 +146,18 @@ let currentPlayingId = '';
 let usesCombinedMedia = false;
 let playbackMode = 'original';
 let adaptiveRecoveryInProgress = false;
+let audioFallbackRequested = false;
 
 // ─── SINCRONIZACIÓN DE VIDEO Y AUDIO HTML5 ───
 video.addEventListener('play', () => {
   if (!usesCombinedMedia) audio.play().catch(() => {});
 });
 video.addEventListener('pause', () => audio.pause());
+audio.addEventListener('error', () => {
+  if (!usesCombinedMedia && currentPlayingId && !audioFallbackRequested) {
+    switchToCombinedMedia();
+  }
+});
 video.addEventListener('waiting', () => {
   audio.pause();
   handleBuffering();
@@ -204,6 +210,25 @@ function startVideoPlayback() {
   }).catch(() => {});
 }
 
+async function switchToCombinedMedia() {
+  audioFallbackRequested = true;
+  try {
+    const response = await fetch(`/api/get_video_url?v=${encodeURIComponent(currentPlayingId)}&fallback=combined&ts=${Date.now()}`);
+    const data = await response.json();
+    if (!data.video_url || !data.combined_audio) return;
+    const position = video.currentTime || 0;
+    usesCombinedMedia = true;
+    audio.removeAttribute('src');
+    audio.load();
+    video.src = data.video_url;
+    video.onloadedmetadata = () => {
+      video.currentTime = position;
+      video.onloadedmetadata = null;
+      startVideoPlayback();
+    };
+  } catch(e) {}
+}
+
 async function handleBuffering() {
   if (playbackMode !== 'adaptive' || adaptiveRecoveryInProgress) return;
   adaptiveRecoveryInProgress = true;
@@ -228,6 +253,7 @@ async function handleBuffering() {
 async function playVideo(videoId, title = "") {
   if (!videoId) return;
   currentPlayingId = videoId;
+  audioFallbackRequested = false;
   waitingScreen.classList.add('hidden');
   loadingOverlay.classList.add('active');
 

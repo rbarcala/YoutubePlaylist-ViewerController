@@ -832,12 +832,6 @@
 
     // 2. YouTube (si está permitido en el modo)
     if (mode !== 'spotify_only' && currentYouTube && currentYouTube.is_playing && currentYouTube.title) {
-      if (overlayConfig.overlay_require_focus && !viewerFocused) {
-        container.classList.remove('visible');
-        if (lyricsEl) lyricsEl.classList.remove('visible');
-        return;
-      }
-
       container.classList.add('visible');
       badge.className = 'np-badge youtube';
       icon.textContent = '▶️';
