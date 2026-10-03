@@ -313,7 +313,7 @@ def build_apk():
 
         # Paso 5: Firmar con apksigner
         print("  [5/5] Firmando APK con apksigner...")
-        keystore = apk_build_dir / "release.keystore"
+        keystore = BASE_DIR / "android" / "release.keystore"
         if not keystore.exists():
             subprocess.run([
                 keytool_bin or "keytool", "-genkeypair", "-v",
