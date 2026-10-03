@@ -247,7 +247,8 @@ def manage_config():
             "playlist_id": saved.get("playlist_id"),
             "has_api_key": bool(saved.get("youtube_api_key")),
             "obs_enabled": saved.get("obs_enabled"),
-            "auto_focus_viewer": saved.get("auto_focus_viewer", True)
+            "auto_focus_viewer": saved.get("auto_focus_viewer", True),
+            "overlay_enabled": saved.get("overlay_enabled", True)
         })
         return jsonify({"success": True, "config": saved})
 
@@ -374,9 +375,7 @@ def obs_toggle_record():
 # ─── API SPOTIFY REMOTE ───
 @app.route('/api/spotify/auth_url')
 def spotify_auth_url():
-    lan_ip = get_lan_ip()
-    port = load_config().get("port", 8000)
-    redirect_uri = f"http://{lan_ip}:{port}/api/spotify/callback"
+    redirect_uri = request.host_url.rstrip('/') + '/api/spotify/callback'
     url = spotify_mgr.get_auth_url(redirect_uri)
     return jsonify({"auth_url": url, "redirect_uri": redirect_uri})
 
@@ -387,9 +386,7 @@ def spotify_callback():
     if error or not code:
         return f"<h3>Error autorizando Spotify: {error}</h3><p><a href='/controller.html'>Volver</a></p>", 400
 
-    lan_ip = get_lan_ip()
-    port = load_config().get("port", 8000)
-    redirect_uri = f"http://{lan_ip}:{port}/api/spotify/callback"
+    redirect_uri = request.host_url.rstrip('/') + '/api/spotify/callback'
     res = spotify_mgr.exchange_code(code, redirect_uri)
     if res.get("success"):
         return redirect("/controller.html#spotify")
@@ -445,6 +442,53 @@ def spotify_search():
     q = request.args.get("q", "")
     return jsonify(spotify_mgr.search(q))
 
+
+@app.route('/api/spotify/saved_playlists', methods=['GET', 'POST', 'DELETE'])
+def spotify_saved_playlists():
+    cfg = load_config()
+    playlists = cfg.get("spotify_playlists", [])
+    
+    if request.method == 'GET':
+        return jsonify({"playlists": playlists})
+        
+    if request.method == 'POST':
+        data = request.get_json(force=True, silent=True) or {}
+        pid = data.get("id")
+        pname = data.get("name")
+        if pid and pname:
+            if not any(p["id"] == pid for p in playlists):
+                playlists.append({"id": pid, "name": pname})
+                save_config({"spotify_playlists": playlists})
+        return jsonify({"playlists": playlists})
+        
+    if request.method == 'DELETE':
+        data = request.get_json(force=True, silent=True) or {}
+        pid = data.get("id")
+        playlists = [p for p in playlists if p["id"] != pid]
+        save_config({"spotify_playlists": playlists})
+        return jsonify({"playlists": playlists})
+
+@app.route('/api/spotify/playlist')
+def spotify_playlist():
+    playlist_id = request.args.get("id", "")
+    return jsonify(spotify_mgr.get_playlist(playlist_id))
+
+
+@app.route('/api/spotify/lyrics')
+def spotify_lyrics():
+    artist = request.args.get("artist", "")
+    title = request.args.get("title", "")
+    if not artist or not title:
+        return jsonify({"lyrics": ""})
+    try:
+        url = f"https://api.lyrics.ovh/v1/{urllib.parse.quote(artist)}/{urllib.parse.quote(title)}"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=3) as res:
+            data = json.loads(res.read().decode('utf-8'))
+            return jsonify({"lyrics": data.get("lyrics", "")})
+    except Exception:
+        return jsonify({"lyrics": ""})
+
 @app.route('/api/spotify/queue', methods=['POST'])
 def spotify_queue():
     data = request.get_json(force=True, silent=True) or {}
@@ -459,15 +503,16 @@ def spotify_play_track():
     return jsonify(spotify_mgr.play(track_uris=[uri]))
 
 # ─── API YOUTUBE LIVE MONITOR ───
+_resolved_channel_ids = {}
+
 @app.route('/api/youtube/live')
 def youtube_live():
-    """Detecta o resuelve la transmisión en vivo del canal o video especificado."""
+    """Detecta o resuelve la transmisión en vivo del canal o video especificado (soporta @handles, IDs UC... y URLs)."""
     cfg = load_config()
-    api_key = cfg.get("youtube_api_key", "")
-    channel_id = cfg.get("youtube_channel_id", "")
-    live_vid = cfg.get("youtube_live_video_id", "")
+    api_key = cfg.get("youtube_api_key", "").strip()
+    channel_input = cfg.get("youtube_channel_id", "").strip()
+    live_vid = cfg.get("youtube_live_video_id", "").strip()
 
-    # Si se configuró directamente un video ID de directo o URL
     if live_vid:
         return jsonify({
             "is_live": True,
@@ -475,12 +520,51 @@ def youtube_live():
             "embed_url": f"https://www.youtube.com/embed/{live_vid}?autoplay=1&enablejsapi=1"
         })
 
-    # Si se configuró Channel ID y API Key, buscar el directo activo del canal
-    if channel_id and api_key:
+    if not channel_input:
+        return jsonify({
+            "is_live": False,
+            "video_id": "",
+            "message": "Configura tu @usuario o ID de canal en Ajustes."
+        })
+
+    # 1. Si tenemos API Key, resolver el handle/ID limpiamente
+    resolved_id = _resolved_channel_ids.get(channel_input)
+    channel_title = ""
+
+    if not resolved_id and api_key:
+        # Extraer handle si viene como URL o con @
+        handle = None
+        if "@" in channel_input:
+            handle = channel_input.split("@")[-1].split("/")[0].split("?")[0].strip()
+        elif channel_input.startswith("UC") and len(channel_input) >= 20:
+            resolved_id = channel_input
+
+        if handle:
+            try:
+                h_url = f"https://www.googleapis.com/youtube/v3/channels?part=id,snippet&forHandle={handle}&key={api_key}"
+                req = urllib.request.Request(h_url)
+                with urllib.request.urlopen(req, timeout=4) as res:
+                    h_data = json.loads(res.read().decode('utf-8'))
+                    items = h_data.get("items", [])
+                    if items:
+                        resolved_id = items[0]["id"]
+                        channel_title = items[0]["snippet"].get("title", "")
+                        _resolved_channel_ids[channel_input] = resolved_id
+            except Exception as e:
+                pass
+
+    if not resolved_id:
+        if channel_input.startswith("UC"):
+            resolved_id = channel_input
+        else:
+            resolved_id = _resolved_channel_ids.get(channel_input, channel_input)
+
+    # 2. Buscar directo activo vía YouTube API
+    if resolved_id and api_key and resolved_id.startswith("UC"):
         try:
             url = (
                 f"https://www.googleapis.com/youtube/v3/search?part=snippet"
-                f"&channelId={channel_id}&eventType=live&type=video&key={api_key}"
+                f"&channelId={resolved_id}&eventType=live&type=video&key={api_key}"
             )
             req = urllib.request.Request(url)
             with urllib.request.urlopen(req, timeout=4) as res:
@@ -495,13 +579,43 @@ def youtube_live():
                         "title": title,
                         "embed_url": f"https://www.youtube.com/embed/{v_id}?autoplay=1&enablejsapi=1"
                     })
+                else:
+                    return jsonify({
+                        "is_live": False,
+                        "video_id": "",
+                        "channel_id": resolved_id,
+                        "channel_title": channel_title or channel_input,
+                        "message": f"El canal {channel_title or channel_input} no está transmitiendo en vivo en este momento."
+                    })
         except Exception as e:
-            print(f"[youtube_live] Error buscando directo: {e}")
+            # Fallback a scraping web sin imprimir error 400
+            pass
+
+    # 3. Fallback scraping de /live para canales sin API key o en caso de error
+    try:
+        clean_handle = channel_input.split("/")[-1].split("?")[0]
+        if not clean_handle.startswith("@") and not clean_handle.startswith("UC"):
+            clean_handle = "@" + clean_handle
+        target_url = f"https://www.youtube.com/{clean_handle}/live"
+        req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64)'})
+        with urllib.request.urlopen(req, timeout=4) as res:
+            html = res.read().decode('utf-8', errors='ignore')
+            import re
+            m = re.search(r'"videoId":"([a-zA-Z0-9_-]{11})"', html)
+            if m and ("isLive" in html or "viewCount" in html):
+                v_id = m.group(1)
+                return jsonify({
+                    "is_live": True,
+                    "video_id": v_id,
+                    "embed_url": f"https://www.youtube.com/embed/{v_id}?autoplay=1&enablejsapi=1"
+                })
+    except Exception:
+        pass
 
     return jsonify({
         "is_live": False,
         "video_id": "",
-        "message": "No hay transmisión activa detectada o falta configurar el ID de canal / video en Ajustes."
+        "message": f"No hay transmisión activa detectada para {channel_input}."
     })
 
 # ─── API SOUNDBOARD / BOTONERA (MYINSTANTS & RANKINGS) ───

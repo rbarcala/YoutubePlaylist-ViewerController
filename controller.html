@@ -16,6 +16,7 @@
 
 <style>
   :root {
+    --header-h: 52px;
     --bg: #0a0a0a;
     --surface: #141414;
     --surface-hover: #1e1e1e;
@@ -48,17 +49,20 @@
     position: sticky;
     top: 0;
     z-index: 100;
-    background: rgba(10, 10, 10, 0.95);
-    -webkit-backdrop-filter: blur(14px);
-    backdrop-filter: blur(14px);
+    background: rgba(10, 10, 10, 0.96);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border);
-    padding: 10px 18px;
+    padding: 8px 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
+    gap: 10px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
+  header::-webkit-scrollbar { display: none; }
 
   .logo-group {
     display: flex;
@@ -364,59 +368,268 @@
     box-shadow: 0 0 14px rgba(232, 255, 71, 0.2);
   }
 
-  /* ─── 4. VISTA SPOTIFY REMOTE ─── */
+  
+  /* ─── 4. VISTA SPOTIFY REMOTE (WIDESCREEN DASHBOARD) ─── */
+  .spotify-dashboard-grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 20px;
+    align-items: start;
+    width: 100%;
+  }
+  @media (max-width: 960px) {
+    .spotify-dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .spotify-side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
   .spotify-player-card {
     background: #121212;
     border: 1px solid #282828;
     border-radius: 12px;
-    padding: 24px;
+    padding: 18px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    max-width: 650px;
-    margin: 0 auto 30px;
+    gap: 14px;
+    width: 100%;
+    margin: 0;
   }
   .spotify-track-info {
     display: flex;
-    gap: 20px;
+    gap: 14px;
     align-items: center;
   }
   .spotify-art {
-    width: 110px; height: 110px;
+    width: 80px; height: 80px;
     border-radius: 8px;
     object-fit: cover;
     background: #222;
+    flex-shrink: 0;
   }
-  .spotify-meta h3 { font-size: 18px; color: #fff; margin-bottom: 6px; }
-  .spotify-meta p { font-size: 13px; color: #aaa; }
+  .spotify-meta {
+    overflow: hidden;
+  }
+  .spotify-meta h3 {
+    font-size: 15px;
+    color: #fff;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .spotify-meta p {
+    font-size: 12px;
+    color: #aaa;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .spotify-meta span { font-size: 11px; color: var(--accent-spotify); }
   .spotify-controls-row {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 18px;
+    gap: 16px;
+  }
+  .spotify-saved-box {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .sp-playlist-item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 7px 10px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .sp-playlist-item:hover {
+    background: rgba(255,255,255,0.07);
+    border-color: var(--accent);
+  }
+  .spotify-main-panel {
+    min-width: 0;
+    width: 100%;
   }
   .spotify-search-box {
-    max-width: 650px;
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
   }
   .spotify-results-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
+    max-height: calc(100vh - 210px);
+    overflow-y: auto;
+    padding-right: 6px;
   }
-  .spotify-item-row {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    padding: 10px 14px;
-    border-radius: var(--radius);
+  .spotify-compact-row {
+    background: #141414;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 6px 12px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 12px;
+    transition: background 0.12s;
+  }
+  .spotify-compact-row:hover {
+    background: #1e1e1e;
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+  .sp-col-idx {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .sp-col-thumb {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .sp-col-meta {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+  }
+  .sp-col-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sp-col-artist {
+    font-size: 11px;
+    color: #888;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sp-col-album {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+  }
+  .sp-col-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  /* ─── 6. VISTA SOUNDBOARD / BOTONERA ULTRA-RÁPIDA (FLAT TILES) ─── */
+  .soundboard-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .soundboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 8px;
+    margin-top: 6px;
+    width: 100%;
+  }
+  .sound-tile {
+    background: #161616;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 8px 6px;
+    height: 68px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+    contain: strict;
+    transition: background 0.1s, border-color 0.1s;
+    overflow: hidden;
+  }
+  .sound-tile:hover {
+    background: #222222;
+    border-color: rgba(255, 255, 255, 0.28);
+  }
+  .sound-tile:active, .sound-tile.pressed {
+    background: #2d2d2d;
+    border-color: var(--accent);
+  }
+  .sound-tile.playing {
+    border-color: var(--accent);
+    background: rgba(232, 255, 71, 0.12);
+  }
+  .sound-tile-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0 2px;
+  }
+  .sound-tile-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ff0055;
+    flex-shrink: 0;
+  }
+  .sound-tile-fav {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.1s;
+  }
+  .sound-tile-fav.is-fav {
+    color: #ffd700;
+  }
+  .sound-tile-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #eee;
+    text-align: center;
+    line-height: 1.25;
+    max-height: 2.5em;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+    width: 100%;
   }
 
   /* ─── 5. VISTA MONITOR DIRECTO ─── */
@@ -463,7 +676,7 @@
   .soundboard-topbar {
     position: -webkit-sticky;
     position: sticky;
-    top: 56px;
+    top: calc(var(--header-h, 52px) + 8px);
     z-index: 95;
     background: rgba(14, 14, 14, 0.94);
     -webkit-backdrop-filter: blur(14px);
@@ -580,68 +793,7 @@
     gap: 14px;
     margin-top: 6px;
   }
-  .sound-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 10px 12px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    cursor: pointer;
-    position: relative;
-    transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-  .sound-card:hover {
-    border-color: #666;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
-  }
-  .sound-card:active, .sound-card.pressed {
-    transform: scale(0.95);
-  }
-  .sound-card.playing {
-    border-color: var(--accent);
-    box-shadow: 0 0 15px rgba(232, 255, 71, 0.35);
-  }
-  .sound-btn-circle {
-    width: 68px;
-    height: 68px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    box-shadow: 0 6px 0 rgba(0, 0, 0, 0.4), 0 8px 16px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.35);
-    transition: transform 0.08s ease, box-shadow 0.08s ease;
-  }
-  .sound-card:active .sound-btn-circle, .sound-card.pressed .sound-btn-circle {
-    transform: translateY(4px);
-    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4), 0 3px 6px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.2);
-  }
-  .sound-btn-play-icon {
-    font-size: 20px;
-    color: #fff;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
-  }
-  .sound-title {
-    font-size: 11px;
-    font-weight: 600;
-    text-align: center;
-    color: var(--text);
-    line-height: 1.3;
-    max-height: 2.6em;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    width: 100%;
-    word-break: break-word;
-  }
+  
   .sound-fav-btn {
     position: absolute;
     top: 6px;
@@ -835,7 +987,7 @@
     .hub-card-desc { font-size: 10px; line-height: 1.2; color: var(--muted); }
     .hub-card-badge { display: none; }
     .soundboard-topbar {
-      top: 52px;
+      top: 60px;
       padding: 8px 10px;
       gap: 8px;
     }
@@ -984,41 +1136,66 @@
   </div>
 </div>
 
-<!-- ─── 4. VISTA SPOTIFY REMOTE ─── -->
+<!-- ─── 4. VISTA SPOTIFY REMOTE (LAYOUT PANORÁMICO) ─── -->
 <div class="view-container" id="view-spotify">
-  <div class="spotify-player-card">
-    <div class="spotify-track-info">
-      <img id="spTrackArt" class="spotify-art" src="/assets/icon.png" alt="Carátula">
-      <div class="spotify-meta">
-        <h3 id="spTrackTitle">Sin reproducción activa</h3>
-        <p id="spTrackArtist">—</p>
-        <span id="spDeviceName">Dispositivo: PC</span>
+  <div class="spotify-dashboard-grid">
+    <!-- PANEL IZQUIERDO: Reproductor + Mis Playlists Guardadas -->
+    <div class="spotify-side-panel">
+      <!-- Tarjeta Now Playing -->
+      <div class="spotify-player-card">
+        <div class="spotify-track-info">
+          <img id="spTrackArt" class="spotify-art" src="/assets/icon.png" alt="Carátula">
+          <div class="spotify-meta">
+            <h3 id="spTrackTitle">Sin reproducción activa</h3>
+            <p id="spTrackArtist">—</p>
+            <span id="spDeviceName">Dispositivo: PC</span>
+          </div>
+        </div>
+
+        <!-- Controles -->
+        <div class="spotify-controls-row">
+          <button class="btn" onclick="spotifyAction('previous')" style="font-size:15px; padding:6px 14px;">⏮</button>
+          <button class="btn btn-spotify" id="spPlayBtn" onclick="spotifyTogglePlay()" style="font-size:15px; padding:8px 22px;">▶</button>
+          <button class="btn" onclick="spotifyAction('next')" style="font-size:15px; padding:6px 14px;">⏭</button>
+        </div>
+
+        <!-- Volumen de la PC -->
+        <div style="display:flex; align-items:center; gap:10px; justify-content:center;">
+          <span style="font-size:11px; color:#aaa;">🔊 PC:</span>
+          <input type="range" id="spVolumeSlider" min="0" max="100" value="50" oninput="document.getElementById('spVolumeValue').textContent = this.value + '%'" onchange="spotifySetVolume(this.value)" style="accent-color:var(--accent-spotify); flex:1; max-width:180px;">
+          <span id="spVolumeValue" style="font-size:11px; color:var(--accent-spotify); width:32px;">50%</span>
+        </div>
+      </div>
+
+      <!-- Playlists Guardadas en la columna izquierda -->
+      <div class="spotify-saved-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:12px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.5px;">📁 Mis Playlists Guardadas:</span>
+          <span style="font-size:11px; color:var(--muted);" id="spSavedCount">0 guardadas</span>
+        </div>
+        <div id="spSavedPlaylists" style="display:flex; flex-direction:column; gap:6px; max-height:260px; overflow-y:auto; padding-right:4px;">
+          <span style="color:var(--muted); font-size:11px;">Cargando playlists guardadas…</span>
+        </div>
+        <button class="btn btn-accent" style="width:100%; margin-top:10px; font-size:11px; font-weight:700; padding:7px;" onclick="promptAddPlaylist()">➕ Guardar Otra Playlist</button>
       </div>
     </div>
 
-    <!-- Controles -->
-    <div class="spotify-controls-row">
-      <button class="btn" onclick="spotifyAction('previous')" style="font-size:16px;">⏮</button>
-      <button class="btn btn-spotify" id="spPlayBtn" onclick="spotifyTogglePlay()" style="font-size:16px; padding:8px 20px;">▶</button>
-      <button class="btn" onclick="spotifyAction('next')" style="font-size:16px;">⏭</button>
-    </div>
+    <!-- PANEL DERECHO: Buscador + Canciones en Ancho Completo -->
+    <div class="spotify-main-panel">
+      <div class="spotify-search-box">
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="spSearchInput" class="form-input" style="flex:1;" placeholder="Buscar canción, artista o pegar enlace https://open.spotify.com/playlist/..." onkeydown="if(event.key === 'Enter') spotifySearch()">
+          <button class="btn btn-spotify" onclick="spotifySearch()" style="font-weight:700; padding:8px 20px;">🔍 Buscar</button>
+        </div>
 
-    <!-- Volumen de la PC -->
-    <div style="display:flex; align-items:center; gap:12px; justify-content:center;">
-      <span style="font-size:11px; color:#aaa;">🔊 Volumen PC:</span>
-      <input type="range" id="spVolumeSlider" min="0" max="100" value="50" oninput="document.getElementById('spVolumeValue').textContent = this.value + '%'" onchange="spotifySetVolume(this.value)" style="accent-color:var(--accent-spotify); width:200px;">
-      <span id="spVolumeValue" style="font-size:11px; color:var(--accent-spotify);">50%</span>
+        <div id="spPlaylistHeader" style="display:none; margin-top:4px;"></div>
+        <div class="spotify-results-list" id="spResultsList">
+          <div style="color:var(--muted); font-size:12px; text-align:center; padding:60px 20px;">
+            Selecciona una playlist a la izquierda o escribe en el buscador de arriba para explorar canciones.
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
-
-  <!-- Búsqueda y Cola de Reproducción -->
-  <div class="spotify-search-box">
-    <h3 style="font-size:14px; color:var(--muted); text-transform:uppercase;">Buscar canciones para reproducir en la PC:</h3>
-    <div style="display:flex; gap:8px;">
-      <input type="text" id="spSearchInput" class="form-input" style="flex:1;" placeholder="Buscar canción, artista o álbum en Spotify...">
-      <button class="btn btn-spotify" onclick="spotifySearch()">Buscar</button>
-    </div>
-    <div class="spotify-results-list" id="spResultsList"></div>
   </div>
 </div>
 
@@ -1196,6 +1373,122 @@
       </div>
     </div>
 
+    
+    <!-- Tarjeta de Personalización Avanzada del Overlay -->
+    <div class="overlay-obs-box" style="margin-top:16px;">
+      <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:15px; color:var(--accent); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <span>🎨 Personalización Total del Overlay (OBS Studio / Viewer)</span>
+        <span style="font-size:11px; color:var(--muted);">Sincronización en vivo a 0 clics</span>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:14px;">
+        <!-- 1. Toggles de Contenido -->
+        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:12px;">
+          <h4 style="font-size:12px; color:var(--accent); text-transform:uppercase; margin-bottom:10px;">👁️ Elementos Visibles</h4>
+          <div style="display:flex; flex-direction:column; gap:8px; font-size:12px;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgSongTitle" checked> Título de Canción (Spotify)</label>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgVideoTitle" checked> Título de Video (YouTube)</label>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgArtist" checked> Artista / Canal</label>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgCover" checked> Carátula / Portada</label>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgBadge" checked> Badge (Spotify/YouTube)</label>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgEq" checked> Ecualizador Animado</label>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgLyrics" checked> Letras / Lyrics (Spotify)</label>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgRequireFocus"> Ocultar video si Viewer no está en foco</label>
+          </div>
+        </div>
+
+        <!-- 2. Posición y Escala -->
+        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:12px;">
+          <h4 style="font-size:12px; color:var(--accent); text-transform:uppercase; margin-bottom:10px;">📐 Ubicación y Escala</h4>
+          <div style="display:flex; flex-direction:column; gap:10px; font-size:12px;">
+            <div>
+              <label class="form-label" style="font-size:11px;">Alineación en Pantalla</label>
+              <select id="ovCfgPosition" class="form-input" style="width:100%; font-size:12px;">
+                <option value="bottom-left">Abajo a la Izquierda (Predeterminado)</option>
+                <option value="bottom-right">Abajo a la Derecha</option>
+                <option value="top-left">Arriba a la Izquierda</option>
+                <option value="top-right">Arriba a la Derecha</option>
+                <option value="bottom-center">Abajo al Centro</option>
+                <option value="top-center">Arriba al Centro</option>
+              </select>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <div>
+                <label class="form-label" style="font-size:11px;">Margen X (px)</label>
+                <input type="number" id="ovCfgPosX" class="form-input" value="28" min="0" max="800">
+              </div>
+              <div>
+                <label class="form-label" style="font-size:11px;">Margen Y (px)</label>
+                <input type="number" id="ovCfgPosY" class="form-input" value="28" min="0" max="800">
+              </div>
+            </div>
+            <div>
+              <label class="form-label" style="font-size:11px;">Escala / Zoom: <span id="ovCfgScaleVal" style="color:var(--accent); font-weight:700;">1.0x</span></label>
+              <input type="range" id="ovCfgScale" min="0.5" max="1.8" step="0.05" value="1.0" oninput="document.getElementById('ovCfgScaleVal').textContent = this.value + 'x'" style="width:100%; accent-color:var(--accent);">
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Estilo del Rectángulo (Discreto por Default) -->
+        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:12px;">
+          <h4 style="font-size:12px; color:var(--accent); text-transform:uppercase; margin-bottom:10px;">🎨 Estilo del Rectángulo</h4>
+          <div style="display:flex; flex-direction:column; gap:10px; font-size:12px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <div>
+                <label class="form-label" style="font-size:11px;">Color Fondo</label>
+                <input type="color" id="ovCfgBgColor" class="form-input" value="#0a0a0a" style="height:34px; padding:2px;">
+              </div>
+              <div>
+                <label class="form-label" style="font-size:11px;">Opacidad: <span id="ovCfgOpacityVal" style="color:var(--accent); font-weight:700;">78%</span></label>
+                <input type="range" id="ovCfgBgOpacity" min="10" max="100" value="78" oninput="document.getElementById('ovCfgOpacityVal').textContent = this.value + '%'" style="width:100%; accent-color:var(--accent); margin-top:8px;">
+              </div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <div>
+                <label class="form-label" style="font-size:11px;">Redondeo: <span id="ovCfgRadiusVal" style="color:var(--accent); font-weight:700;">12px</span></label>
+                <input type="range" id="ovCfgBorderRadius" min="0" max="28" value="12" oninput="document.getElementById('ovCfgRadiusVal').textContent = this.value + 'px'" style="width:100%; accent-color:var(--accent);">
+              </div>
+              <div>
+                <label class="form-label" style="font-size:11px;">Color Texto</label>
+                <input type="color" id="ovCfgTextColor" class="form-input" value="#ffffff" style="height:34px; padding:2px;">
+              </div>
+            </div>
+            <div>
+              <label class="form-label" style="font-size:11px;">Tipografía</label>
+              <select id="ovCfgFont" class="form-input" style="width:100%; font-size:12px;">
+                <option value="system-ui">Sistema Moderno (Discreto & Limpio)</option>
+                <option value="'Space Mono', monospace">Space Mono (Terminal / Hacker)</option>
+                <option value="'Syne', sans-serif">Syne (Stream Moderno)</option>
+                <option value="'Montserrat', sans-serif">Montserrat (Elegante)</option>
+                <option value="sans-serif">Sans-Serif Clásico</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Efecto Wave y Mensaje Extra -->
+        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:12px;">
+          <h4 style="font-size:12px; color:var(--accent); text-transform:uppercase; margin-bottom:10px;">🌊 Efecto Wave & Texto Extra</h4>
+          <div style="display:flex; flex-direction:column; gap:10px; font-size:12px;">
+            <div>
+              <label class="form-label" style="font-size:11px;">Intensidad de Ondulación / Wave: <span id="ovCfgWaveVal" style="color:var(--accent); font-weight:700;">0 (Desactivado)</span></label>
+              <input type="range" id="ovCfgWave" min="0" max="10" value="0" oninput="document.getElementById('ovCfgWaveVal').textContent = this.value == 0 ? '0 (Desactivado)' : this.value" style="width:100%; accent-color:var(--accent);">
+              <div style="font-size:10px; color:var(--muted); margin-top:2px;">Crea una animación ondulante sutil o enérgica en el título.</div>
+            </div>
+            <div>
+              <label class="form-label" style="font-size:11px;">Texto Extra / Tagline en Pantalla</label>
+              <input type="text" id="ovCfgExtraText" class="form-input" placeholder="Ej: twitch.tv/mi_canal | ¡Bienvenidos!">
+              <div style="font-size:10px; color:var(--muted); margin-top:2px;">Se muestra debajo del artista como un sutil pie de página.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
+        <button class="btn btn-accent" onclick="saveOverlayCustomization()" style="padding:10px 24px; font-size:13px; font-weight:700;">💾 Guardar y Aplicar Cambios al Overlay</button>
+      </div>
+    </div>
+
     <!-- Barra Now Playing informativa -->
     <div class="overlay-obs-box">
       <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:14px; color:#fff; margin-bottom:4px;">
@@ -1242,6 +1535,24 @@
       </label>
       <div class="form-help">Al seleccionar o re-clickear un video, el Viewer pasa al primer plano automáticamente en el navegador.</div>
     </div>
+    
+    <div class="form-group">
+      <label class="form-label" style="display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="cfgAutoOpenViewer" checked> Abrir Viewer automáticamente al iniciar la app
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" style="display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="cfgOverlayEnabled" checked> Habilitar Overlay (barra de música y temporizador) en el Viewer / OBS
+      </label>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="cfgShowLyrics" checked> Mostrar Letra (Lyrics) de Spotify en el Overlay si está disponible
+      </label>
+    </div>
+
 
     <!-- Spotify Credentials -->
     <div class="form-group" style="border-top:1px solid var(--border); padding-top:10px;">
@@ -1530,6 +1841,9 @@ async function initApp() {
   }
 
   initSSE();
+  loadSavedPlaylists();
+    populateOverlayCustomizationForm(config);
+    updateHeaderHeight();
   initBroadcastChannel();
   loadPlaylist();
   loadObsData();
@@ -2005,6 +2319,45 @@ function spotifySetVolume(val) {
   });
 }
 
+
+async function loadSavedPlaylists() {
+  try {
+    const res = await fetch('/api/spotify/saved_playlists');
+    const data = await res.json();
+    const container = document.getElementById('spSavedPlaylists');
+    if (!data.playlists || data.playlists.length === 0) {
+      container.innerHTML = '<span style="color:var(--muted); font-size:11px;">No tienes playlists guardadas. Pega un enlace de Spotify arriba para agregar una.</span>';
+      return;
+    }
+    
+    container.innerHTML = data.playlists.map(p => `
+      <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding:4px 10px; border-radius:12px; display:flex; align-items:center; gap:6px; font-size:11px;">
+        <span style="cursor:pointer; color:var(--accent);" onclick="loadPlaylist('${p.id}')">🎵 ${p.name}</span>
+        <button style="background:none; border:none; color:var(--muted); cursor:pointer; margin-left:4px;" onclick="deleteSpotifyPlaylist('${p.id}')">✖</button>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function saveSpotifyPlaylist(id, name) {
+  await fetch('/api/spotify/saved_playlists', { method: 'POST', body: JSON.stringify({id, name}) });
+  loadSavedPlaylists();
+    populateOverlayCustomizationForm(config);
+    updateHeaderHeight();
+}
+
+async function deleteSpotifyPlaylist(id) {
+  await fetch('/api/spotify/saved_playlists', { method: 'DELETE', body: JSON.stringify({id}) });
+  loadSavedPlaylists();
+    populateOverlayCustomizationForm(config);
+    updateHeaderHeight();
+}
+
+function loadPlaylist(id) {
+  document.getElementById('spSearchInput').value = 'https://open.spotify.com/playlist/' + id;
+  spotifySearch();
+}
+
 async function spotifySearch() {
   const q = document.getElementById('spSearchInput').value.trim();
   if (!q) return;
@@ -2012,9 +2365,28 @@ async function spotifySearch() {
   list.innerHTML = '<p style="color:var(--muted); font-size:12px;">Buscando en Spotify…</p>';
 
   try {
-    const res = await fetch('/api/spotify/search?q=' + encodeURIComponent(q));
-    const data = await res.json();
+    let res, data;
+    const playlistMatch = q.match(/playlist\/([a-zA-Z0-9]+)/);
+    
+    if (playlistMatch) {
+      list.innerHTML = '<p style="color:var(--muted); font-size:12px;">Cargando playlist…</p>';
+      res = await fetch('/api/spotify/playlist?id=' + playlistMatch[1]);
+      data = await res.json();
+    } else {
+      res = await fetch('/api/spotify/search?q=' + encodeURIComponent(q));
+      data = await res.json();
+    }
+    
     list.innerHTML = '';
+    
+    
+    if (playlistMatch && data.name) {
+      list.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h4 style="color:var(--accent);">🎵 Playlist: ${data.name}</h4>
+        <button class="btn" style="padding:4px 8px; font-size:11px;" onclick="saveSpotifyPlaylist('${playlistMatch[1]}', '${data.name.replace(/'/g, "\'")}')">⭐ Guardar Playlist</button>
+      </div>`;
+    }
+
 
     if (data.tracks && data.tracks.length > 0) {
       data.tracks.forEach(track => {
@@ -2281,12 +2653,19 @@ function setupSoundboardInfiniteScroll() {
   sbIntersectionObserver.observe(sentinel);
 }
 
-window.addEventListener('scroll', () => {
+// Scroll throttled via IntersectionObserver to prevent lag
+let sbScrollThrottleTimeout = null;
+function handleSoundboardScroll() {
   if (currentView !== 'soundboard' || !sbHasMore || sbIsLoadingMore || currentSbTab === 'favorites') return;
-  if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 600)) {
-    loadMoreSounds();
-  }
-}, { passive: true });
+  if (sbScrollThrottleTimeout) return;
+  sbScrollThrottleTimeout = setTimeout(() => {
+    sbScrollThrottleTimeout = null;
+    if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 400)) {
+      loadMoreSounds();
+    }
+  }, 300);
+}
+window.addEventListener('scroll', handleSoundboardScroll, { passive: true });
 
 function executeSoundboardSearch() {
   const q = document.getElementById('sbSearchInput').value.trim();
@@ -2331,14 +2710,14 @@ function renderSoundboardGrid(sounds, append = false) {
     const jsonStr = JSON.stringify(s).replace(/"/g, '&quot;');
 
     return `
-      <div class="sound-card" data-mp3="${safeMp3}" onclick="triggerPlaySound('${safeMp3}', '${safeTitle}', this)" title="${safeTitle}">
-        <button class="sound-fav-btn ${isFav ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleFavoriteSound(${jsonStr}, this)" title="${isFav ? 'Quitar de favoritos' : 'Agregar a favoritos'}">
-          ${isFav ? '★' : '☆'}
-        </button>
-        <div class="sound-btn-circle" style="background: radial-gradient(circle at 35% 35%, ${color} 0%, rgba(0,0,0,0.4) 100%), ${color};">
-          <span class="sound-btn-play-icon">▶</span>
+      <div class="sound-tile" data-mp3="${safeMp3}" onclick="triggerPlaySound('${safeMp3}', '${safeTitle}', this)" title="${safeTitle}">
+        <div class="sound-tile-top">
+          <span class="sound-tile-dot" style="background:${color};"></span>
+          <button class="sound-tile-fav ${isFav ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleFavoriteSound(${jsonStr}, this)" title="${isFav ? 'Quitar de favoritos' : 'Agregar a favoritos'}">
+            ${isFav ? '★' : '☆'}
+          </button>
         </div>
-        <div class="sound-title">${safeTitle}</div>
+        <div class="sound-tile-title">${safeTitle}</div>
       </div>
     `;
   }).join('');
@@ -2745,6 +3124,9 @@ function openSettingsModal() {
   document.getElementById('cfgPlaylistId').value = config.playlist_id || '';
   document.getElementById('cfgChannelId').value = config.youtube_channel_id || '';
   document.getElementById('cfgAutoFocusViewer').checked = config.auto_focus_viewer !== false;
+  document.getElementById('cfgAutoOpenViewer').checked = config.auto_open_viewer !== false;
+  document.getElementById('cfgOverlayEnabled').checked = config.overlay_enabled !== false;
+  document.getElementById('cfgShowLyrics').checked = config.overlay_show_lyrics !== false;
   document.getElementById('cfgSpotifyClientId').value = config.spotify_client_id || '';
   document.getElementById('cfgSpotifyClientSecret').value = config.spotify_client_secret || '';
 
@@ -2777,6 +3159,9 @@ async function saveSettings() {
     playlist_id: pl,
     youtube_channel_id: document.getElementById('cfgChannelId').value.trim(),
     auto_focus_viewer: document.getElementById('cfgAutoFocusViewer').checked,
+    auto_open_viewer: document.getElementById('cfgAutoOpenViewer').checked,
+    overlay_enabled: document.getElementById('cfgOverlayEnabled').checked,
+    overlay_show_lyrics: document.getElementById('cfgShowLyrics').checked,
     spotify_client_id: document.getElementById('cfgSpotifyClientId').value.trim(),
     spotify_client_secret: document.getElementById('cfgSpotifyClientSecret').value.trim(),
     obs_enabled: document.getElementById('cfgObsEnabled').checked,

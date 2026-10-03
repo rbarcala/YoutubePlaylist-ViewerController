@@ -203,21 +203,77 @@ class SpotifyManager:
         if not query:
             return {"tracks": []}
         encoded = urllib.parse.quote(query)
-        res = self._api_request(f"search?q={encoded}&type=track&limit=15")
+        res = self._api_request(f"search?q={encoded}&type=track")
         if "tracks" in res:
             items = []
             for t in res["tracks"].get("items", []):
                 items.append({
-                    "id": t["id"],
-                    "uri": t["uri"],
-                    "title": t["name"],
-                    "artist": ", ".join([a["name"] for a in t.get("artists", [])]),
+                    "id": t.get("id"),
+                    "uri": t.get("uri"),
+                    "title": t.get("name"),
+                    "artist": ", ".join([a.get("name", "") for a in t.get("artists", [])]),
                     "album": t.get("album", {}).get("name", ""),
-                    "thumb": t.get("album", {}).get("images", [{}])[-1].get("url", ""),
+                    "thumb": t.get("album", {}).get("images", [{}])[-1].get("url", "") if t.get("album", {}).get("images") else "",
                     "duration_ms": t.get("duration_ms", 0)
                 })
             return {"tracks": items}
         return {"tracks": [], "error": res.get("error")}
+
+    def get_playlist(self, playlist_id: str) -> dict:
+        """Obtiene todas las canciones de una playlist de Spotify, paginando automáticamente."""
+        res = self._api_request(f"playlists/{playlist_id}")
+        if not res or "error" in res:
+            return {"tracks": [], "error": res.get("error") if isinstance(res, dict) else "Error de conexión"}
+
+        name = res.get("name", "Playlist")
+        tracks_obj = res.get("tracks") or res.get("items")
+        all_raw_items = []
+
+        if tracks_obj and isinstance(tracks_obj, dict):
+            all_raw_items.extend(tracks_obj.get("items", []))
+            total = tracks_obj.get("total", len(all_raw_items))
+            offset = len(all_raw_items)
+
+            # Paginar para traer todas las canciones (límite de seguridad 1000)
+            while offset < total and offset < 1000:
+                next_batch = self._api_request(f"playlists/{playlist_id}/items?offset={offset}&limit=100")
+                if not next_batch or not isinstance(next_batch, dict) or not next_batch.get("items"):
+                    next_batch = self._api_request(f"playlists/{playlist_id}/tracks?offset={offset}&limit=100")
+
+                if next_batch and isinstance(next_batch, dict) and next_batch.get("items"):
+                    batch_items = next_batch.get("items", [])
+                    all_raw_items.extend(batch_items)
+                    offset += len(batch_items)
+                else:
+                    break
+
+        items = []
+        for idx, item in enumerate(all_raw_items):
+            if not isinstance(item, dict): continue
+            t = item.get("track") or item.get("item")
+            if not t or not isinstance(t, dict): continue
+
+            # Extraer carátula
+            thumb = ""
+            album = t.get("album")
+            if isinstance(album, dict) and album.get("images"):
+                thumb = album["images"][-1].get("url", "")
+
+            # Formatear artistas
+            artists = ", ".join([a.get("name", "") for a in t.get("artists", []) if isinstance(a, dict) and a.get("name")])
+
+            items.append({
+                "index": idx + 1,
+                "id": t.get("id") or f"track_{idx}",
+                "uri": t.get("uri") or f"spotify:track:{t.get('id')}",
+                "title": t.get("name", "Sin título"),
+                "artist": artists or "Desconocido",
+                "album": album.get("name", "") if isinstance(album, dict) else "",
+                "thumb": thumb,
+                "duration_ms": t.get("duration_ms", 0)
+            })
+
+        return {"name": name, "tracks": items, "total": len(items)}
 
     # ─── FALLBACK MPRIS PARA SPOTIFY LOCAL EN LINUX ───
     def _mpris_call(self, method: str):

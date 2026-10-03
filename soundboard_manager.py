@@ -203,6 +203,13 @@ class SoundboardManager:
     # ─── BÚSQUEDA Y RANKINGS EN VIVO CON PAGINACIÓN ───
 
     def get_regional(self, region: str = "ar", page: int = 1) -> dict:
+        cache_key = f"{region}_{page}"
+        if not hasattr(self, "_cache"):
+            self._cache = {}
+            self._cache_time = {}
+        import time
+        if cache_key in self._cache and time.time() - self._cache_time.get(cache_key, 0) < 3600:
+            return self._cache[cache_key]
         """
         Obtiene los sonidos en vivo directamente desde MyInstants para el país o región.
         Soporta paginación: page 1, 2, 3, etc. (36 sonidos por página).
@@ -216,12 +223,15 @@ class SoundboardManager:
             with urllib.request.urlopen(req, timeout=6) as res:
                 html = res.read().decode('utf-8', errors='ignore')
                 sounds = self._parse_instants_html(html)
-                return {
+                result = {
                     "sounds": sounds,
                     "page": int(page),
                     "has_more": len(sounds) >= 20,
                     "region": reg
                 }
+                self._cache[cache_key] = result
+                self._cache_time[cache_key] = time.time()
+                return result
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 return {"sounds": [], "page": int(page), "has_more": False, "region": reg}
@@ -234,10 +244,20 @@ class SoundboardManager:
     def search(self, query: str, page: int = 1) -> dict:
         """
         Busca sonidos en vivo en MyInstants con la consulta del usuario y paginación.
+        Con memoria caché en RAM para respuesta instantánea a 0 ms.
         """
         query = query.strip()
         if not query:
             return self.get_regional("ar", page)
+
+        p = max(1, int(page))
+        cache_key = f"search_{query.lower()}_{p}"
+        if not hasattr(self, "_cache"):
+            self._cache = {}
+            self._cache_time = {}
+        import time
+        if cache_key in self._cache and time.time() - self._cache_time.get(cache_key, 0) < 3600:
+            return self._cache[cache_key]
 
         p = max(1, int(page))
         url = f"https://www.myinstants.com/en/search/?name={urllib.parse.quote(query)}&page={p}"
@@ -246,12 +266,15 @@ class SoundboardManager:
             with urllib.request.urlopen(req, timeout=6) as res:
                 html = res.read().decode('utf-8', errors='ignore')
                 sounds = self._parse_instants_html(html)
-                return {
+                result = {
                     "sounds": sounds,
                     "page": p,
                     "has_more": len(sounds) >= 20,
                     "query": query
                 }
+                self._cache[cache_key] = result
+                self._cache_time[cache_key] = time.time()
+                return result
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 # MyInstants devuelve 404 cuando una búsqueda no tiene resultados o se llegó al final

@@ -8,14 +8,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg-card: rgba(10, 10, 10, 0.90);
-    --border: rgba(255, 255, 255, 0.12);
+    --bg-card: rgba(10, 10, 10, 0.78);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-radius: 12px;
     --accent: #e8ff47;
     --accent-glow: rgba(232, 255, 71, 0.35);
     --text: #ffffff;
     --muted: #a0a0a0;
     --spotify: #1DB954;
     --youtube: #ff0033;
+    --overlay-scale: 1.0;
+    --overlay-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --wave-amp: 0px;
+    --wave-speed: 1.8s;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -25,44 +30,46 @@
     height: 100%;
     background: transparent !important;
     overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--overlay-font);
     color: var(--text);
   }
 
-  /* ─── 1. BARRITA NOW PLAYING FLOTANTE ─── */
+  /* ─── 1. BARRITA NOW PLAYING FLOTANTE (DISCRETA POR DEFAULT) ─── */
   .now-playing-container {
     position: fixed;
-    bottom: 32px;
-    left: 32px;
+    bottom: 28px;
+    left: 28px;
     z-index: 100;
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     background: var(--bg-card);
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 10px 18px 10px 12px;
+    border-radius: var(--border-radius);
+    padding: 8px 14px 8px 10px;
     max-width: 480px;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65), 0 0 16px rgba(0,0,0,0.5);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6), 0 0 10px rgba(0,0,0,0.3);
     opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateY(16px) scale(var(--overlay-scale));
+    transform-origin: bottom left;
+    transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s, border-color 0.3s;
     pointer-events: none;
+    font-family: var(--overlay-font);
   }
   .now-playing-container.visible {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(var(--overlay-scale));
   }
 
   .np-cover {
-    width: 46px;
-    height: 46px;
-    border-radius: 10px;
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
     object-fit: cover;
-    background: #181818;
-    border: 1px solid rgba(255,255,255,0.08);
+    background: #141414;
+    border: 1px solid rgba(255,255,255,0.06);
     flex-shrink: 0;
   }
 
@@ -74,60 +81,122 @@
   }
 
   .np-badge {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.8px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
   }
   .np-badge.spotify { color: var(--spotify); }
   .np-badge.youtube { color: var(--youtube); }
 
   .np-title {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     color: #fff;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 320px;
+    line-height: 1.3;
   }
 
   .np-subtitle {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 320px;
+    line-height: 1.2;
+  }
+
+  .np-extra-text {
+    font-size: 10px;
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: none;
+  }
+
+  /* Animación de Ondulación / Wave */
+  @keyframes textWaveAnim {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    25% { transform: translateY(calc(var(--wave-amp) * -1)) rotate(-0.6deg); }
+    75% { transform: translateY(var(--wave-amp)) rotate(0.6deg); }
+  }
+  .wave-active {
+    display: inline-block;
+    animation: textWaveAnim var(--wave-speed) ease-in-out infinite;
   }
 
   /* Ecualizador animado */
   .np-eq {
     display: flex;
     align-items: flex-end;
-    gap: 2.5px;
-    height: 14px;
-    margin-left: 6px;
+    gap: 2px;
+    height: 12px;
+    margin-left: 4px;
   }
   .np-eq-bar {
-    width: 3px;
+    width: 2.5px;
     background: currentColor;
     border-radius: 2px;
     animation: eqBounce 1s infinite ease-in-out;
   }
-  .np-eq-bar:nth-child(1) { height: 6px; animation-delay: 0.1s; }
-  .np-eq-bar:nth-child(2) { height: 14px; animation-delay: 0.3s; }
-  .np-eq-bar:nth-child(3) { height: 9px; animation-delay: 0.2s; }
+  .np-eq-bar:nth-child(1) { height: 5px; animation-delay: 0.1s; }
+  .np-eq-bar:nth-child(2) { height: 12px; animation-delay: 0.3s; }
+  .np-eq-bar:nth-child(3) { height: 8px; animation-delay: 0.2s; }
 
   @keyframes eqBounce {
     0%, 100% { transform: scaleY(0.4); }
     50% { transform: scaleY(1); }
   }
 
-  /* ─── 2. TEMPORIZADOR "YA VUELVO / RECREO" ─── */
+  /* ─── 2. LETRAS / LYRICS SPOTIFY ─── */
+  .lyrics-container {
+    position: fixed;
+    bottom: 95px;
+    left: 28px;
+    width: 440px;
+    max-height: 150px;
+    overflow: hidden;
+    background: var(--bg-card);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    padding: 12px 16px;
+    opacity: 0;
+    transform: translateY(12px) scale(var(--overlay-scale));
+    transform-origin: bottom left;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
+    font-family: var(--overlay-font);
+  }
+  .lyrics-container.visible {
+    opacity: 1;
+    transform: translateY(0) scale(var(--overlay-scale));
+  }
+  .lyrics-text {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #e0e0e0;
+    font-weight: 700;
+    white-space: pre-wrap;
+    text-align: left;
+    transform: translateY(0);
+    transition: transform 1s ease;
+  }
+
+  /* ─── 3. TEMPORIZADOR "YA VUELVO / RECREO" ─── */
   .break-overlay {
     position: fixed;
     inset: 0;
@@ -145,22 +214,23 @@
   }
 
   .break-card {
-    background: rgba(12, 12, 12, 0.94);
+    background: var(--bg-card);
     -webkit-backdrop-filter: blur(24px);
     backdrop-filter: blur(24px);
     border: 2px solid var(--accent);
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8), 0 0 32px var(--accent-glow);
-    border-radius: 28px;
-    padding: 36px 48px;
-    max-width: 680px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 28px var(--accent-glow);
+    border-radius: calc(var(--border-radius) * 1.8);
+    padding: 32px 44px;
+    max-width: 640px;
     width: 90%;
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 18px;
+    gap: 16px;
     transform: scale(0.92);
     transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: var(--overlay-font);
   }
   .break-overlay.visible .break-card {
     transform: scale(1);
@@ -172,9 +242,9 @@
     gap: 8px;
     background: rgba(232, 255, 71, 0.12);
     border: 1px solid var(--accent);
-    padding: 6px 18px;
+    padding: 5px 16px;
     border-radius: 20px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 1.5px;
@@ -184,7 +254,7 @@
 
   .break-title {
     font-family: 'Syne', sans-serif;
-    font-size: 32px;
+    font-size: 30px;
     font-weight: 800;
     color: #ffffff;
     line-height: 1.1;
@@ -192,12 +262,12 @@
 
   .break-timer {
     font-family: 'Space Mono', monospace;
-    font-size: 76px;
+    font-size: 72px;
     font-weight: 700;
     color: var(--accent);
     letter-spacing: -2px;
     text-shadow: 0 0 24px var(--accent-glow);
-    margin: 4px 0;
+    margin: 2px 0;
   }
   .break-timer.finished {
     color: #ff4757;
@@ -210,7 +280,6 @@
     100% { transform: scale(1.04); opacity: 0.7; }
   }
 
-  /* Barra de progreso */
   .break-progress-track {
     width: 100%;
     height: 8px;
@@ -226,14 +295,13 @@
     box-shadow: 0 0 10px var(--accent);
   }
 
-  /* Frase de estudiante de ingeniería */
   .break-phrase-box {
     background: rgba(255, 255, 255, 0.03);
     border: 1px dashed rgba(255, 255, 255, 0.15);
-    border-radius: 14px;
-    padding: 14px 20px;
+    border-radius: 12px;
+    padding: 12px 18px;
     width: 100%;
-    font-size: 15px;
+    font-size: 14px;
     color: #d0d0d0;
     font-style: italic;
     font-family: 'Space Mono', monospace;
@@ -262,7 +330,13 @@
     </div>
     <div class="np-title" id="npTitle">Cargando...</div>
     <div class="np-subtitle" id="npSubtitle">Artista / Canal</div>
+    <div class="np-extra-text" id="npExtraText"></div>
   </div>
+</div>
+
+
+<div class="lyrics-container" id="lyricsContainer">
+  <div class="lyrics-text" id="lyricsText"></div>
 </div>
 
 <!-- ─── 2. OVERLAY TEMPORIZADOR "YA VUELVO / RECREO" ─── -->
@@ -287,18 +361,183 @@
 </div>
 
 <script>
+  let overlayConfig = {
+    overlay_enabled: true,
+    overlay_show_song_title: true,
+    overlay_show_video_title: true,
+    overlay_show_artist: true,
+    overlay_show_badge: true,
+    overlay_show_cover: true,
+    overlay_show_equalizer: true,
+    overlay_show_lyrics: true,
+    overlay_require_focus: false,
+    overlay_extra_text: '',
+    overlay_position: 'bottom-left',
+    overlay_pos_x: 28,
+    overlay_pos_y: 28,
+    overlay_scale: 1.0,
+    overlay_font_family: 'system-ui',
+    overlay_text_wave: 0,
+    overlay_bg_color: '#0a0a0a',
+    overlay_bg_opacity: 78,
+    overlay_border_color: 'rgba(255, 255, 255, 0.08)',
+    overlay_border_radius: 12,
+    overlay_text_color: '#ffffff'
+  };
+
   let currentTimerState = { active: false, running: false, remaining_seconds: 300, total_seconds: 300 };
   let currentSpotify = { is_playing: false, title: '', artist: '', cover_url: '' };
   let currentYouTube = { is_playing: false, title: '', video_id: '' };
   let lastChimePlayedFor = 0;
+  let viewerFocused = true;
+  let currentLyrics = "";
+  let lastLyricsQuery = "";
+  let lyricsInterval = null;
+  let lyricsOffset = 0;
 
-  // ─── AUDIO CHIME CON WEBAUDIO (SIN ASSETS EXTERNOS) ───
+  function hexToRgba(hex, alpha) {
+    if (!hex) return `rgba(10, 10, 10, ${alpha})`;
+    if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    const r = parseInt(hex.substring(0, 2), 16) || 10;
+    const g = parseInt(hex.substring(2, 4), 16) || 10;
+    const b = parseInt(hex.substring(4, 6), 16) || 10;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  function applyConfigToOverlay(cfg) {
+    if (!cfg) return;
+    overlayConfig = Object.assign({}, overlayConfig, cfg);
+
+    const root = document.documentElement;
+    const container = document.getElementById('nowPlayingContainer');
+    const lyricsEl = document.getElementById('lyricsContainer');
+
+    // 1. Escala
+    const scale = parseFloat(overlayConfig.overlay_scale || 1.0);
+    root.style.setProperty('--overlay-scale', scale);
+
+    // 2. Tipografía
+    const font = overlayConfig.overlay_font_family || 'system-ui';
+    root.style.setProperty('--overlay-font', font);
+
+    // 3. Colores y transparencia (Discreto por default)
+    const bgColor = overlayConfig.overlay_bg_color || '#0a0a0a';
+    const bgOpacity = (overlayConfig.overlay_bg_opacity !== undefined ? overlayConfig.overlay_bg_opacity : 78) / 100;
+    const rgbaBg = hexToRgba(bgColor, bgOpacity);
+    root.style.setProperty('--bg-card', rgbaBg);
+
+    const borderColor = overlayConfig.overlay_border_color || 'rgba(255, 255, 255, 0.08)';
+    root.style.setProperty('--border', borderColor);
+
+    const radius = (overlayConfig.overlay_border_radius !== undefined ? overlayConfig.overlay_border_radius : 12) + 'px';
+    root.style.setProperty('--border-radius', radius);
+
+    const textColor = overlayConfig.overlay_text_color || '#ffffff';
+    root.style.setProperty('--text', textColor);
+
+    // 4. Posición y Coordenadas X/Y
+    const posX = (overlayConfig.overlay_pos_x !== undefined ? overlayConfig.overlay_pos_x : 28) + 'px';
+    const posY = (overlayConfig.overlay_pos_y !== undefined ? overlayConfig.overlay_pos_y : 28) + 'px';
+    const pos = overlayConfig.overlay_position || 'bottom-left';
+
+    [container, lyricsEl].forEach(el => {
+      if (!el) return;
+      el.style.top = '';
+      el.style.bottom = '';
+      el.style.left = '';
+      el.style.right = '';
+      el.style.transformOrigin = '';
+
+      if (pos === 'bottom-left') {
+        el.style.bottom = posY;
+        el.style.left = posX;
+        el.style.transformOrigin = 'bottom left';
+      } else if (pos === 'bottom-right') {
+        el.style.bottom = posY;
+        el.style.right = posX;
+        el.style.transformOrigin = 'bottom right';
+      } else if (pos === 'top-left') {
+        el.style.top = posY;
+        el.style.left = posX;
+        el.style.transformOrigin = 'top left';
+      } else if (pos === 'top-right') {
+        el.style.top = posY;
+        el.style.right = posX;
+        el.style.transformOrigin = 'top right';
+      } else if (pos === 'bottom-center') {
+        el.style.bottom = posY;
+        el.style.left = '50%';
+        el.style.transformOrigin = 'bottom center';
+        el.style.marginLeft = el === lyricsEl ? '-220px' : '-200px';
+      } else if (pos === 'top-center') {
+        el.style.top = posY;
+        el.style.left = '50%';
+        el.style.transformOrigin = 'top center';
+        el.style.marginLeft = el === lyricsEl ? '-220px' : '-200px';
+      }
+    });
+
+    if (lyricsEl) {
+      // Ajustar letras para que no se superpongan a la barrita
+      const offsetAbove = 70 * scale;
+      if (pos.startsWith('bottom')) {
+        lyricsEl.style.bottom = `calc(${posY} + ${offsetAbove}px)`;
+      } else {
+        lyricsEl.style.top = `calc(${posY} + ${offsetAbove}px)`;
+      }
+    }
+
+    // 5. Onda / Ondulación en el texto
+    const wave = parseInt(overlayConfig.overlay_text_wave || 0, 10);
+    const titleEl = document.getElementById('npTitle');
+    if (wave > 0) {
+      const amp = (wave * 0.9) + 'px';
+      const spd = Math.max(0.6, 2.6 - (wave * 0.18)) + 's';
+      root.style.setProperty('--wave-amp', amp);
+      root.style.setProperty('--wave-speed', spd);
+      if (titleEl) titleEl.classList.add('wave-active');
+    } else {
+      root.style.setProperty('--wave-amp', '0px');
+      if (titleEl) titleEl.classList.remove('wave-active');
+    }
+
+    // 6. Texto extra personalizado
+    const extraEl = document.getElementById('npExtraText');
+    if (extraEl) {
+      if (overlayConfig.overlay_extra_text && overlayConfig.overlay_extra_text.trim()) {
+        extraEl.textContent = overlayConfig.overlay_extra_text.trim();
+        extraEl.style.display = 'block';
+      } else {
+        extraEl.style.display = 'none';
+      }
+    }
+
+    // 7. Visibilidad de elementos individuales
+    const badgeEl = document.getElementById('npBadge');
+    if (badgeEl) badgeEl.style.display = (overlayConfig.overlay_show_badge !== false) ? 'flex' : 'none';
+
+    const subEl = document.getElementById('npSubtitle');
+    if (subEl) subEl.style.display = (overlayConfig.overlay_show_artist !== false) ? 'block' : 'none';
+
+    const coverEl = document.getElementById('npCover');
+    if (coverEl) coverEl.style.display = (overlayConfig.overlay_show_cover !== false) ? 'block' : 'none';
+
+    const eqEl = document.querySelector('.np-eq');
+    if (eqEl) eqEl.style.display = (overlayConfig.overlay_show_equalizer !== false) ? 'flex' : 'none';
+
+    updateNowPlayingUI();
+    fetchAndUpdateLyrics();
+  }
+
+  // Audio chime
   function playSchoolBellChime() {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
-      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+      const notes = [523.25, 659.25, 783.99, 1046.50];
       notes.forEach((freq, idx) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -316,7 +555,6 @@
     } catch(e) {}
   }
 
-  // ─── ACTUALIZAR TEMPORIZADOR ───
   function updateTimerUI(data) {
     if (!data) return;
     currentTimerState = data;
@@ -326,24 +564,21 @@
     const phraseText = document.getElementById('breakPhraseText');
     const bar = document.getElementById('breakProgressBar');
 
-    if (!data.active) {
+    if (!data.active || overlayConfig.overlay_enabled === false) {
       overlay.classList.remove('visible');
       timerText.classList.remove('finished');
       return;
     }
 
     overlay.classList.add('visible');
-
     const rem = Math.max(0, data.remaining_seconds || 0);
     const m = Math.floor(rem / 60);
     const s = rem % 60;
-    const timeStr = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    timerText.textContent = timeStr;
+    timerText.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 
     if (data.title) titleText.textContent = data.title;
     if (data.phrase) phraseText.textContent = data.phrase;
 
-    // Barra de progreso
     const total = data.total_seconds || 300;
     const pct = Math.max(0, Math.min(100, (rem / total) * 100));
     bar.style.width = pct + '%';
@@ -352,7 +587,6 @@
       timerText.classList.add('finished');
       timerText.textContent = '00:00';
       bar.style.width = '0%';
-      // Reproducir timbre una sola vez al terminar
       const now = Date.now();
       if (data.play_sound && (now - lastChimePlayedFor > 8000)) {
         lastChimePlayedFor = now;
@@ -363,9 +597,9 @@
     }
   }
 
-  // ─── ACTUALIZAR NOW PLAYING BAR ───
   function updateNowPlayingUI() {
     const container = document.getElementById('nowPlayingContainer');
+    const lyricsEl = document.getElementById('lyricsContainer');
     const cover = document.getElementById('npCover');
     const badge = document.getElementById('npBadge');
     const icon = document.getElementById('npSourceIcon');
@@ -373,28 +607,54 @@
     const title = document.getElementById('npTitle');
     const sub = document.getElementById('npSubtitle');
 
-    // 1. Prioridad: Spotify si está sonando
+    if (overlayConfig.overlay_enabled === false) {
+      container.classList.remove('visible');
+      if (lyricsEl) lyricsEl.classList.remove('visible');
+      return;
+    }
+
+    // 1. Spotify
     if (currentSpotify && currentSpotify.is_playing && currentSpotify.title) {
       container.classList.add('visible');
       badge.className = 'np-badge spotify';
       icon.textContent = '🎵';
       sourceText.textContent = 'SPOTIFY';
+
+      title.style.display = (overlayConfig.overlay_show_song_title !== false) ? 'block' : 'none';
       title.textContent = currentSpotify.title;
+
+      sub.style.display = (overlayConfig.overlay_show_artist !== false) ? 'block' : 'none';
       sub.textContent = currentSpotify.artist || 'Música en PC';
-      cover.src = currentSpotify.cover_url || 'https://via.placeholder.com/80/1DB954/FFFFFF?text=Spotify';
-      cover.style.display = 'block';
+
+      if (overlayConfig.overlay_show_cover !== false) {
+        cover.src = currentSpotify.cover_url || '/assets/icon.png';
+        cover.style.display = 'block';
+      } else {
+        cover.style.display = 'none';
+      }
       return;
     }
 
-    // 2. Prioridad: Video de YouTube del Viewer si está reproduciéndose
+    // 2. YouTube
     if (currentYouTube && currentYouTube.is_playing && currentYouTube.title) {
+      if (overlayConfig.overlay_require_focus && !viewerFocused) {
+        container.classList.remove('visible');
+        if (lyricsEl) lyricsEl.classList.remove('visible');
+        return;
+      }
+
       container.classList.add('visible');
       badge.className = 'np-badge youtube';
       icon.textContent = '▶️';
-      sourceText.textContent = 'FONDO / YOUTUBE';
+      sourceText.textContent = 'FONDO / STREAM';
+
+      title.style.display = (overlayConfig.overlay_show_video_title !== false) ? 'block' : 'none';
       title.textContent = currentYouTube.title;
+
+      sub.style.display = (overlayConfig.overlay_show_artist !== false) ? 'block' : 'none';
       sub.textContent = 'YouTube Stream';
-      if (currentYouTube.video_id) {
+
+      if (overlayConfig.overlay_show_cover !== false && currentYouTube.video_id) {
         cover.src = `https://img.youtube.com/vi/${currentYouTube.video_id}/mqdefault.jpg`;
         cover.style.display = 'block';
       } else {
@@ -403,13 +663,62 @@
       return;
     }
 
-    // 3. Silencio / Detenido: ocultar barrita
+    // 3. Ocultar si no hay nada
     container.classList.remove('visible');
+    if (lyricsEl) lyricsEl.classList.remove('visible');
   }
 
-  // ─── CONEXIÓN A SERVER-SENT EVENTS (SSE) ───
+  async function fetchAndUpdateLyrics() {
+    const lyricsEl = document.getElementById('lyricsContainer');
+    if (!lyricsEl) return;
+
+    if (overlayConfig.overlay_enabled === false || overlayConfig.overlay_show_lyrics === false || !currentSpotify.is_playing || !currentSpotify.title) {
+      lyricsEl.classList.remove('visible');
+      return;
+    }
+
+    const query = (currentSpotify.artist || '') + ' - ' + (currentSpotify.title || '');
+    if (query === lastLyricsQuery && currentLyrics) {
+      lyricsEl.classList.add('visible');
+      return;
+    }
+
+    lastLyricsQuery = query;
+    currentLyrics = '';
+    lyricsEl.classList.remove('visible');
+
+    try {
+      const art = encodeURIComponent((currentSpotify.artist || '').split(',')[0].trim());
+      const tit = encodeURIComponent((currentSpotify.title || '').replace(/\(.*\)/g, '').trim());
+      const res = await fetch(`/api/spotify/lyrics?artist=${art}&title=${tit}`);
+      const data = await res.json();
+      if (data.lyrics && data.lyrics.trim()) {
+        currentLyrics = data.lyrics.trim();
+        const lt = document.getElementById('lyricsText');
+        lt.textContent = currentLyrics;
+        lt.style.transform = 'translateY(0)';
+        lyricsEl.classList.add('visible');
+
+        clearInterval(lyricsInterval);
+        lyricsOffset = 0;
+        lyricsInterval = setInterval(() => {
+          lyricsOffset -= 14;
+          if (Math.abs(lyricsOffset) > lt.scrollHeight) lyricsOffset = 0;
+          lt.style.transform = `translateY(${lyricsOffset}px)`;
+        }, 2200);
+      }
+    } catch(e) {}
+  }
+
   function initSSE() {
     const evtSource = new EventSource('/api/events');
+
+    evtSource.addEventListener('config_updated', (e) => {
+      try {
+        const d = JSON.parse(e.data).data;
+        applyConfigToOverlay(d);
+      } catch(err) {}
+    });
 
     evtSource.addEventListener('timer_update', (e) => {
       try { updateTimerUI(JSON.parse(e.data).data); } catch(err) {}
@@ -427,6 +736,7 @@
       try {
         currentSpotify = JSON.parse(e.data).data || {};
         updateNowPlayingUI();
+        fetchAndUpdateLyrics();
       } catch(err) {}
     });
 
@@ -455,14 +765,28 @@
       updateNowPlayingUI();
     });
 
+    evtSource.addEventListener('viewer_focus', () => {
+      viewerFocused = true;
+      updateNowPlayingUI();
+    });
+
+    evtSource.addEventListener('viewer_blur', () => {
+      viewerFocused = false;
+      updateNowPlayingUI();
+    });
+
     evtSource.onerror = () => {
-      // Reintentar en 3 segundos
       setTimeout(initSSE, 3000);
     };
   }
 
-  // Carga de estado inicial por polling
   async function fetchInitialState() {
+    try {
+      const resC = await fetch('/api/config');
+      const dataC = await resC.json();
+      applyConfigToOverlay(dataC);
+    } catch(e) {}
+
     try {
       const resT = await fetch('/api/timer/status');
       const dataT = await resT.json();
@@ -483,6 +807,7 @@
     fetchInitialState();
     initSSE();
   });
+
 </script>
 
 </body>

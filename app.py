@@ -201,7 +201,7 @@ def open_myinstants_login_window():
         view = WebKit2.WebView()
         st = view.get_settings()
         # Usar User-Agent de Chrome de escritorio moderno para compatibilidad con Google OAuth
-        st.set_user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+        # st.set_user_agent(...) Eliminado para pasar Cloudflare
         st.set_enable_javascript(True)
         st.set_enable_webgl(True)
         st.set_enable_developer_extras(True)
@@ -416,8 +416,8 @@ def main():
     else:
         print(f"[app] Servidor detectado en puerto {port}.")
 
-    controller_url = f"http://localhost:{port}/controller.html"
-    viewer_url = f"http://localhost:{port}/viewer.html"
+    controller_url = f"http://127.0.0.1:{port}/controller.html"
+    viewer_url = f"http://127.0.0.1:{port}/viewer.html"
 
     # Si se pide abrir el viewer directamente
     if args.viewer:
@@ -429,8 +429,19 @@ def main():
     threading.Thread(target=launch_obs_if_needed, daemon=True).start()
 
     # Apertura automática e inteligente del Viewer al abrir el Controller (Meet -> Pestaña abierta -> Nueva ventana)
-    print(f"[app] Abriendo Viewer automáticamente: {viewer_url}")
-    threading.Thread(target=browser_mgr.open_smart_viewer, args=(viewer_url,), daemon=True).start()
+    if cfg.get("auto_open_viewer", True):
+        try:
+            import urllib.request, json
+            req = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/state", timeout=1)
+            state = json.loads(req.read().decode())
+            if state.get("activeViewers", 0) > 0:
+                print("[app] Viewer ya conectado (activo). No se abrirá otro.")
+            else:
+                print(f"[app] Abriendo Viewer automáticamente: {viewer_url}")
+                threading.Thread(target=browser_mgr.open_smart_viewer, args=(viewer_url,), daemon=True).start()
+        except Exception:
+            print(f"[app] Abriendo Viewer automáticamente: {viewer_url}")
+            threading.Thread(target=browser_mgr.open_smart_viewer, args=(viewer_url,), daemon=True).start()
 
     if mode == "web":
         print(f"[app] Abriendo Controller en navegador web: {controller_url}")

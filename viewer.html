@@ -300,6 +300,9 @@ notifyReady();
 setTimeout(notifyReady, 1500);
 
 // Notificar desconexión al cerrar pestaña
+window.addEventListener("focus", () => { fetch("/api/action", { method: "POST", body: JSON.stringify({ action: "viewer_focus" }) }); });
+window.addEventListener("blur", () => { fetch("/api/action", { method: "POST", body: JSON.stringify({ action: "viewer_blur" }) }); });
+
 window.addEventListener('beforeunload', () => {
   fetch('/api/action', {
     method: 'POST',
