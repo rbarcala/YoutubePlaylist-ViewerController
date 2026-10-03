@@ -679,4 +679,9 @@ if __name__ == '__main__':
     puerto = int(sys.argv[1]) if len(sys.argv) > 1 else int(cfg.get("port", 8000))
     host = cfg.get("host", "0.0.0.0")
     print(f"[fondos-stream] Iniciando servidor en http://{host}:{puerto}")
+    try:
+        from mdns_service import start_mdns_publisher
+        start_mdns_publisher(puerto)
+    except Exception as e:
+        print(f"[mDNS] No se pudo iniciar publicador mDNS: {e}")
     app.run(host=host, port=puerto, threaded=True)

@@ -243,6 +243,31 @@
     display: none;
     margin-top: 8px;
   }
+
+  /* ─── TARJETA DE AUTODETECCIÓN POR RED (mDNS / Zeroconf) ─── */
+  .auto-discovery-card {
+    border: 1px solid rgba(232, 255, 71, 0.4);
+    background: rgba(232, 255, 71, 0.04);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    text-align: center;
+    padding: 16px 14px;
+    transition: all 0.3s ease;
+  }
+  .auto-discovery-card.success {
+    border-color: #34C759;
+    background: rgba(52, 199, 89, 0.08);
+    box-shadow: 0 4px 24px rgba(52, 199, 89, 0.25);
+  }
+  .pulse-radar {
+    display: inline-block;
+    font-size: 22px;
+    animation: radarPulse 1.6s infinite ease-in-out;
+  }
+  @keyframes radarPulse {
+    0% { transform: scale(0.92); opacity: 0.5; }
+    50% { transform: scale(1.18); opacity: 1; }
+    100% { transform: scale(0.92); opacity: 0.5; }
+  }
 </style>
 </head>
 <body>
@@ -254,6 +279,31 @@
   </div>
 
   <div id="errorBanner" class="error-banner"></div>
+
+  <!-- SECCIÓN 0: AUTODETECCIÓN POR RED (mDNS / Zeroconf) 📡 -->
+  <div class="card auto-discovery-card" id="autoDiscoveryCard">
+    <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
+      <span class="pulse-radar" id="discoveryRadar">📡</span>
+      <strong id="discoveryTitle" style="color:var(--accent); font-size:14px; text-transform:uppercase; letter-spacing:0.5px;">Buscando PC en la red local...</strong>
+    </div>
+    <p id="discoverySubtitle" style="font-size:12px; color:var(--muted); text-align:center; margin:0;">
+      Detección automática por mDNS y Zeroconf (conexión a 0 clics)
+    </p>
+
+    <div id="discoverySuccessBadge" style="display:none; background:#000; border:1px solid #34C759; border-radius:10px; padding:10px 14px; text-align:center; margin-top:10px;">
+      <div style="color:#34C759; font-weight:800; font-size:14px; margin-bottom:2px;">
+        ✓ ¡PC de Streaming encontrada!
+      </div>
+      <div id="discoveredHostText" style="font-family:monospace; color:#fff; font-size:13px;">
+        192.168.1.100:8000
+      </div>
+      <div style="font-size:11px; color:#aaa; margin-top:4px;">
+        Conectando automáticamente en 1 segundo sin tocar nada...
+      </div>
+    </div>
+  </div>
+
+  <div class="divider" id="backupDivider">O usa un método de respaldo</div>
 
   <!-- SECCIÓN 1: ESCANEAR CÓDIGO QR -->
   <div class="card">
@@ -452,6 +502,61 @@
     if (!url) return;
     if (window.AndroidBridge && window.AndroidBridge.connect) {
       window.AndroidBridge.connect(url);
+    }
+  }
+
+  // Callback invocado automáticamente desde MainActivity.java al detectar la PC por mDNS o UDP
+  window.onAutoDiscovered = function(host, port, fullUrl) {
+    const card = document.getElementById('autoDiscoveryCard');
+    const radar = document.getElementById('discoveryRadar');
+    const title = document.getElementById('discoveryTitle');
+    const sub = document.getElementById('discoverySubtitle');
+    const badge = document.getElementById('discoverySuccessBadge');
+    const hostText = document.getElementById('discoveredHostText');
+
+    if (card) card.classList.add('success');
+    if (radar) {
+      radar.textContent = '✓';
+      radar.classList.remove('pulse-radar');
+      radar.style.color = '#34C759';
+      radar.style.fontSize = '24px';
+    }
+    if (title) {
+      title.textContent = '¡PC de Streaming encontrada!';
+      title.style.color = '#34C759';
+    }
+    if (sub) sub.style.display = 'none';
+    if (hostText) hostText.textContent = `${host}:${port}`;
+    if (badge) badge.style.display = 'block';
+
+    // Desactivar cámara si estaba activa
+    if (isScanning) {
+      try { stopCamera(); } catch(e) {}
+    }
+  };
+
+  function retryAutoDiscovery() {
+    const radar = document.getElementById('discoveryRadar');
+    const title = document.getElementById('discoveryTitle');
+    const sub = document.getElementById('discoverySubtitle');
+    const badge = document.getElementById('discoverySuccessBadge');
+    const card = document.getElementById('autoDiscoveryCard');
+
+    if (card) card.classList.remove('success');
+    if (radar) {
+      radar.textContent = '📡';
+      radar.classList.add('pulse-radar');
+      radar.style.color = '';
+    }
+    if (title) {
+      title.textContent = 'Buscando PC en la red local...';
+      title.style.color = 'var(--accent)';
+    }
+    if (sub) sub.style.display = 'block';
+    if (badge) badge.style.display = 'none';
+
+    if (window.AndroidBridge && window.AndroidBridge.retryDiscovery) {
+      window.AndroidBridge.retryDiscovery();
     }
   }
 

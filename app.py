@@ -85,12 +85,17 @@ def is_server_running(port: int = 8000) -> bool:
         return False
 
 def start_server_in_thread(port: int = 8000):
-    """Inicia el servidor Flask en un hilo daemon."""
+    """Inicia el servidor Flask en un hilo daemon y arranca el anuncio mDNS."""
     from server import app as flask_app
     def _run():
         import logging
         log = logging.getLogger('werkzeug')
         log.setLevel(logging.ERROR)
+        try:
+            from mdns_service import start_mdns_publisher
+            start_mdns_publisher(port)
+        except Exception as e:
+            print(f"[mDNS] No se pudo iniciar publicador mDNS: {e}")
         flask_app.run(host='0.0.0.0', port=port, threaded=True)
 
     t = threading.Thread(target=_run, daemon=True)
