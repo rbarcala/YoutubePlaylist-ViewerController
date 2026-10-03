@@ -18,6 +18,7 @@ import json
 import time
 import struct
 import shutil
+import threading
 import subprocess
 import webbrowser
 from pathlib import Path
@@ -79,10 +80,21 @@ def decompress_mozlz4(data: bytes) -> bytes:
 
 
 class BrowserManager:
+    _global_lock = threading.Lock()
+    _last_open_time = 0.0
+
     def __init__(self):
         self._xdotool = shutil.which("xdotool")
         self._wmctrl = shutil.which("wmctrl")
         self._xwininfo = shutil.which("xwininfo")
+
+    def _is_process_running(self, name: str) -> bool:
+        """Comprueba de forma rápida si un proceso está actualmente en ejecución."""
+        try:
+            res = subprocess.run(["pgrep", "-f", name], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=1)
+            return res.returncode == 0 and bool(res.stdout.strip())
+        except Exception:
+            return False
 
     # ─── 1. ENUMERACIÓN DE PESTAÑAS Y VENTANAS ───
 
@@ -90,7 +102,11 @@ class BrowserManager:
         """
         Enumera todas las pestañas abiertas en Firefox (activas y en segundo plano)
         analizando recovery.jsonlz4 en los perfiles nativos, Snap y Flatpak.
+        Solo se ejecuta si Firefox está realmente corriendo.
         """
+        if not self._is_process_running("firefox"):
+            return []
+
         tabs = []
         base_paths = [
             Path.home() / ".mozilla" / "firefox",
@@ -126,7 +142,8 @@ class BrowserManager:
                                         url = curr.get("url", "")
                                         title = curr.get("title", "")
                                         is_meet = "meet.google.com" in url or "meet -" in title.lower() or "meet:" in title.lower()
-                                        is_viewer = "viewer" in url.lower() or "viewer" in title.lower()
+                                        # Solo marcar viewer si la URL coincide explícitamente con viewer.html
+                                        is_viewer = "viewer.html" in url.lower() or "/viewer" in url.lower()
                                         tabs.append({
                                             "browser": "firefox",
                                             "url": url,
@@ -169,7 +186,8 @@ class BrowserManager:
                         tl = title.lower()
                         is_browser = any(b in tl for b in ["firefox", "chrome", "chromium", "brave", "edge", "navigator"])
                         is_meet = "meet.google.com" in tl or "meet -" in tl or "meet:" in tl or "google meet" in tl
-                        is_viewer = "viewer" in tl or "fondos & stream player" in tl
+                        # Solo marcar como viewer si contiene viewer y NO es el controller ni herramientas de desarrollo
+                        is_viewer = ("viewer" in tl and "controller" not in tl and "hub" not in tl and "terminal" not in tl and "code" not in tl) or ("🔴 viewer" in tl)
                         windows.append({
                             "wid": wid,
                             "title": title,
@@ -200,7 +218,7 @@ class BrowserManager:
                         tl = title.lower()
                         is_browser = any(b in classes for b in ["navigator", "firefox", "chrome", "chromium", "brave", "edge"])
                         is_meet = "meet" in tl or "meet.google.com" in tl
-                        is_viewer = "viewer" in tl or "fondos" in tl
+                        is_viewer = ("viewer" in tl and "controller" not in tl and "hub" not in tl and "terminal" not in tl and "code" not in tl) or ("🔴 viewer" in tl)
                         if is_browser or is_meet or is_viewer:
                             windows.append({
                                 "wid": wid,
@@ -238,40 +256,75 @@ class BrowserManager:
 
     def detect_open_browser(self) -> dict | None:
         """
-        Detecta si hay algún navegador web abierto actualmente.
+        Detecta si hay algún navegador web abierto actualmente en ejecución.
         """
+        # 1. Comprobar procesos de navegadores populares
+        for b in ["firefox", "chrome", "chromium", "brave", "edge"]:
+            if self._is_process_running(b):
+                return {"source": "process", "browser": b}
+
+        # 2. Comprobar ventanas del sistema
         windows = self.enumerate_system_windows()
         for w in windows:
             if w.get("is_browser") and not w.get("is_viewer"):
                 return {"source": "window", "wid": w.get("wid"), "title": w.get("title")}
 
-        ff_tabs = self.enumerate_firefox_tabs()
-        if ff_tabs:
-            return {"source": "firefox_tab", "tab_count": len(ff_tabs)}
-
         return None
 
     # ─── 3. APERTURA INTELIGENTE DEL VIEWER ───
 
-    def open_smart_viewer(self, viewer_url: str) -> dict:
+    def is_viewer_open(self, port: int = 8000) -> bool:
         """
-        Abre el Viewer según la prioridad jerárquica solicitada:
-        1. Si hay Meet: se mete en la primera pestaña/ventana donde esté Meet.
-        2. Si no hay Meet pero hay navegador abierto: se mete en una pestaña abierta.
-        3. Si no hay navegador abierto: se abre en una nueva ventana/instancia.
+        Determina de manera confiable si ya existe una pestaña o ventana
+        del Viewer activa (por SSE en el servidor local, o en el navegador).
         """
-        # Ya hay un Viewer abierto? Ponerlo en foco y retornar
-        if self.focus_viewer():
-            return {"success": True, "action": "focused_existing_viewer", "url": viewer_url}
+        # 1. Comprobar estado del servidor local (SSE activo) - La fuente de verdad en tiempo real
+        try:
+            import urllib.request
+            req = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/state", timeout=0.3)
+            state = json.loads(req.read().decode())
+            if state.get("activeViewers", 0) > 0:
+                return True
+        except Exception:
+            pass
 
-        # Nivel 1: ¿Existe Meet?
-        meet_info = self.detect_meet()
-        if meet_info:
-            print(f"[browser_manager] Detectado Google Meet: {meet_info}")
-            if meet_info.get("wid") and self._xdotool:
+        # 2. Comprobar en ventanas nativas del sistema si coincide explícitamente con el viewer
+        try:
+            windows = self.enumerate_system_windows()
+            for w in windows:
+                if w.get("is_viewer"):
+                    return True
+        except Exception:
+            pass
+
+        return False
+
+    def open_smart_viewer(self, viewer_url: str, port: int = 8000) -> dict:
+        """
+        Abre el Viewer según la prioridad jerárquica:
+        0. Debounce estricto (2.5s) con lock atómico para evitar aperturas duplicadas en ráfaga.
+        1. Si ya hay un Viewer abierto en cualquier parte del sistema -> Foco y NO abrir otro.
+        2. Si no hay Viewer abierto: abre exactamente una pestaña en el navegador web.
+        """
+        with BrowserManager._global_lock:
+            now = time.time()
+            if now - BrowserManager._last_open_time < 2.5:
+                print("[browser_manager] Solicitud de apertura ignorada por debounce (< 2.5s).")
+                return {"success": True, "action": "debounced", "url": viewer_url}
+
+            # Regla estricta: Si ya existe un Viewer abierto, enfocar y NO abrir otro duplicado
+            if self.is_viewer_open(port):
+                print("[browser_manager] Viewer ya se encuentra abierto en el sistema. Poniendo en foco.")
+                self.focus_viewer()
+                return {"success": True, "action": "focused_existing_viewer", "url": viewer_url}
+
+            BrowserManager._last_open_time = now
+
+            # Si hay Google Meet en primer plano y se puede navegar en él:
+            meet_info = self.detect_meet()
+            if meet_info and meet_info.get("wid") and self._xdotool:
                 wid = meet_info["wid"]
                 try:
-                    # Activar ventana de Meet y navegar en su pestaña actual hacia el Viewer
                     subprocess.run([self._xdotool, "windowactivate", "--sync", wid], timeout=1)
                     time.sleep(0.1)
                     subprocess.run([self._xdotool, "key", "--clearmodifiers", "ctrl+l"], timeout=1)
@@ -283,53 +336,25 @@ class BrowserManager:
                 except Exception as e:
                     print(f"[browser_manager] Error xdotool en Meet: {e}")
 
-            # Si no hay xdotool o falló, abrir navegador normalmente
-            self._open_url_in_browser(viewer_url)
-            return {"success": True, "action": "opened_near_meet", "url": viewer_url}
-
-        # Nivel 2: ¿Hay alguna ventana o pestaña de navegador abierta?
-        browser_info = self.detect_open_browser()
-        if browser_info:
-            print(f"[browser_manager] Detectado navegador abierto: {browser_info}")
-            if browser_info.get("wid") and self._xdotool:
-                wid = browser_info["wid"]
-                try:
-                    subprocess.run([self._xdotool, "windowactivate", "--sync", wid], timeout=1)
-                    time.sleep(0.1)
-                    # Abrir en la pestaña activa
-                    subprocess.run([self._xdotool, "key", "--clearmodifiers", "ctrl+l"], timeout=1)
-                    time.sleep(0.05)
-                    subprocess.run([self._xdotool, "type", "--delay", "0", viewer_url], timeout=1)
-                    time.sleep(0.05)
-                    subprocess.run([self._xdotool, "key", "Return"], timeout=1)
-                    return {"success": True, "action": "navigated_in_open_tab", "wid": wid, "url": viewer_url}
-                except Exception as e:
-                    print(f"[browser_manager] Error xdotool en navegador abierto: {e}")
-
+            # Abrir limpiamente exactamente una pestaña en el navegador
+            print(f"[browser_manager] Abriendo Viewer: {viewer_url}")
             self._open_url_in_browser(viewer_url)
             return {"success": True, "action": "opened_in_browser", "url": viewer_url}
 
-        # Nivel 3: No hay navegador abierto -> abrir en nueva instancia
-        print(f"[browser_manager] No hay navegador abierto. Abriendo nueva ventana con {viewer_url}")
-        self._open_url_in_browser(viewer_url, new_window=True)
-        return {"success": True, "action": "opened_new_window", "url": viewer_url}
-
-    def _open_url_in_browser(self, url: str, new_window: bool = False):
-        """Lanza la URL en el navegador predeterminado del sistema o Firefox."""
+    def _open_url_in_browser(self, url: str):
+        """Lanza la URL en el navegador de forma segura con exactamente 1 llamada, sin flags que dupliquen ventanas/pestañas."""
+        if not url:
+            return
         try:
+            # Si firefox está disponible en el sistema, invocar limpiamente
             if shutil.which("firefox"):
-                cmd = ["firefox", "--new-window" if new_window else "", url]
-                cmd = [c for c in cmd if c]
-                subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.Popen(["firefox", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 return
         except Exception:
             pass
 
         try:
-            if new_window:
-                webbrowser.open_new(url)
-            else:
-                webbrowser.open(url)
+            webbrowser.open(url)
         except Exception as e:
             print(f"[browser_manager] Error en webbrowser.open: {e}")
 
@@ -337,48 +362,54 @@ class BrowserManager:
 
     def focus_viewer(self) -> bool:
         """
-        Pone la pestaña/ventana del Viewer en primer plano en el sistema operativo.
-        Se ejecuta automáticamente cada vez que se selecciona un nuevo video.
+        Pone la pestaña/ventana del Viewer en primer plano en el sistema operativo
+        utilizando herramientas nativas del entorno sin invocar nuevas instancias de la app.
         """
-        windows = self.enumerate_system_windows()
-        for w in windows:
-            if w.get("is_viewer"):
-                wid = w.get("wid")
-                if wid:
-                    # 1. Intentar wmctrl
-                    if self._wmctrl:
-                        try:
-                            res = subprocess.run([self._wmctrl, "-ia", wid], timeout=1)
-                            if res.returncode == 0:
-                                return True
-                        except Exception:
-                            pass
-                    # 2. Intentar xdotool
-                    if self._xdotool:
-                        try:
-                            res = subprocess.run([self._xdotool, "windowactivate", wid], timeout=1)
-                            if res.returncode == 0:
-                                return True
-                        except Exception:
-                            pass
+        activated = False
 
-        # Búsqueda por título global
-        if self._wmctrl:
+        if not (self._wmctrl or self._xdotool):
+            return False
+
+        # 1. Comprobar en ventanas nativas si hay wmctrl / xdotool
+        try:
+            windows = self.enumerate_system_windows()
+            for w in windows:
+                if w.get("is_viewer"):
+                    wid = w.get("wid")
+                    if wid:
+                        if self._wmctrl:
+                            try:
+                                res = subprocess.run([self._wmctrl, "-ia", wid], timeout=1)
+                                if res.returncode == 0:
+                                    activated = True
+                            except Exception:
+                                pass
+                        if not activated and self._xdotool:
+                            try:
+                                res = subprocess.run([self._xdotool, "windowactivate", wid], timeout=1)
+                                if res.returncode == 0:
+                                    activated = True
+                            except Exception:
+                                pass
+        except Exception:
+            pass
+
+        if self._wmctrl and not activated:
             try:
                 subprocess.run([self._wmctrl, "-a", "Viewer"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                return True
+                activated = True
             except Exception:
                 pass
 
-        if self._xdotool:
+        if self._xdotool and not activated:
             try:
                 subprocess.run(
                     [self._xdotool, "search", "--name", "Viewer", "windowactivate"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
                 )
-                return True
+                activated = True
             except Exception:
                 pass
 
-        return False
+        return activated

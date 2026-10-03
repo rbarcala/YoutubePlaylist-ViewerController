@@ -297,6 +297,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     gap: 14px;
+    contain: layout;
   }
   .video-card {
     background: var(--surface);
@@ -308,6 +309,11 @@
     display: flex;
     flex-direction: column;
     transition: transform 0.15s, border-color 0.15s;
+    content-visibility: auto;
+    contain-intrinsic-size: 210px 180px;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
   }
   .video-card:hover { transform: translateY(-2px); border-color: #555; }
   .video-card.active { border-color: var(--accent); box-shadow: 0 0 12px rgba(232, 255, 71, 0.2); }
@@ -321,14 +327,24 @@
     font-weight: 700;
     padding: 2px 6px;
     border-radius: 3px;
+    z-index: 2;
   }
-  .thumb-wrap { width: 100%; aspect-ratio: 16/9; position: relative; background: #000; }
-  .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb-wrap { width: 100%; aspect-ratio: 16/9; position: relative; background: #111; overflow: hidden; }
+  .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .duration-badge {
     position: absolute; bottom: 6px; right: 6px;
     background: rgba(0, 0, 0, 0.85); color: #fff; font-size: 10px; padding: 2px 5px; border-radius: 2px;
   }
-  .video-card-info { padding: 10px; font-size: 12px; color: #aaa; }
+  .video-card-info { padding: 10px; font-size: 12px; color: #aaa; flex: 1; }
+  .video-card-info p {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+    word-break: break-word;
+    margin: 0;
+  }
 
   /* ─── 3. VISTA OBS STUDIO ─── */
   .obs-status-box {
@@ -1131,6 +1147,320 @@
     .hub-card-icon { font-size: 20px; }
     .hub-card-title { font-size: 11px; }
     .hub-card-desc { font-size: 9px; }
+  /* ─── ESTUDIO VISUAL PANORÁMICO DE OVERLAYS ─── */
+  #view-overlays {
+    display: none;
+    height: calc(100vh - var(--header-h));
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+  #view-overlays.active {
+    display: flex !important;
+    flex-direction: column;
+  }
+  .overlay-studio-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #0f1218;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 20;
+  }
+  .overlay-studio-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+    background: #080a0f;
+  }
+  .overlay-stage-wrapper {
+    flex: 1;
+    background: radial-gradient(circle at center, #10141d 0%, #06080c 100%);
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    gap: 10px;
+  }
+  .stage-top-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 960px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .overlay-stage-canvas {
+    position: relative;
+    width: 100%;
+    max-width: 960px;
+    aspect-ratio: 16 / 9;
+    background: #020305;
+    background-image: 
+      radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+      linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px, 80px 80px, 80px 80px;
+    border: 2px solid #e8ff47;
+    border-radius: 0;
+    box-shadow: 
+      0 0 0 1px #000,
+      0 0 24px rgba(232, 255, 71, 0.28),
+      0 24px 70px rgba(0, 0, 0, 0.95);
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+  }
+  .overlay-stage-canvas.bg-checkerboard {
+    background-color: #0d0f14 !important;
+    background-image: 
+      linear-gradient(45deg, #181b24 25%, transparent 25%),
+      linear-gradient(-45deg, #181b24 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #181b24 75%),
+      linear-gradient(-45deg, transparent 75%, #181b24 75%) !important;
+    background-size: 24px 24px !important;
+    background-position: 0 0, 0 12px, 12px -12px, -12px 0px !important;
+  }
+  .overlay-stage-canvas.bg-dark {
+    background: #020305 !important;
+    background-image: 
+      radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+      linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px) !important;
+    background-size: 20px 20px, 80px 80px, 80px 80px !important;
+  }
+  .stage-corner {
+    position: absolute;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 800;
+    color: #e8ff47;
+    background: rgba(0, 0, 0, 0.85);
+    padding: 2px 7px;
+    border-radius: 3px;
+    border: 1px solid rgba(232, 255, 71, 0.45);
+    pointer-events: none;
+    z-index: 8;
+    letter-spacing: 0.5px;
+    user-select: none;
+    text-shadow: 0 0 6px rgba(0,0,0,0.9);
+  }
+  .stage-corner.top-left { top: 6px; left: 6px; }
+  .stage-corner.top-right { top: 6px; right: 6px; }
+  .stage-corner.bottom-left { bottom: 6px; left: 6px; }
+  .stage-corner.bottom-right { bottom: 6px; right: 6px; }
+  .stage-screen-badge {
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    font-weight: 800;
+    color: #000;
+    background: #e8ff47;
+    padding: 2px 10px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 8;
+    letter-spacing: 0.8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.8);
+    user-select: none;
+  }
+  .stage-layers-panel {
+    position: absolute;
+    top: 50px;
+    right: 20px;
+    width: 290px;
+    background: rgba(14, 17, 23, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(232, 255, 71, 0.4);
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
+    z-index: 999;
+  }
+  .stage-guides {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .stage-guide-center-x {
+    position: absolute;
+    top: 0; bottom: 0; left: 50%;
+    width: 1px;
+    border-left: 1px dashed rgba(255, 255, 255, 0.16);
+  }
+  .stage-guide-center-y {
+    position: absolute;
+    left: 0; right: 0; top: 50%;
+    height: 1px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.16);
+  }
+  .stage-guide-safe-area {
+    position: absolute;
+    inset: 5%;
+    border: 1px dotted rgba(232, 255, 71, 0.35);
+    border-radius: 0;
+  }
+  .stage-guide-safe-tag {
+    position: absolute;
+    bottom: 4px;
+    right: 6px;
+    font-size: 9px;
+    color: rgba(232, 255, 71, 0.6);
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .stage-item {
+    position: absolute;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    box-sizing: border-box;
+    transition: outline 0.15s, box-shadow 0.15s;
+    touch-action: none;
+    z-index: 10;
+  }
+  .stage-item:active {
+    cursor: grabbing;
+  }
+  .stage-item * {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+  }
+  .stage-item.selected {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    box-shadow: 0 0 24px rgba(232, 255, 71, 0.35);
+  }
+  .stage-item .stage-tag {
+    position: absolute;
+    top: -24px;
+    left: 0;
+    background: var(--accent);
+    color: #000;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+    z-index: 80;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  .stage-item:hover .stage-tag,
+  .stage-item.selected .stage-tag {
+    opacity: 1;
+  }
+  .stage-item .resize-handle {
+    position: absolute;
+    right: -10px;
+    bottom: -10px;
+    width: 24px;
+    height: 24px;
+    background: var(--accent);
+    color: #000;
+    font-size: 13px;
+    font-weight: 900;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #000;
+    border-radius: 6px;
+    cursor: nwse-resize;
+    z-index: 90;
+    touch-action: none;
+    pointer-events: auto !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+  }
+  .stage-item.selected .resize-handle {
+    display: flex;
+  }
+  .overlay-inspector-panel {
+    width: 440px;
+    background: #0f1218;
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .inspector-tabs {
+    display: flex;
+    background: #161616;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+  .inspector-tab {
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .inspector-tab:hover {
+    color: #fff;
+  }
+  .inspector-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(232, 255, 71, 0.04);
+  }
+  .inspector-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .inspector-section {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .inspector-section-title {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
   }
 </style>
 </head>
@@ -1232,7 +1562,10 @@
         <span style="color:var(--muted); font-size:11px;">REPRODUCIENDO:</span>
         <span class="title-text" id="nowPlayingTitle">—</span>
       </div>
-      <input type="text" id="searchInput" class="search-input" placeholder="Buscar video..." autocomplete="off">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar video..." autocomplete="off">
+        <span id="videoCountBadge" style="font-size:11px; color:var(--muted); font-family:'Space Mono', monospace; white-space:nowrap;"></span>
+      </div>
     </div>
 
     <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; font-size:11px;">
@@ -1304,7 +1637,7 @@
         <!-- Volumen de la PC -->
         <div style="display:flex; align-items:center; gap:10px; justify-content:center;">
           <span style="font-size:11px; color:#aaa;">🔊 PC:</span>
-          <input type="range" id="spVolumeSlider" min="0" max="100" value="50" oninput="document.getElementById('spVolumeValue').textContent = this.value + '%'" onchange="spotifySetVolume(this.value)" style="accent-color:var(--accent-spotify); flex:1; max-width:180px;">
+          <input type="range" id="spVolumeSlider" min="0" max="100" value="50" oninput="onSpotifyVolumeInput(this.value)" onchange="onSpotifyVolumeChange(this.value)" style="accent-color:var(--accent-spotify); flex:1; max-width:180px;">
           <span id="spVolumeValue" style="font-size:11px; color:var(--accent-spotify); width:32px;">50%</span>
         </div>
       </div>
@@ -1345,11 +1678,14 @@
 <div class="view-container" id="view-live">
   <div class="live-monitor-container">
     <div class="live-controls-bar">
-      <div style="display:flex; align-items:center; gap:10px;">
-        <span style="font-size:12px; font-weight:700; color:var(--accent2);" id="liveBadgeStatus">🔴 DIRECTO</span>
-        <span style="font-size:12px;" id="liveTitleText">Monitoreando transmisión…</span>
+      <div style="display:flex; align-items:center; gap:10px; overflow:hidden; flex:1;">
+        <span style="font-size:12px; font-weight:700; color:var(--accent2); flex-shrink:0;" id="liveBadgeStatus">🔴 DIRECTO</span>
+        <span style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="liveTitleText">Monitoreando transmisión…</span>
       </div>
-      <button class="btn" onclick="refreshLiveStream()">🔄 Recargar</button>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button class="btn" id="btnLiveToggleMute" onclick="toggleLiveMute()" title="Activar/desactivar audio del directo" style="display:none;">🔇 Muteado</button>
+        <button class="btn" onclick="refreshLiveStream()">🔄 Recargar</button>
+      </div>
     </div>
 
     <div class="live-video-frame" id="liveVideoContainer">
@@ -1431,245 +1767,539 @@
   </div>
 </div>
 
-<!-- ─── 7. VISTA OVERLAYS Y TEMPORIZADOR ─── -->
+<!-- ─── 7. VISTA OVERLAYS Y TEMPORIZADOR — ESTUDIO VISUAL PANORÁMICO ─── -->
 <div class="view-container" id="view-overlays">
-  <div class="overlays-dashboard">
-    
-    <!-- 1. Tarjeta OBS Browser Source URL -->
-    <div class="overlay-obs-box">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-        <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:15px; color:var(--accent);">
-          📺 Fuente Navegador para OBS Studio
-        </div>
-        <span style="font-size:11px; color:var(--muted);">1920x1080 (Fondo transparente)</span>
+  <!-- BARRA SUPERIOR DE HERRAMIENTAS Y SIMULACIÓN -->
+  <div class="overlay-studio-toolbar">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:var(--accent); display:flex; align-items:center; gap:6px;">
+        <span>🎨 ESTUDIO VISUAL OVERLAYS</span>
+        <span style="font-size:10px; font-weight:700; color:var(--muted); background:#222; padding:2px 6px; border-radius:4px;">1920×1080</span>
       </div>
-      <div class="overlay-obs-url-row">
-        <input type="text" id="obsOverlayUrlInput" class="form-input" style="flex:1; font-family:'Space Mono', monospace;" readonly>
-        <button class="btn btn-accent" onclick="copyObsOverlayUrl()">📋 Copiar URL</button>
-      </div>
-      <div style="font-size:11px; color:var(--muted); line-height:1.4;">
-        💡 En OBS Studio: Crea una fuente <strong>Navegador (Browser Source)</strong> con ancho 1920 y alto 1080 apuntando a esta URL.
+      <div style="display:flex; gap:4px; margin-left:10px;">
+        <button class="btn btn-sm btn-accent" id="btnStudioModeVisual" onclick="setStudioMode('visual')">🎨 Lienzo 16:9</button>
+        <button class="btn btn-sm" id="btnStudioModeTimer" onclick="setStudioMode('timer')">⏱️ Operar Temporizador</button>
       </div>
     </div>
 
-    <!-- 2. Tarjeta de Temporizador "Ya Vuelvo / Recreo" con Interruptor de Activación -->
-    <div class="overlay-timer-card">
-      <div style="display:flex; justify-content:space-between; width:100%; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:12px;">
-        <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-weight:700; font-size:13px; color:var(--accent);">
-          <input type="checkbox" id="ovCfgTimerEnabled" checked onchange="saveOverlayToggle('overlay_timer_enabled', this.checked)">
-          ⏱ Habilitar Temporizador en el Overlay
-        </label>
-        <span class="timer-status-badge timer-status-inactive" id="timerStatusBadge">Inactivo</span>
-      </div>
+    <!-- Toggles de Simulación para previsualizar en el lienzo -->
+    <div style="display:flex; align-items:center; gap:14px; font-size:11px; color:#ddd;" id="studioSimToggles">
+      <span style="color:var(--muted); font-size:10px; text-transform:uppercase; font-weight:800;">Simular:</span>
+      <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="simNowPlayingToggle" checked onchange="toggleSimModule('now_playing', this.checked)"> 🎵 Now Playing</label>
+      <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="simTimerToggle" checked onchange="toggleSimModule('timer', this.checked)"> ⏱️ Temporizador</label>
+      <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="simLyricsToggle" checked onchange="toggleSimModule('lyrics', this.checked)"> 📜 Letras</label>
+    </div>
 
-      <!-- Reloj Grande -->
-      <div class="timer-clock-display" id="timerClockDisplay">05:00</div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button class="btn btn-sm" onclick="addCustomText()" style="font-weight:700; background:#222;">➕ Agregar Texto</button>
+      <button class="btn btn-sm" onclick="copyObsOverlayUrl()" title="Copiar enlace para la fuente de OBS">📋 URL OBS</button>
+      <button class="btn btn-sm btn-accent" onclick="saveAllModularOverlay(true)" style="font-weight:800;">💾 Guardar Todo</button>
+    </div>
+  </div>
 
-      <!-- Barra de progreso -->
-      <div class="timer-progress-wrap">
-        <div class="timer-progress-fill" id="timerProgressFill" style="width: 100%;"></div>
-      </div>
-
-      <!-- Título de la pausa -->
-      <div style="width:100%; max-width:480px; text-align:left;">
-        <label class="form-label">Título en Pantalla</label>
-        <input type="text" id="timerTitleInput" class="form-input" value="Ya Vuelvo" placeholder="Ej: Ya Vuelvo, Recreo, Cargando café..." style="width:100%;">
-      </div>
-
-      <!-- Botones rápidos de duración -->
-      <div style="width:100%; max-width:520px; text-align:center;">
-        <div class="form-label" style="margin-bottom:8px;">Duración rápida</div>
-        <div class="timer-quick-grid">
-          <button class="timer-quick-btn" onclick="startTimerWithMinutes(1)">+1 min</button>
-          <button class="timer-quick-btn" onclick="startTimerWithMinutes(3)">+3 min</button>
-          <button class="timer-quick-btn" onclick="startTimerWithMinutes(5)">+5 min</button>
-          <button class="timer-quick-btn" onclick="startTimerWithMinutes(10)">+10 min</button>
-          <button class="timer-quick-btn" onclick="startTimerWithMinutes(15)">+15 min</button>
-          <button class="timer-quick-btn" onclick="startTimerWithMinutes(20)">+20 min</button>
-        </div>
-      </div>
-
-      <!-- Selector de Memes / Chistes de Estudiante -->
-      <div class="timer-phrase-section">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <label class="form-label">Meme / Chiste de Informática en Pantalla</label>
-          <div style="display:flex; gap:6px;">
-            <button class="btn" style="padding:3px 8px; font-size:10px;" onclick="randomizeTimerPhrase()">🎲 Aleatorio</button>
-            <button class="btn" style="padding:3px 8px; font-size:10px;" onclick="openManagePhrasesModal()">✏️ Gestionar</button>
+  <!-- CUERPO PRINCIPAL DEL ESTUDIO -->
+  <div class="overlay-studio-body">
+    <!-- SUB-VISTA 1: LIENZO INTERACTIVO + INSPECTOR MODULAR -->
+    <div id="studioVisualContainer" style="display:flex; width:100%; height:100%;">
+      <!-- LIENZO 16:9 INTERACTIVO (STAGE) -->
+      <div class="overlay-stage-wrapper">
+        <div class="stage-top-controls">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:11px; font-weight:800; color:var(--accent); font-family:'Space Mono',monospace;">🔴 LIENZO OBS 1080p</span>
+            <span style="color:var(--muted); font-size:11px;">•</span>
+            <span id="stageActiveElementName" style="font-size:11px; font-weight:700; color:#fff;">Módulo: 🎵 Now Playing</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <button class="btn btn-sm" onclick="alignActiveModule('tl')" title="Alinear Arriba a la Izquierda" style="padding:2px 7px; font-size:10px;">↖</button>
+            <button class="btn btn-sm" onclick="alignActiveModule('tr')" title="Alinear Arriba a la Derecha" style="padding:2px 7px; font-size:10px;">↗</button>
+            <button class="btn btn-sm" onclick="alignActiveModule('bl')" title="Alinear Abajo a la Izquierda" style="padding:2px 7px; font-size:10px;">↙</button>
+            <button class="btn btn-sm" onclick="alignActiveModule('br')" title="Alinear Abajo a la Derecha" style="padding:2px 7px; font-size:10px;">↘</button>
+            <button class="btn btn-sm btn-accent" onclick="alignActiveModule('center')" title="Centrar elemento activo" style="padding:2px 8px; font-size:10px;">🎯 Centrar</button>
+            <button class="btn btn-sm" id="btnToggleLayers" onclick="toggleLayersPanel()" title="Ver y reordenar capas de pantalla (Z-Index)" style="padding:2px 8px; font-size:10px;">📑 Capas</button>
+            <button class="btn btn-sm" id="btnToggleBgMode" onclick="toggleStageBgMode()" title="Cambiar fondo del lienzo (Oscuro / Cuadrícula Transparente)" style="padding:2px 8px; font-size:10px;">🏁 Fondo</button>
+            <button class="btn btn-sm btn-accent" id="btnToggleGuides" onclick="toggleStageGuides()" title="Alternar guías de TV y cruz central" style="padding:2px 8px; font-size:10px;">📐 Guías</button>
           </div>
         </div>
-        <select id="timerPhraseSelect" class="form-input" style="width:100%;" onchange="changeTimerPhrase(this.value)">
-          <!-- Poblado dinámicamente -->
-        </select>
-        <div id="timerPhrasePreview" style="font-size:11px; color:var(--accent); font-style:italic; padding-top:2px;"></div>
+
+        <!-- PANEL FLOTANTE DE CAPAS (Z-INDEX) -->
+        <div id="stageLayersPanel" class="stage-layers-panel" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.12); padding-bottom:6px;">
+            <span style="font-weight:800; font-size:11px; color:var(--accent); font-family:'Space Mono',monospace;">📑 ORDEN DE CAPAS (Z-INDEX)</span>
+            <button class="btn btn-sm" onclick="toggleLayersPanel()" style="padding:1px 6px; font-size:10px;">✕</button>
+          </div>
+          <div id="stageLayersList" style="display:flex; flex-direction:column; gap:4px; max-height:220px; overflow-y:auto;"></div>
+        </div>
+
+        <div class="overlay-stage-canvas bg-dark" id="stageCanvas">
+          <!-- BADGE LÍMITE TOTAL OBS -->
+          <div class="stage-screen-badge">🖥️ PANTALLA OBS 1920 × 1080 (LÍMITE TOTAL)</div>
+
+          <!-- ESQUINAS LÍMITE OBS -->
+          <div class="stage-corner top-left">⌜ 0, 0</div>
+          <div class="stage-corner top-right">1920, 0 ⌝</div>
+          <div class="stage-corner bottom-left">⌞ 0, 1080</div>
+          <div class="stage-corner bottom-right">1920, 1080 ⌟</div>
+
+          <!-- GUÍAS DE ALINEACIÓN OBS (SAFE AREA & CENTRO) -->
+          <div id="stageGuides" class="stage-guides">
+            <div class="stage-guide-center-x"></div>
+            <div class="stage-guide-center-y"></div>
+            <div class="stage-guide-safe-area"><span class="stage-guide-safe-tag">TV SAFE 90%</span></div>
+          </div>
+
+          <!-- MODULO 1: NOW PLAYING MOCKUP INTERACTIVO -->
+          <div class="stage-item" id="stageNowPlaying" data-module="now_playing" onpointerdown="onStagePointerDown(event, 'now_playing')">
+            <span class="stage-tag">🎵 Now Playing</span>
+            <div id="stageNpCard" style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:12px; background:rgba(10,10,10,0.8); border:1px solid rgba(255,255,255,0.1); width:360px;">
+              <img id="stageNpCover" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='42' height='42' viewBox='0 0 42 42'><rect width='42' height='42' fill='%23222'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='18' fill='%23666'>🎵</text></svg>" style="width:38px; height:38px; border-radius:6px; object-fit:cover; flex-shrink:0;">
+              <div style="display:flex; flex-direction:column; gap:2px; overflow:hidden; flex:1;">
+                <div id="stageNpBadge" style="display:flex; align-items:center; gap:4px; font-size:9px; font-weight:800; color:var(--accent-spotify); text-transform:uppercase;">
+                  <span>🎵</span> <span>SPOTIFY</span>
+                  <div style="display:flex; gap:2px; margin-left:4px;"><span style="width:2px; height:8px; background:currentColor;"></span><span style="width:2px; height:12px; background:currentColor;"></span><span style="width:2px; height:6px; background:currentColor;"></span></div>
+                </div>
+                <div id="stageNpTitle" style="font-size:12px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Hotel California - 2013 Remaster</div>
+                <div id="stageNpArtist" style="font-size:10px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Eagles</div>
+              </div>
+            </div>
+            <div class="resize-handle" onpointerdown="onResizePointerDown(event, 'now_playing')" title="Arrastra para escalar">⤡</div>
+          </div>
+
+          <!-- MODULO 2: TEMPORIZADOR MOCKUP INTERACTIVO -->
+          <div class="stage-item" id="stageTimer" data-module="timer" onpointerdown="onStagePointerDown(event, 'timer')">
+            <span class="stage-tag">⏱️ Temporizador</span>
+            <div id="stageTimerCard" style="display:flex; flex-direction:column; align-items:center; gap:10px; padding:20px 28px; border-radius:18px; background:rgba(10,10,10,0.85); border:2px solid rgba(232,255,71,0.3); width:460px; text-align:center;">
+              <div id="stageTimerBadge" style="display:inline-flex; align-items:center; gap:6px; padding:3px 12px; border-radius:12px; background:rgba(232,255,71,0.12); border:1px solid #e8ff47; color:#e8ff47; font-size:10px; font-weight:800; font-family:'Space Mono',monospace;">⏱️ PAUSA DE STREAM &amp; CLASE</div>
+              <div id="stageTimerTitle" style="font-size:20px; font-weight:800; color:#fff; font-family:'Syne',sans-serif;">Ya vuelvo</div>
+              <div id="stageTimerClock" style="font-size:48px; font-weight:700; color:#e8ff47; font-family:'Space Mono',monospace; text-shadow:0 0 16px rgba(232,255,71,0.4);">04:42</div>
+              <div id="stageTimerProgressTrack" style="width:100%; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                <div id="stageTimerProgressBar" style="width:75%; height:100%; background:#e8ff47;"></div>
+              </div>
+              <div id="stageTimerPhrase" style="font-size:11px; font-style:italic; color:#bbb; font-family:'Space Mono',monospace;">“Compilando cerebro... (42 warnings, 0 errors)”</div>
+            </div>
+            <div class="resize-handle" onpointerdown="onResizePointerDown(event, 'timer')" title="Arrastra para escalar">⤡</div>
+          </div>
+
+          <!-- MODULO 3: LYRICS MOCKUP INTERACTIVO -->
+          <div class="stage-item" id="stageLyrics" data-module="lyrics" onpointerdown="onStagePointerDown(event, 'lyrics')">
+            <span class="stage-tag">📜 Letras</span>
+            <div id="stageLyricsCard" style="padding:10px 14px; border-radius:10px; background:rgba(10,10,10,0.8); border:1px solid rgba(255,255,255,0.1); width:380px; max-height:110px; overflow:hidden;">
+              <div style="font-size:9px; font-weight:800; color:var(--accent); text-transform:uppercase; margin-bottom:4px;">LETRA EN VIVO</div>
+              <div id="stageLyricsText" style="font-size:11px; line-height:1.4; color:#e0e0e0; font-weight:600; white-space:pre-wrap;">On a dark desert highway, cool wind in my hair...
+Warm smell of colitas, rising up through the air...</div>
+            </div>
+            <div class="resize-handle" onpointerdown="onResizePointerDown(event, 'lyrics')" title="Arrastra para escalar">⤡</div>
+          </div>
+
+          <!-- CONTENEDOR DE TEXTOS PERSONALIZADOS INTERACTIVOS -->
+          <div id="stageCustomTextsContainer"></div>
+
+          <!-- TOOLTIP DE COORDENADAS FLOTANTE -->
+          <div id="stageTooltip"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; width:100%; max-width:960px; margin-top:8px; font-size:11px; color:var(--muted);">
+          <span>💡 <strong>Arrastra</strong> cualquier módulo para moverlo libremente por la pantalla de OBS.</span>
+          <span>📐 Usa la manija en la esquina inferior derecha para <strong>escalar/agrandar</strong>.</span>
+        </div>
       </div>
 
-      <!-- Controles de Inicio / Pausa / Detener -->
-      <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:8px;">
-        <button class="btn btn-accent" id="btnTimerStart" onclick="startCustomTimer()" style="font-size:13px; padding:10px 20px;">
-          ▶ Iniciar
-        </button>
-        <button class="btn" id="btnTimerPause" onclick="pauseOverlayTimer()" style="font-size:13px; padding:10px 20px;">
-          ⏸ Pausar
-        </button>
-        <button class="btn btn-danger" id="btnTimerStop" onclick="stopOverlayTimer()" style="font-size:13px; padding:10px 20px;">
-          ⏹ Ocultar Overlay
-        </button>
+      <!-- PANEL INSPECTOR DE PROPIEDADES MODULAR (DERECHA) -->
+      <div class="overlay-inspector-panel">
+        <div class="inspector-tabs">
+          <div class="inspector-tab active" id="tabInspNp" onclick="switchInspectorTab('now_playing')">🎵 Now Playing</div>
+          <div class="inspector-tab" id="tabInspTimer" onclick="switchInspectorTab('timer')">⏱️ Temporizador</div>
+          <div class="inspector-tab" id="tabInspLyrics" onclick="switchInspectorTab('lyrics')">📜 Letras</div>
+          <div class="inspector-tab" id="tabInspTexts" onclick="switchInspectorTab('custom_texts')">🔤 Textos (<span id="txtCountBadge">0</span>)</div>
+        </div>
+
+        <div class="inspector-content">
+          <!-- ─── PANE 1: INSPECTOR NOW PLAYING ─── -->
+          <div id="paneInspNowPlaying" class="inspector-pane" style="display:flex; flex-direction:column; gap:12px;">
+            <div class="inspector-section">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="inspector-section-title">🎵 Módulo Now Playing</span>
+                <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--accent); cursor:pointer;">
+                  <input type="checkbox" id="modNpEnabled" checked onchange="updateModularProp('now_playing', 'enabled', this.checked)"> Habilitar
+                </label>
+              </div>
+              <div>
+                <label class="form-label" style="font-size:11px;">Fuentes a mostrar</label>
+                <select id="modNpSourceMode" class="form-input" style="width:100%; font-size:12px;" onchange="updateModularProp('now_playing', 'source_mode', this.value)">
+                  <option value="both">Música (Spotify) + Videos (YouTube)</option>
+                  <option value="spotify_only">Solo Música de Spotify</option>
+                  <option value="youtube_only">Solo Videos de YouTube</option>
+                  <option value="none">Desactivar ambos</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">📐 Ubicación &amp; Tamaño</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Posición X (px)</label>
+                  <input type="number" id="modNpX" class="form-input" min="0" max="1920" step="5" oninput="updateModularProp('now_playing', 'x', parseInt(this.value, 10))">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Posición Y (desde abajo)</label>
+                  <input type="number" id="modNpY" class="form-input" min="0" max="1080" step="5" oninput="updateModularProp('now_playing', 'y', parseInt(this.value, 10))">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Escala: <span id="modNpScaleVal" style="color:var(--accent);">1.0x</span></label>
+                  <input type="range" id="modNpScale" min="0.5" max="2.2" step="0.05" value="1.0" oninput="updateModularProp('now_playing', 'scale', parseFloat(this.value))" style="width:100%; accent-color:var(--accent);">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Ancho (px)</label>
+                  <input type="number" id="modNpWidth" class="form-input" min="260" max="900" step="10" oninput="updateModularProp('now_playing', 'width', parseInt(this.value, 10))">
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span class="inspector-section-title" style="margin:0;">📑 Nivel de Capa (Z-Index / Arriba-Abajo)</span>
+                <span id="modNpZVal" style="font-weight:800; color:var(--accent); font-size:12px; font-family:'Space Mono',monospace;">30</span>
+              </div>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <button class="btn btn-sm" onclick="changeModuleLayer('now_playing', -5)" title="Enviar hacia atrás">🔽 Bajar</button>
+                <input type="number" id="modNpZIndex" class="form-input" style="width:70px; text-align:center; font-weight:700; font-size:12px;" value="30" min="1" max="999" onchange="setModuleLayer('now_playing', this.value)">
+                <button class="btn btn-sm btn-accent" onclick="changeModuleLayer('now_playing', 5)" title="Traer hacia adelante">🔼 Subir</button>
+                <button class="btn btn-sm" onclick="changeModuleLayer('now_playing', 100)" title="Traer al frente del todo" style="font-size:10px;">🔝 Al Frente</button>
+                <button class="btn btn-sm" onclick="changeModuleLayer('now_playing', -100)" title="Enviar al fondo" style="font-size:10px;">⬇️ Al Fondo</button>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">🎨 Rectángulo &amp; Fondo</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Fondo</label>
+                  <input type="color" id="modNpBgColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('now_playing', 'bg_color', this.value)">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Opacidad: <span id="modNpOpVal" style="color:var(--accent);">78%</span></label>
+                  <input type="range" id="modNpBgOpacity" min="0" max="100" value="78" oninput="updateModularProp('now_playing', 'bg_opacity', parseInt(this.value, 10))" style="width:100%; accent-color:var(--accent);">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Borde</label>
+                  <input type="color" id="modNpBorderColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('now_playing', 'border_color', this.value)">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Redondeo: <span id="modNpRadiusVal" style="color:var(--accent);">12px</span></label>
+                  <input type="range" id="modNpBorderRadius" min="0" max="36" value="12" oninput="updateModularProp('now_playing', 'border_radius', parseInt(this.value, 10))" style="width:100%; accent-color:var(--accent);">
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">✍️ Tipografía &amp; Efectos</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Fuente</label>
+                  <select id="modNpFont" class="form-input" style="font-size:11px;" onchange="updateModularProp('now_playing', 'font', this.value)">
+                    <option value="system-ui">System Modern</option>
+                    <option value="'Space Mono', monospace">Space Mono</option>
+                    <option value="'Syne', sans-serif">Syne</option>
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Texto</label>
+                  <input type="color" id="modNpTextColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('now_playing', 'text_color', this.value)">
+                </div>
+              </div>
+              <div>
+                <label class="form-label" style="font-size:11px;">Ondulación de Texto (Wave): <span id="modNpWaveVal" style="color:var(--accent);">0</span></label>
+                <input type="range" id="modNpWave" min="0" max="10" value="0" oninput="updateModularProp('now_playing', 'wave', parseInt(this.value, 10))" style="width:100%; accent-color:var(--accent);">
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">👁️ Elementos Visibles</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px;">
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowCover" checked onchange="updateModularProp('now_playing', 'show_cover', this.checked)"> Portada</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowBadge" checked onchange="updateModularProp('now_playing', 'show_badge', this.checked)"> Badge</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowTitle" checked onchange="updateModularProp('now_playing', 'show_title', this.checked)"> Título</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowArtist" checked onchange="updateModularProp('now_playing', 'show_artist', this.checked)"> Artista / Canal</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowEq" checked onchange="updateModularProp('now_playing', 'show_equalizer', this.checked)"> Ecualizador</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─── PANE 2: INSPECTOR TEMPORIZADOR ─── -->
+          <div id="paneInspTimer" class="inspector-pane" style="display:none; flex-direction:column; gap:12px;">
+            <div class="inspector-section">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="inspector-section-title">⏱️ Módulo Temporizador</span>
+                <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--accent); cursor:pointer;">
+                  <input type="checkbox" id="modTmEnabled" checked onchange="updateModularProp('timer', 'enabled', this.checked)"> Habilitar
+                </label>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">📐 Ubicación &amp; Tamaño</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Posición X (px)</label>
+                  <input type="number" id="modTmX" class="form-input" min="0" max="1920" step="10" oninput="updateModularProp('timer', 'x', parseInt(this.value, 10))">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Posición Y (px)</label>
+                  <input type="number" id="modTmY" class="form-input" min="0" max="1080" step="10" oninput="updateModularProp('timer', 'y', parseInt(this.value, 10))">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Escala: <span id="modTmScaleVal" style="color:var(--accent);">1.0x</span></label>
+                  <input type="range" id="modTmScale" min="0.5" max="2.0" step="0.05" value="1.0" oninput="updateModularProp('timer', 'scale', parseFloat(this.value))" style="width:100%; accent-color:var(--accent);">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Ancho (px)</label>
+                  <input type="number" id="modTmWidth" class="form-input" min="320" max="900" step="20" oninput="updateModularProp('timer', 'width', parseInt(this.value, 10))">
+                </div>
+              </div>
+              <button class="btn btn-sm" onclick="centerTimerModule()" style="margin-top:4px;">🎯 Centrar Temporizador</button>
+            </div>
+
+            <div class="inspector-section">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span class="inspector-section-title" style="margin:0;">📑 Nivel de Capa (Z-Index / Arriba-Abajo)</span>
+                <span id="modTmZVal" style="font-weight:800; color:var(--accent); font-size:12px; font-family:'Space Mono',monospace;">20</span>
+              </div>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <button class="btn btn-sm" onclick="changeModuleLayer('timer', -5)" title="Enviar hacia atrás">🔽 Bajar</button>
+                <input type="number" id="modTmZIndex" class="form-input" style="width:70px; text-align:center; font-weight:700; font-size:12px;" value="20" min="1" max="999" onchange="setModuleLayer('timer', this.value)">
+                <button class="btn btn-sm btn-accent" onclick="changeModuleLayer('timer', 5)" title="Traer hacia adelante">🔼 Subir</button>
+                <button class="btn btn-sm" onclick="changeModuleLayer('timer', 100)" title="Traer al frente del todo" style="font-size:10px;">🔝 Al Frente</button>
+                <button class="btn btn-sm" onclick="changeModuleLayer('timer', -100)" title="Enviar al fondo" style="font-size:10px;">⬇️ Al Fondo</button>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">🎨 Rectángulo del Temporizador</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Fondo</label>
+                  <input type="color" id="modTmBgColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('timer', 'bg_color', this.value)">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Opacidad: <span id="modTmOpVal" style="color:var(--accent);">85%</span></label>
+                  <input type="range" id="modTmBgOpacity" min="0" max="100" value="85" oninput="updateModularProp('timer', 'bg_opacity', parseInt(this.value, 10))" style="width:100%; accent-color:var(--accent);">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Borde</label>
+                  <input type="color" id="modTmBorderColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('timer', 'border_color', this.value)">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Redondeo: <span id="modTmRadiusVal" style="color:var(--accent);">20px</span></label>
+                  <input type="range" id="modTmBorderRadius" min="0" max="40" value="20" oninput="updateModularProp('timer', 'border_radius', parseInt(this.value, 10))" style="width:100%; accent-color:var(--accent);">
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">✍️ Textos &amp; Colores Específicos</span>
+              <div>
+                <label class="form-label" style="font-size:11px;">Texto de la Píldora Superior</label>
+                <div style="display:flex; gap:6px;">
+                  <input type="text" id="modTmBadgeText" class="form-input" style="flex:1;" oninput="updateModularProp('timer', 'badge_text', this.value)">
+                  <input type="color" id="modTmBadgeColor" class="form-input" style="width:40px; height:34px; padding:2px;" title="Color del Badge" oninput="updateModularProp('timer', 'badge_color', this.value)">
+                </div>
+              </div>
+              <div>
+                <label class="form-label" style="font-size:11px;">Título Principal</label>
+                <div style="display:flex; gap:6px;">
+                  <input type="text" id="modTmTitleText" class="form-input" style="flex:1;" oninput="updateModularProp('timer', 'title_text', this.value)">
+                  <input type="color" id="modTmTitleColor" class="form-input" style="width:40px; height:34px; padding:2px;" title="Color del Título" oninput="updateModularProp('timer', 'title_color', this.value)">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Reloj</label>
+                  <input type="color" id="modTmClockColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('timer', 'clock_color', this.value)">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Barra</label>
+                  <input type="color" id="modTmProgressColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('timer', 'progress_color', this.value)">
+                </div>
+              </div>
+              <div>
+                <label class="form-label" style="font-size:11px;">Color Frase / Meme</label>
+                <input type="color" id="modTmPhraseColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('timer', 'phrase_color', this.value)">
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">👁️ Elementos Visibles</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px;">
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modTmShowBadge" checked onchange="updateModularProp('timer', 'show_badge', this.checked)"> Badge</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modTmShowTitle" checked onchange="updateModularProp('timer', 'show_title', this.checked)"> Título</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modTmShowClock" checked onchange="updateModularProp('timer', 'show_clock', this.checked)"> Reloj</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modTmShowProgress" checked onchange="updateModularProp('timer', 'show_progress', this.checked)"> Barra Progreso</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modTmShowPhrase" checked onchange="updateModularProp('timer', 'show_phrase', this.checked)"> Frase / Meme</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─── PANE 3: INSPECTOR LETRAS (LYRICS) ─── -->
+          <div id="paneInspLyrics" class="inspector-pane" style="display:none; flex-direction:column; gap:12px;">
+            <div class="inspector-section">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="inspector-section-title">📜 Módulo Letras (Spotify)</span>
+                <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--accent); cursor:pointer;">
+                  <input type="checkbox" id="modLyEnabled" checked onchange="updateModularProp('lyrics', 'enabled', this.checked)"> Habilitar Letras
+                </label>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">📐 Ubicación &amp; Tamaño</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Posición X (px)</label>
+                  <input type="number" id="modLyX" class="form-input" min="0" max="1920" step="5" oninput="updateModularProp('lyrics', 'x', parseInt(this.value, 10))">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Posición Y (desde abajo)</label>
+                  <input type="number" id="modLyY" class="form-input" min="0" max="1080" step="5" oninput="updateModularProp('lyrics', 'y', parseInt(this.value, 10))">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Escala: <span id="modLyScaleVal" style="color:var(--accent);">1.0x</span></label>
+                  <input type="range" id="modLyScale" min="0.5" max="2.0" step="0.05" value="1.0" oninput="updateModularProp('lyrics', 'scale', parseFloat(this.value))" style="width:100%; accent-color:var(--accent);">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Ancho (px)</label>
+                  <input type="number" id="modLyWidth" class="form-input" min="260" max="800" step="10" oninput="updateModularProp('lyrics', 'width', parseInt(this.value, 10))">
+                </div>
+              </div>
+              <div>
+                <label class="form-label" style="font-size:11px;">Altura Máxima (px)</label>
+                <input type="number" id="modLyMaxHeight" class="form-input" min="80" max="400" step="10" oninput="updateModularProp('lyrics', 'max_height', parseInt(this.value, 10))">
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span class="inspector-section-title" style="margin:0;">📑 Nivel de Capa (Z-Index / Arriba-Abajo)</span>
+                <span id="modLyZVal" style="font-weight:800; color:var(--accent); font-size:12px; font-family:'Space Mono',monospace;">15</span>
+              </div>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <button class="btn btn-sm" onclick="changeModuleLayer('lyrics', -5)" title="Enviar hacia atrás">🔽 Bajar</button>
+                <input type="number" id="modLyZIndex" class="form-input" style="width:70px; text-align:center; font-weight:700; font-size:12px;" value="15" min="1" max="999" onchange="setModuleLayer('lyrics', this.value)">
+                <button class="btn btn-sm btn-accent" onclick="changeModuleLayer('lyrics', 5)" title="Traer hacia adelante">🔼 Subir</button>
+                <button class="btn btn-sm" onclick="changeModuleLayer('lyrics', 100)" title="Traer al frente del todo" style="font-size:10px;">🔝 Al Frente</button>
+                <button class="btn btn-sm" onclick="changeModuleLayer('lyrics', -100)" title="Enviar al fondo" style="font-size:10px;">⬇️ Al Fondo</button>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">🎨 Rectángulo &amp; Tipografía</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Fondo</label>
+                  <input type="color" id="modLyBgColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('lyrics', 'bg_color', this.value)">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Opacidad: <span id="modLyOpVal" style="color:var(--accent);">75%</span></label>
+                  <input type="range" id="modLyBgOpacity" min="0" max="100" value="75" oninput="updateModularProp('lyrics', 'bg_opacity', parseInt(this.value, 10))" style="width:100%; accent-color:var(--accent);">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Texto</label>
+                  <input type="color" id="modLyTextColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('lyrics', 'text_color', this.value)">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Tamaño Letra (px)</label>
+                  <input type="number" id="modLyFontSize" class="form-input" min="10" max="24" value="13" oninput="updateModularProp('lyrics', 'font_size', parseInt(this.value, 10))">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─── PANE 4: INSPECTOR TEXTOS PERSONALIZADOS ─── -->
+          <div id="paneInspTexts" class="inspector-pane" style="display:none; flex-direction:column; gap:12px;">
+            <div class="inspector-section">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="inspector-section-title">🔤 Textos en Pantalla</span>
+                <button class="btn btn-sm btn-accent" onclick="addCustomText()">➕ Nuevo Texto</button>
+              </div>
+              <div style="font-size:11px; color:var(--muted);">
+                Agrega nombres de redes sociales, avisos, títulos o marquesinas y muévelos libremente por la pantalla.
+              </div>
+            </div>
+
+            <!-- Lista de textos creados -->
+            <div id="inspectorCustomTextsList" style="display:flex; flex-direction:column; gap:10px;"></div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- 3. Tarjeta Activa de Control "Now Playing" (No placeholder) -->
-    <div class="overlay-obs-box">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid var(--border); padding-bottom:10px;">
-        <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-weight:700; font-size:14px; color:var(--accent);">
-          <input type="checkbox" id="ovCfgNowPlayingEnabled" checked onchange="saveOverlayToggle('overlay_now_playing_enabled', this.checked)">
-          🎵 Barra Flotante "Now Playing" en vivo
-        </label>
-        <span style="font-size:11px; color:var(--muted);">Control de fuentes en vivo</span>
-      </div>
+    <!-- SUB-VISTA 2: PANEL DE CONTROL EN VIVO DEL TEMPORIZADOR -->
+    <div id="studioTimerOpContainer" style="display:none; width:100%; height:100%; padding:20px; overflow-y:auto;">
+      <div style="max-width:700px; margin:0 auto; display:flex; flex-direction:column; gap:16px;">
+        <div class="overlay-timer-card">
+          <div style="display:flex; justify-content:space-between; width:100%; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:12px;">
+            <span style="font-weight:700; font-size:14px; color:var(--accent);">⏱️ Panel de Control del Temporizador</span>
+            <span class="timer-status-badge timer-status-inactive" id="timerStatusBadge">Inactivo</span>
+          </div>
 
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px; margin-top:6px;">
-        <div>
-          <label class="form-label" style="font-size:11px; margin-bottom:4px;">¿Qué fuentes mostrar en la barra flotante?</label>
-          <select id="ovCfgSourceMode" class="form-input" style="width:100%;" onchange="saveOverlayToggle('overlay_source_mode', this.value)">
-            <option value="both">🎵 Música de Spotify + 🎬 Fondos de YouTube (Ambos)</option>
-            <option value="spotify_only">🎵 Solo música de Spotify (Ocultar videos de fondos)</option>
-            <option value="youtube_only">🎬 Solo videos de YouTube (Ocultar música de Spotify)</option>
-            <option value="none">⛔ Nada / Desactivar contenido</option>
-          </select>
-          <div style="font-size:10px; color:var(--muted); margin-top:4px;">
-            Permite elegir exactamente si deseas mostrar canciones de Spotify, videos o ninguno.
+          <div class="timer-clock-display" id="timerClockDisplay">05:00</div>
+
+          <div class="timer-progress-wrap">
+            <div class="timer-progress-fill" id="timerProgressFill" style="width: 100%;"></div>
+          </div>
+
+          <div style="width:100%; text-align:left; margin-top:8px;">
+            <label class="form-label">Título en Pantalla</label>
+            <input type="text" id="timerTitleInput" class="form-input" value="Ya Vuelvo" placeholder="Ej: Ya Vuelvo, Recreo, Volvemos enseguida..." style="width:100%;">
+          </div>
+
+          <div style="width:100%; text-align:center; margin-top:8px;">
+            <div class="form-label" style="margin-bottom:8px;">Duración rápida</div>
+            <div class="timer-quick-grid">
+              <button class="timer-quick-btn" onclick="startTimerWithMinutes(1)">+1 min</button>
+              <button class="timer-quick-btn" onclick="startTimerWithMinutes(3)">+3 min</button>
+              <button class="timer-quick-btn" onclick="startTimerWithMinutes(5)">+5 min</button>
+              <button class="timer-quick-btn" onclick="startTimerWithMinutes(10)">+10 min</button>
+              <button class="timer-quick-btn" onclick="startTimerWithMinutes(15)">+15 min</button>
+              <button class="timer-quick-btn" onclick="startTimerWithMinutes(20)">+20 min</button>
+            </div>
+          </div>
+
+          <div class="timer-phrase-section" style="width:100%; margin-top:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label class="form-label">Meme / Chiste de Informática</label>
+              <div style="display:flex; gap:6px;">
+                <button class="btn" style="padding:3px 8px; font-size:10px;" onclick="randomizeTimerPhrase()">🎲 Aleatorio</button>
+                <button class="btn" style="padding:3px 8px; font-size:10px;" onclick="openManagePhrasesModal()">✏️ Gestionar</button>
+              </div>
+            </div>
+            <select id="timerPhraseSelect" class="form-input" style="width:100%;" onchange="changeTimerPhrase(this.value)"></select>
+            <div id="timerPhrasePreview" style="font-size:11px; color:var(--accent); font-style:italic; padding-top:2px;"></div>
+          </div>
+
+          <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:14px;">
+            <button class="btn btn-accent" id="btnTimerStart" onclick="startCustomTimer()" style="font-size:13px; padding:10px 22px;">▶ Iniciar</button>
+            <button class="btn" id="btnTimerPause" onclick="pauseOverlayTimer()" style="font-size:13px; padding:10px 22px;">⏸ Pausar</button>
+            <button class="btn btn-danger" id="btnTimerStop" onclick="stopOverlayTimer()" style="font-size:13px; padding:10px 22px;">⏹ Ocultar Overlay</button>
           </div>
         </div>
 
-        <div style="display:flex; flex-direction:column; gap:8px; justify-content:center; font-size:12px;">
-          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-            <input type="checkbox" id="ovCfgLyricsQuick" checked onchange="saveOverlayToggle('overlay_show_lyrics', this.checked)">
-            Mostrar Letras / Lyrics automáticas de Spotify
-          </label>
-          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-            <input type="checkbox" id="ovCfgRequireFocusQuick" onchange="saveOverlayToggle('overlay_require_focus', this.checked)">
-            Solo mostrar video de YouTube si el Viewer está en foco
-          </label>
+        <div style="text-align:center;">
+          <button class="btn" onclick="setStudioMode('visual')" style="font-size:12px;">← Volver al Estudio Visual</button>
         </div>
-      </div>
-    </div>
-
-    <!-- 4. Tarjeta de Personalización Avanzada del Overlay -->
-    <div class="overlay-obs-box" style="margin-top:6px;">
-      <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:15px; color:var(--accent); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-        <span>🎨 Personalización Visual del Rectángulo y Tipografía</span>
-        <span style="font-size:11px; color:var(--muted);">Sincronización en vivo a 0 clics</span>
-      </div>
-
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:14px;">
-        <!-- 1. Toggles de Contenido -->
-        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:12px;">
-          <h4 style="font-size:12px; color:var(--accent); text-transform:uppercase; margin-bottom:10px;">👁️ Elementos Visibles</h4>
-          <div style="display:flex; flex-direction:column; gap:8px; font-size:12px;">
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgSongTitle" checked> Título de Canción (Spotify)</label>
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgVideoTitle" checked> Título de Video (YouTube)</label>
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgArtist" checked> Artista / Canal</label>
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgCover" checked> Carátula / Portada</label>
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgBadge" checked> Badge (Spotify/YouTube)</label>
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgEq" checked> Ecualizador Animado</label>
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgLyrics" checked> Letras / Lyrics (Spotify)</label>
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" id="ovCfgRequireFocus"> Ocultar video si Viewer no está en foco</label>
-          </div>
-        </div>
-
-        <!-- 2. Posición y Escala -->
-        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:12px;">
-          <h4 style="font-size:12px; color:var(--accent); text-transform:uppercase; margin-bottom:10px;">📐 Ubicación y Escala</h4>
-          <div style="display:flex; flex-direction:column; gap:10px; font-size:12px;">
-            <div>
-              <label class="form-label" style="font-size:11px;">Alineación en Pantalla</label>
-              <select id="ovCfgPosition" class="form-input" style="width:100%; font-size:12px;">
-                <option value="bottom-left">Abajo a la Izquierda (Predeterminado)</option>
-                <option value="bottom-right">Abajo a la Derecha</option>
-                <option value="top-left">Arriba a la Izquierda</option>
-                <option value="top-right">Arriba a la Derecha</option>
-                <option value="bottom-center">Abajo al Centro</option>
-                <option value="top-center">Arriba al Centro</option>
-              </select>
-            </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-              <div>
-                <label class="form-label" style="font-size:11px;">Margen X (px)</label>
-                <input type="number" id="ovCfgPosX" class="form-input" value="28" min="0" max="800">
-              </div>
-              <div>
-                <label class="form-label" style="font-size:11px;">Margen Y (px)</label>
-                <input type="number" id="ovCfgPosY" class="form-input" value="28" min="0" max="800">
-              </div>
-            </div>
-            <div>
-              <label class="form-label" style="font-size:11px;">Escala / Zoom: <span id="ovCfgScaleVal" style="color:var(--accent); font-weight:700;">1.0x</span></label>
-              <input type="range" id="ovCfgScale" min="0.5" max="1.8" step="0.05" value="1.0" oninput="document.getElementById('ovCfgScaleVal').textContent = this.value + 'x'" style="width:100%; accent-color:var(--accent);">
-            </div>
-          </div>
-        </div>
-
-        <!-- 3. Estilo del Rectángulo (Discreto por Default) -->
-        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:12px;">
-          <h4 style="font-size:12px; color:var(--accent); text-transform:uppercase; margin-bottom:10px;">🎨 Estilo del Rectángulo</h4>
-          <div style="display:flex; flex-direction:column; gap:10px; font-size:12px;">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-              <div>
-                <label class="form-label" style="font-size:11px;">Color Fondo</label>
-                <input type="color" id="ovCfgBgColor" class="form-input" value="#0a0a0a" style="height:34px; padding:2px;">
-              </div>
-              <div>
-                <label class="form-label" style="font-size:11px;">Opacidad: <span id="ovCfgOpacityVal" style="color:var(--accent); font-weight:700;">78%</span></label>
-                <input type="range" id="ovCfgBgOpacity" min="10" max="100" value="78" oninput="document.getElementById('ovCfgOpacityVal').textContent = this.value + '%'" style="width:100%; accent-color:var(--accent); margin-top:8px;">
-              </div>
-            </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-              <div>
-                <label class="form-label" style="font-size:11px;">Redondeo: <span id="ovCfgRadiusVal" style="color:var(--accent); font-weight:700;">12px</span></label>
-                <input type="range" id="ovCfgBorderRadius" min="0" max="28" value="12" oninput="document.getElementById('ovCfgRadiusVal').textContent = this.value + 'px'" style="width:100%; accent-color:var(--accent);">
-              </div>
-              <div>
-                <label class="form-label" style="font-size:11px;">Color Texto</label>
-                <input type="color" id="ovCfgTextColor" class="form-input" value="#ffffff" style="height:34px; padding:2px;">
-              </div>
-            </div>
-            <div>
-              <label class="form-label" style="font-size:11px;">Tipografía</label>
-              <select id="ovCfgFont" class="form-input" style="width:100%; font-size:12px;">
-                <option value="system-ui">Sistema Moderno (Discreto & Limpio)</option>
-                <option value="'Space Mono', monospace">Space Mono (Terminal / Hacker)</option>
-                <option value="'Syne', sans-serif">Syne (Stream Moderno)</option>
-                <option value="'Montserrat', sans-serif">Montserrat (Elegante)</option>
-                <option value="sans-serif">Sans-Serif Clásico</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- 4. Efecto Wave y Mensaje Extra -->
-        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:12px;">
-          <h4 style="font-size:12px; color:var(--accent); text-transform:uppercase; margin-bottom:10px;">🌊 Efecto Wave & Texto Extra</h4>
-          <div style="display:flex; flex-direction:column; gap:10px; font-size:12px;">
-            <div>
-              <label class="form-label" style="font-size:11px;">Intensidad de Ondulación / Wave: <span id="ovCfgWaveVal" style="color:var(--accent); font-weight:700;">0 (Desactivado)</span></label>
-              <input type="range" id="ovCfgWave" min="0" max="10" value="0" oninput="document.getElementById('ovCfgWaveVal').textContent = this.value == 0 ? '0 (Desactivado)' : this.value" style="width:100%; accent-color:var(--accent);">
-              <div style="font-size:10px; color:var(--muted); margin-top:2px;">Crea una animación ondulante sutil o enérgica en el título.</div>
-            </div>
-            <div>
-              <label class="form-label" style="font-size:11px;">Texto Extra / Tagline en Pantalla</label>
-              <input type="text" id="ovCfgExtraText" class="form-input" placeholder="Ej: twitch.tv/mi_canal | ¡Bienvenidos!">
-              <div style="font-size:10px; color:var(--muted); margin-top:2px;">Se muestra debajo del artista como un sutil pie de página.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
-        <button class="btn btn-accent" onclick="saveOverlayCustomization()" style="padding:10px 24px; font-size:13px; font-weight:700;">💾 Guardar y Aplicar Cambios al Overlay</button>
       </div>
     </div>
-
   </div>
 </div>
 
@@ -1778,7 +2408,7 @@
     <div class="form-group">
       <label class="form-label">Volumen Predeterminado de la Botonera (PC)</label>
       <div style="display:flex; align-items:center; gap:12px;">
-        <input type="range" id="cfgSoundboardVolume" min="0" max="100" value="80" style="accent-color:var(--accent); width:200px;" oninput="document.getElementById('cfgSbVolVal').textContent = this.value + '%'">
+        <input type="range" id="cfgSoundboardVolume" min="0" max="100" value="80" style="accent-color:var(--accent); width:200px;" oninput="updateSoundboardVolume(this.value)">
         <span id="cfgSbVolVal" style="color:var(--accent); font-weight:700; font-size:12px;">80%</span>
       </div>
     </div>
@@ -1983,11 +2613,25 @@ function showView(viewName, push = false) {
   }
 
   // Cargar datos según la vista
+  if (viewName === 'fondos' && (!videoList || videoList.length === 0)) loadPlaylist();
   if (viewName === 'obs') loadObsData();
   if (viewName === 'spotify') loadSpotifyData();
   if (viewName === 'live') loadLiveData();
   if (viewName === 'soundboard') loadSoundboardView();
   if (viewName === 'overlays') loadOverlaysView();
+
+  // Si salimos de la vista de directo, silenciar para evitar audio en segundo plano
+  if (viewName !== 'live') {
+    const iframe = document.getElementById('livePlayerIframe') || document.querySelector('#liveVideoContainer iframe');
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
+    }
+  } else if (!liveIsMuted) {
+    const iframe = document.getElementById('livePlayerIframe') || document.querySelector('#liveVideoContainer iframe');
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'unMute', args: '' }), '*');
+    }
+  }
 }
 
 // ─── INICIALIZACIÓN ───
@@ -1997,6 +2641,9 @@ async function initApp() {
     config = await res.json();
     if (config.auto_focus_viewer !== undefined) {
       document.getElementById('cfgAutoFocusViewer').checked = config.auto_focus_viewer;
+    }
+    if (document.getElementById('cfgAutoOpenViewer')) {
+      document.getElementById('cfgAutoOpenViewer').checked = Boolean(config.auto_open_viewer);
     }
     if (config.soundboard_volume !== undefined) {
       applySoundboardVolume(config.soundboard_volume);
@@ -2042,14 +2689,6 @@ async function initApp() {
       }
     }
   }, 1000);
-
-
-  // Asegurar que el Viewer esté abierto automáticamente si no está conectado
-  setTimeout(() => {
-    if (!viewerConnected) {
-      fetch('/api/open_viewer', { method: 'POST' }).catch(() => {});
-    }
-  }, 1200);
 }
 
 // ─── SINCRONIZACIÓN SSE (TIEMPO REAL ENTRE DISPOSITIVOS) ───
@@ -2132,8 +2771,11 @@ function initSSE() {
       if (data) {
         const npText = document.getElementById('sbNowPlayingText');
         if (npText) npText.textContent = '▶ ' + (data.title || 'Sonido');
-        document.querySelectorAll('.sound-card').forEach(c => {
-          if (c.dataset.mp3 === data.mp3 || (data.title && c.querySelector('.sound-name')?.textContent === data.title)) {
+        document.querySelectorAll('.sound-tile, .sound-card').forEach(c => {
+          const matchMp3 = data.mp3 && c.dataset.mp3 === data.mp3;
+          const cardTitle = c.querySelector('.sound-tile-title')?.textContent?.trim() || c.querySelector('.sound-name')?.textContent?.trim();
+          const matchTitle = data.title && cardTitle === data.title.trim();
+          if (matchMp3 || matchTitle) {
             c.classList.add('playing');
           } else {
             c.classList.remove('playing');
@@ -2141,9 +2783,9 @@ function initSSE() {
         });
         if (playingResetTimer) clearTimeout(playingResetTimer);
         playingResetTimer = setTimeout(() => {
-          document.querySelectorAll('.sound-card').forEach(c => c.classList.remove('playing'));
-          if (npText && npText.textContent.startsWith('▶')) npText.textContent = 'Listo / Silencio';
-        }, 2500);
+          document.querySelectorAll('.sound-tile, .sound-card').forEach(c => c.classList.remove('playing'));
+          if (npText && npText.textContent.startsWith('▶')) npText.textContent = '⏹️ Listo / Silencio';
+        }, 2200);
       }
     } catch(err) {}
   });
@@ -2153,7 +2795,7 @@ function initSSE() {
     try {
       const npText = document.getElementById('sbNowPlayingText');
       if (npText) npText.textContent = '⏹️ Detenido';
-      document.querySelectorAll('.sound-card').forEach(c => c.classList.remove('playing'));
+      document.querySelectorAll('.sound-tile, .sound-card').forEach(c => c.classList.remove('playing'));
     } catch(err) {}
   });
 
@@ -2164,10 +2806,10 @@ function initSSE() {
       if (data && data.favorites) {
         savedFavorites = data.favorites;
         if (currentSbTab === 'favorites') {
-          renderSoundboardCards(savedFavorites, false);
+          renderSoundboardGrid(savedFavorites, false);
         } else {
-          document.querySelectorAll('.sound-card').forEach(card => {
-            const btn = card.querySelector('.sound-fav-btn');
+          document.querySelectorAll('.sound-tile, .sound-card').forEach(card => {
+            const btn = card.querySelector('.sound-tile-fav, .sound-fav-btn');
             const mp3 = card.dataset.mp3;
             if (btn && mp3) {
               const fav = savedFavorites.some(f => f.mp3 === mp3);
@@ -2194,10 +2836,12 @@ function initSSE() {
     try {
       const data = JSON.parse(e.data).data;
       if (data && data.volume !== undefined && data.clientId !== myClientId) {
-        const slider = document.getElementById('spVolumeSlider');
-        const valText = document.getElementById('spVolumeValue');
-        if (slider) slider.value = data.volume;
-        if (valText) valText.textContent = data.volume + '%';
+        if (!spIsAdjustingVolume && Date.now() > spVolumeCooldownUntil) {
+          const slider = document.getElementById('spVolumeSlider');
+          const valText = document.getElementById('spVolumeValue');
+          if (slider) slider.value = data.volume;
+          if (valText) valText.textContent = data.volume + '%';
+        }
       }
     } catch(err) {}
   });
@@ -2255,7 +2899,7 @@ function initBroadcastChannel() {
     if (d.type === 'soundboard_stop') {
       const npText = document.getElementById('sbNowPlayingText');
       if (npText) npText.textContent = '⏹️ Detenido';
-      document.querySelectorAll('.sound-card').forEach(c => c.classList.remove('playing'));
+      document.querySelectorAll('.sound-tile, .sound-card').forEach(c => c.classList.remove('playing'));
     }
     if (d.type === 'state') {
       if (d.playbackRate !== undefined) {
@@ -2285,20 +2929,46 @@ async function loadPlaylist() {
   const apiKey = config.youtube_api_key || "";
   const playlistId = config.playlist_id || "PL7E8lrk1ePfZVWMM2vsUkpQ6vbpbHi4G_";
 
+  videoList = [];
+
+  // 1. Intentar primero con el endpoint local del servidor (soporta YouTube API y fallback automático ultra-confiable con yt-dlp)
+  try {
+    const res = await fetch(`/api/youtube/playlist?playlist_id=${encodeURIComponent(playlistId)}&key=${encodeURIComponent(apiKey)}`);
+    const data = await res.json();
+    if (data.success && Array.isArray(data.items) && data.items.length > 0) {
+      videoList = data.items;
+      if (config.last_played_video_id) {
+        currentPlayingVideoId = config.last_played_video_id;
+        const npTitle = document.getElementById('nowPlayingTitle');
+        if (npTitle && config.last_played_title && (npTitle.textContent === '—' || !npTitle.textContent)) {
+          npTitle.textContent = config.last_played_title;
+        }
+      }
+      renderVideosGrid();
+      loading.style.display = 'none';
+      return;
+    }
+  } catch (backendErr) {
+    console.warn("Fallo cargando playlist por backend, intentando directo por API...", backendErr);
+  }
+
+  // 2. Si falló el backend pero hay API Key configurada, intentar directo desde el navegador
   if (!apiKey) {
     loading.innerHTML = `
-      <p style="color:var(--accent); margin-bottom:10px;">⚠️ Falta configurar tu YouTube Data API v3 Key para ver los fondos.</p>
+      <p style="color:var(--accent); margin-bottom:10px;">⚠️ Falta configurar tu YouTube Data API v3 Key para ver los fondos o no se pudo cargar la playlist.</p>
       <button class="btn btn-accent" onclick="openSettingsModal()">⚙️ Configurar API Key</button>
     `;
     return;
   }
 
-  videoList = [];
   let nextPageToken = "";
   try {
     do {
       const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${apiKey}&pageToken=${nextPageToken}`);
       const data = await res.json();
+      if (data.error) {
+        throw new Error(data.error.message || 'Error en YouTube API');
+      }
       if (data.items) {
         data.items.forEach(item => {
           const videoId = item.snippet?.resourceId?.videoId;
@@ -2311,38 +2981,136 @@ async function loadPlaylist() {
       nextPageToken = data.nextPageToken || "";
     } while (nextPageToken);
 
-    renderVideosGrid();
-    loading.style.display = 'none';
+    if (videoList.length > 0) {
+      if (config.last_played_video_id) {
+        currentPlayingVideoId = config.last_played_video_id;
+        const npTitle = document.getElementById('nowPlayingTitle');
+        if (npTitle && config.last_played_title && (npTitle.textContent === '—' || !npTitle.textContent)) {
+          npTitle.textContent = config.last_played_title;
+        }
+      }
+      renderVideosGrid();
+      loading.style.display = 'none';
+    } else {
+      loading.textContent = 'No se encontraron videos en la playlist.';
+    }
   } catch (err) {
     loading.textContent = 'Error cargando playlist: ' + err.message;
   }
 }
 
-function renderVideosGrid() {
+let currentFilterVideos = [];
+let renderedVideosCount = 0;
+const VIDEOS_PAGE_SIZE = 36;
+let videosObserver = null;
+let currentPlayingVideoId = config.last_played_video_id || '';
+let fondosearchInitialized = false;
+
+function initFondosSearch() {
+  if (fondosearchInitialized) return;
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    let debounceTimer = null;
+    searchInput.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        renderVideosGrid(true);
+      }, 120);
+    });
+    fondosearchInitialized = true;
+  }
+}
+
+function renderVideosGrid(reset = true) {
+  initFondosSearch();
   const grid = document.getElementById('gridVideos');
-  grid.innerHTML = '';
-  videoList.forEach((v, i) => {
+  if (!grid) return;
+
+  if (reset) {
+    const query = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+    if (query) {
+      currentFilterVideos = videoList.filter(v => (v.title || '').toLowerCase().includes(query));
+    } else {
+      currentFilterVideos = [...videoList];
+    }
+
+    const badge = document.getElementById('videoCountBadge');
+    if (badge) {
+      badge.textContent = query 
+        ? `${currentFilterVideos.length} / ${videoList.length}` 
+        : `${videoList.length} videos`;
+    }
+
+    grid.innerHTML = '';
+    renderedVideosCount = 0;
+
+    if (currentFilterVideos.length === 0) {
+      grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--muted); font-size: 13px;">No se encontraron videos con ese nombre.</div>';
+      return;
+    }
+  }
+
+  renderNextVideosBatch();
+}
+
+function renderNextVideosBatch() {
+  const grid = document.getElementById('gridVideos');
+  if (!grid || renderedVideosCount >= currentFilterVideos.length) return;
+
+  const nextCount = Math.min(renderedVideosCount + VIDEOS_PAGE_SIZE, currentFilterVideos.length);
+  const fragment = document.createDocumentFragment();
+
+  for (let i = renderedVideosCount; i < nextCount; i++) {
+    const v = currentFilterVideos[i];
     const card = document.createElement('div');
-    card.className = 'video-card';
+    const isPlaying = v.videoId === currentPlayingVideoId;
+    card.className = 'video-card' + (isPlaying ? ' active' : '');
     card.dataset.videoId = v.videoId;
     card.innerHTML = `
       <div class="thumb-wrap">
-        <img src="${v.thumb}" alt="${v.title}" loading="lazy">
+        <img src="${v.thumb}" alt="${(v.title || '').replace(/"/g, '&quot;')}" loading="lazy" decoding="async">
       </div>
       <div class="video-card-info">
-        <p>${v.title}</p>
+        <p>${v.title || 'Video sin título'}</p>
       </div>
     `;
-    card.onclick = () => playVideoByIndex(i);
-    grid.appendChild(card);
-  });
+    card.onclick = () => playVideo(v);
+    fragment.appendChild(card);
+  }
+
+  // Quitar el sentinel anterior si existía
+  const oldSentinel = document.getElementById('videosSentinel');
+  if (oldSentinel) oldSentinel.remove();
+
+  grid.appendChild(fragment);
+  renderedVideosCount = nextCount;
+
+  // Si quedan más videos por renderizar, agregar un sentinel ligero al final
+  if (renderedVideosCount < currentFilterVideos.length) {
+    const sentinel = document.createElement('div');
+    sentinel.id = 'videosSentinel';
+    sentinel.style.cssText = 'grid-column: 1 / -1; height: 30px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11px; opacity: 0.6;';
+    sentinel.innerHTML = '<span>Cargando más videos…</span>';
+    grid.appendChild(sentinel);
+
+    if (videosObserver) videosObserver.disconnect();
+    videosObserver = new IntersectionObserver((entries) => {
+      if (entries[0] && entries[0].isIntersecting) {
+        renderNextVideosBatch();
+      }
+    }, { rootMargin: '400px' });
+    videosObserver.observe(sentinel);
+  }
 }
 
-function playVideoByIndex(i) {
-  if (!videoList[i]) return;
-  const v = videoList[i];
-  currentIndex = i;
-  document.getElementById('nowPlayingTitle').textContent = v.title;
+function playVideo(v) {
+  if (!v || !v.videoId) return;
+  currentPlayingVideoId = v.videoId;
+  const originalIdx = videoList.findIndex(item => item.videoId === v.videoId);
+  if (originalIdx !== -1) currentIndex = originalIdx;
+
+  const npTitle = document.getElementById('nowPlayingTitle');
+  if (npTitle) npTitle.textContent = v.title || '';
   highlightActiveCard(v.videoId);
 
   channel.postMessage({ type: 'play', videoId: v.videoId });
@@ -2363,7 +3131,12 @@ function playVideoByIndex(i) {
   }).catch(() => {});
 }
 
+function playVideoByIndex(i) {
+  if (videoList[i]) playVideo(videoList[i]);
+}
+
 function highlightActiveCard(videoId) {
+  currentPlayingVideoId = videoId;
   document.querySelectorAll('.video-card').forEach(c => {
     c.classList.toggle('active', c.dataset.videoId === videoId);
   });
@@ -2477,11 +3250,38 @@ let spCurrentLoadedTracks = [];
 let spCurrentPlaylistInfo = null;
 let spFilterDebounce = null;
 let spIsSeeking = false;
+let spSeekCooldownUntil = 0;
 let spCurrentProgressMs = 0;
 let spCurrentDurationMs = 0;
 
+let spIsAdjustingVolume = false;
+let spVolumeCooldownUntil = 0;
+let spVolumeDebounceTimer = null;
+
+function onSpotifyVolumeInput(val) {
+  spIsAdjustingVolume = true;
+  spVolumeCooldownUntil = Date.now() + 3000;
+  const valEl = document.getElementById('spVolumeValue');
+  if (valEl) valEl.textContent = val + '%';
+
+  clearTimeout(spVolumeDebounceTimer);
+  spVolumeDebounceTimer = setTimeout(() => {
+    spotifySetVolume(val);
+  }, 100);
+}
+
+function onSpotifyVolumeChange(val) {
+  clearTimeout(spVolumeDebounceTimer);
+  spotifySetVolume(val);
+  spVolumeCooldownUntil = Date.now() + 3000;
+  setTimeout(() => {
+    spIsAdjustingVolume = false;
+  }, 400);
+}
+
 function onSpotifySeekInput(val) {
   spIsSeeking = true;
+  spSeekCooldownUntil = Date.now() + 3500;
   if (spCurrentDurationMs > 0) {
     const targetMs = (parseInt(val, 10) / 1000) * spCurrentDurationMs;
     const curEl = document.getElementById('spTimeCurrent');
@@ -2492,16 +3292,24 @@ function onSpotifySeekInput(val) {
 async function onSpotifySeekChange(val) {
   if (spCurrentDurationMs > 0) {
     const targetMs = Math.round((parseInt(val, 10) / 1000) * spCurrentDurationMs);
+    spCurrentProgressMs = targetMs;
+    spSeekCooldownUntil = Date.now() + 3500;
+
+    const curEl = document.getElementById('spTimeCurrent');
+    if (curEl) curEl.textContent = formatDurationMs(targetMs);
+
     try {
       await fetch('/api/spotify/seek', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ position_ms: targetMs })
       });
-      spCurrentProgressMs = targetMs;
     } catch(e) {}
   }
-  setTimeout(() => { spIsSeeking = false; }, 400);
+  // Permitir que el ticker de segundo a segundo avance sin saltos desde targetMs
+  setTimeout(() => {
+    spIsSeeking = false;
+  }, 50);
 }
 
 function updateSpotifyPlayerUI(state) {
@@ -2525,9 +3333,17 @@ function updateSpotifyPlayerUI(state) {
     spCurrentDurationMs = state.duration_ms;
     if (totEl) totEl.textContent = formatDurationMs(state.duration_ms);
   }
+
   if (state.progress_ms !== undefined) {
-    spCurrentProgressMs = state.progress_ms;
-    if (!spIsSeeking) {
+    const now = Date.now();
+    const inSeekCooldown = now < spSeekCooldownUntil;
+    // Si estamos en cooldown por haber cambiado de posición, solo aceptamos la posición del servidor
+    // si ya se sincronizó cerca de nuestra posición deseada (+/- 2.5s)
+    const serverDelta = Math.abs(state.progress_ms - spCurrentProgressMs);
+    const serverCaughtUp = serverDelta < 2500;
+
+    if (!spIsSeeking && (!inSeekCooldown || serverCaughtUp)) {
+      spCurrentProgressMs = state.progress_ms;
       if (curEl) curEl.textContent = formatDurationMs(state.progress_ms);
       if (sliderEl && spCurrentDurationMs > 0) {
         const pct = Math.min(1000, Math.round((state.progress_ms / spCurrentDurationMs) * 1000));
@@ -2544,8 +3360,12 @@ async function loadSpotifyData() {
     if (state.available) {
       updateSpotifyPlayerUI(state);
       if (state.volume_percent !== undefined) {
-        document.getElementById('spVolumeSlider').value = state.volume_percent;
-        document.getElementById('spVolumeValue').textContent = state.volume_percent + '%';
+        if (!spIsAdjustingVolume && Date.now() > spVolumeCooldownUntil) {
+          const vSlider = document.getElementById('spVolumeSlider');
+          const vVal = document.getElementById('spVolumeValue');
+          if (vSlider) vSlider.value = state.volume_percent;
+          if (vVal) vVal.textContent = state.volume_percent + '%';
+        }
       }
     }
   } catch(e) {}
@@ -2592,7 +3412,7 @@ async function loadSavedPlaylists() {
     }
 
     container.innerHTML = playlists.map(p => `
-      <div class="sp-playlist-item" onclick="loadPlaylist('${p.id}')" title="Cargar canciones de ${p.name}">
+      <div class="sp-playlist-item" onclick="loadSpotifyPlaylist('${p.id}')" title="Cargar canciones de ${p.name}">
         <span style="color:var(--accent); font-weight:700; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">
           🎵 ${p.name}
         </span>
@@ -2619,7 +3439,7 @@ async function promptAddPlaylist() {
     const data = await res.json();
     if (data.name) {
       await saveSpotifyPlaylist(pid, data.name);
-      loadPlaylist(pid);
+      loadSpotifyPlaylist(pid);
     } else {
       showToast("No se pudo obtener la playlist");
     }
@@ -2657,7 +3477,8 @@ async function deleteSpotifyPlaylist(id, name) {
   }
 }
 
-function loadPlaylist(id) {
+function loadSpotifyPlaylist(id) {
+  if (!id || id === 'undefined' || typeof id !== 'string') return;
   const input = document.getElementById('spSearchInput');
   if (input) input.value = 'https://open.spotify.com/playlist/' + id;
   spotifySearch();
@@ -2675,7 +3496,7 @@ function formatDurationMs(ms) {
 function parseSearchInput(val) {
   const trimmed = (val || '').trim();
   const urlMatch = trimmed.match(/(?:https?:\/\/open\.spotify\.com\/playlist\/|spotify:playlist:)([a-zA-Z0-9]+)(?:\s+(.*))?/i);
-  if (urlMatch) {
+  if (urlMatch && urlMatch[1] && urlMatch[1] !== 'undefined' && urlMatch[1].length >= 10) {
     return {
       isPlaylist: true,
       playlistId: urlMatch[1],
@@ -2779,8 +3600,14 @@ function renderSpotifyMatrix(tracks, playlistInfo = null, activeFilter = '') {
 }
 
 async function spotifySearch() {
-  const val = document.getElementById('spSearchInput').value.trim();
-  if (!val) return;
+  const inputEl = document.getElementById('spSearchInput');
+  let val = inputEl ? inputEl.value.trim() : '';
+  if (!val || val.includes('undefined')) {
+    if (inputEl && val.includes('undefined')) {
+      inputEl.value = '';
+    }
+    return;
+  }
   const parsed = parseSearchInput(val);
 
   if (parsed.isPlaylist) {
@@ -2844,10 +3671,16 @@ async function spotifyAddQueue(uri) {
 }
 
 // ─── 4. YOUTUBE LIVE MONITOR LOGIC ───
+let liveIsMuted = true;
+let currentLiveVideoId = '';
+
 async function loadLiveData() {
   const container = document.getElementById('liveVideoContainer');
   const badge = document.getElementById('liveBadgeStatus');
   const title = document.getElementById('liveTitleText');
+  const muteBtn = document.getElementById('btnLiveToggleMute');
+
+  updateLiveMuteButton();
 
   try {
     const res = await fetch('/api/youtube/live');
@@ -2857,10 +3690,19 @@ async function loadLiveData() {
       badge.textContent = '🔴 EN VIVO';
       badge.style.color = 'var(--accent2)';
       title.textContent = data.title || 'Transmisión activa';
-      container.innerHTML = `
-        <iframe src="https://www.youtube.com/embed/${data.video_id}?autoplay=1&enablejsapi=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
-      `;
+      if (muteBtn) muteBtn.style.display = 'inline-flex';
+
+      // Recrear solo si cambió el video o no hay iframe cargado
+      if (currentLiveVideoId !== data.video_id || !container.querySelector('iframe')) {
+        currentLiveVideoId = data.video_id;
+        const muteParam = liveIsMuted ? 1 : 0;
+        container.innerHTML = `
+          <iframe id="livePlayerIframe" src="https://www.youtube.com/embed/${data.video_id}?autoplay=1&mute=${muteParam}&enablejsapi=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+        `;
+      }
     } else {
+      currentLiveVideoId = '';
+      if (muteBtn) muteBtn.style.display = 'none';
       badge.textContent = '⏸️ SIN DIRECTO ACTIVO';
       badge.style.color = 'var(--muted)';
       title.textContent = data.message || 'Configura tu canal de YouTube en Ajustes';
@@ -2874,7 +3716,38 @@ async function loadLiveData() {
   } catch(e) {}
 }
 
+function updateLiveMuteButton() {
+  const muteBtn = document.getElementById('btnLiveToggleMute');
+  if (!muteBtn) return;
+  if (liveIsMuted) {
+    muteBtn.innerHTML = '🔇 Muteado';
+    muteBtn.className = 'btn';
+    muteBtn.style.color = 'var(--muted)';
+  } else {
+    muteBtn.innerHTML = '🔊 Con Sonido';
+    muteBtn.className = 'btn btn-accent';
+    muteBtn.style.color = '#000';
+  }
+}
+
+function toggleLiveMute() {
+  liveIsMuted = !liveIsMuted;
+  updateLiveMuteButton();
+
+  const iframe = document.getElementById('livePlayerIframe') || document.querySelector('#liveVideoContainer iframe');
+  if (iframe && iframe.contentWindow) {
+    const func = liveIsMuted ? 'mute' : 'unMute';
+    iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: func, args: '' }), '*');
+    if (!liveIsMuted) {
+      iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [100] }), '*');
+    }
+  }
+
+  showToast(liveIsMuted ? 'Monitor de directo silenciado 🔇' : 'Sonido del monitor activado 🔊');
+}
+
 function refreshLiveStream() {
+  currentLiveVideoId = '';
   showToast('Actualizando monitor de directo...');
   loadLiveData();
 }
@@ -3129,6 +4002,9 @@ function renderSoundboardGrid(sounds, append = false) {
 }
 
 async function triggerPlaySound(mp3Url, title, cardEl) {
+  // Quitar el estado activo de cualquier otro botón anterior
+  document.querySelectorAll('.sound-tile, .sound-card').forEach(c => c.classList.remove('playing'));
+
   if (cardEl) {
     cardEl.classList.add('playing', 'pressed');
     setTimeout(() => cardEl.classList.remove('pressed'), 180);
@@ -3153,27 +4029,38 @@ async function triggerPlaySound(mp3Url, title, cardEl) {
     const data = await res.json();
     if (!data.success && data.error) {
       showToast('Error audio: ' + data.error);
+      if (cardEl) cardEl.classList.remove('playing');
+      if (npText && npText.textContent === '▶ ' + title) {
+        npText.textContent = '⏹️ Error';
+      }
     }
   } catch(e) {
     showToast('Error conectando con el servidor');
+    if (cardEl) cardEl.classList.remove('playing');
   }
 
-  if (playingResetTimer) clearTimeout(playingResetTimer);
-  playingResetTimer = setTimeout(() => {
-    if (cardEl) cardEl.classList.remove('playing');
-  }, 2500);
+  // Quitar estado activo individualmente para este botón específico
+  const thisEl = cardEl;
+  setTimeout(() => {
+    if (thisEl) thisEl.classList.remove('playing');
+    const curNp = document.getElementById('sbNowPlayingText');
+    if (curNp && curNp.textContent === '▶ ' + title) {
+      curNp.textContent = '⏹️ Listo / Silencio';
+    }
+  }, 2200);
 }
 
 async function stopSoundboard() {
+  document.querySelectorAll('.sound-tile, .sound-card').forEach(c => c.classList.remove('playing'));
+  const npText = document.getElementById('sbNowPlayingText');
+  if (npText) npText.textContent = '⏹️ Detenido';
+
   try {
     await fetch('/api/soundboard/stop', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ clientId: myClientId })
     });
-    const npText = document.getElementById('sbNowPlayingText');
-    if (npText) npText.textContent = '⏹️ Detenido';
-    document.querySelectorAll('.sound-card').forEach(c => c.classList.remove('playing'));
     showToast('Audio detenido ⏹️');
   } catch(e) {}
 }
@@ -3208,9 +4095,10 @@ function updateSoundboardVolume(val) {
   sbVolume = isNaN(num) ? 80 : Math.max(0, Math.min(100, num));
   const label = document.getElementById('sbVolumeText');
   if (label) label.textContent = sbVolume + '%';
-  // Actualizar también en el slider de ajustes si está abierto
+  const slider = document.getElementById('sbVolumeSlider');
+  if (slider && slider.value != sbVolume) slider.value = sbVolume;
   const cfgSlider = document.getElementById('cfgSoundboardVolume');
-  if (cfgSlider) cfgSlider.value = sbVolume;
+  if (cfgSlider && cfgSlider.value != sbVolume) cfgSlider.value = sbVolume;
   const cfgVal = document.getElementById('cfgSbVolVal');
   if (cfgVal) cfgVal.textContent = sbVolume + '%';
 
@@ -3218,7 +4106,7 @@ function updateSoundboardVolume(val) {
   channel.postMessage({ type: 'soundboard_volume', volume: sbVolume, clientId: myClientId });
 
   const now = Date.now();
-  if (now - lastVolSentTime > 60) {
+  if (now - lastVolSentTime > 35) {
     lastVolSentTime = now;
     sendSoundboardVolumeToServer(sbVolume);
   }
@@ -3226,8 +4114,8 @@ function updateSoundboardVolume(val) {
   if (sbVolDebounceTimer) clearTimeout(sbVolDebounceTimer);
   sbVolDebounceTimer = setTimeout(() => {
     sendSoundboardVolumeToServer(sbVolume);
-    setTimeout(() => { sbIsAdjustingVolume = false; }, 120);
-  }, 100);
+    setTimeout(() => { sbIsAdjustingVolume = false; }, 80);
+  }, 60);
 }
 
 async function toggleFavoriteSound(sound, btnEl) {
@@ -3246,7 +4134,7 @@ async function toggleFavoriteSound(sound, btnEl) {
       btnEl.title = 'Agregar a favoritos';
       showToast('Eliminado de favoritos');
       if (currentSbTab === 'favorites') {
-        const card = btnEl.closest('.sound-card');
+        const card = btnEl.closest('.sound-tile, .sound-card');
         if (card) card.remove();
       }
     } else {
@@ -3486,17 +4374,32 @@ async function saveSettingsQuietly(partialCfg) {
 }
 
 // ─── APERTURA DE VENTANAS Y UTILIDADES ───
+let isOpeningViewer = false;
 function openViewer() {
-  viewerWindow = window.open('/viewer.html', 'FondosStreamViewer');
-  if (viewerWindow) {
-    try { viewerWindow.focus(); } catch(e) {}
+  if (viewerConnected) {
+    fetch('/api/focus_viewer', { method: 'POST' }).catch(() => {});
+    if (viewerWindow) {
+      try { viewerWindow.focus(); } catch(e) {}
+    }
+    showToast('Viewer ya conectado — Enfocando 📺');
+    return;
   }
+  if (isOpeningViewer) return;
+  isOpeningViewer = true;
+  setTimeout(() => { isOpeningViewer = false; }, 2500);
+
   fetch('/api/open_viewer', { method: 'POST' })
     .then(r => r.json())
     .then(res => {
-      showToast('Viewer conectado / enfocado 📺');
+      if (res && res.action === 'focused_existing_viewer') {
+        showToast('Viewer ya abierto — Enfocado 📺');
+      } else {
+        showToast('Viewer abierto en navegador 📺');
+      }
     })
-    .catch(() => {});
+    .catch(() => {
+      showToast('Error al abrir Viewer');
+    });
 }
 
 function openWebController() {
@@ -3523,7 +4426,7 @@ function openSettingsModal() {
   document.getElementById('cfgPlaylistId').value = config.playlist_id || '';
   document.getElementById('cfgChannelId').value = config.youtube_channel_id || '';
   document.getElementById('cfgAutoFocusViewer').checked = config.auto_focus_viewer !== false;
-  document.getElementById('cfgAutoOpenViewer').checked = config.auto_open_viewer !== false;
+  document.getElementById('cfgAutoOpenViewer').checked = config.auto_open_viewer === true;
   document.getElementById('cfgOverlayEnabled').checked = config.overlay_enabled !== false;
   document.getElementById('cfgShowLyrics').checked = config.overlay_show_lyrics !== false;
   document.getElementById('cfgSpotifyClientId').value = config.spotify_client_id || '';
@@ -3659,6 +4562,11 @@ async function loadOverlaysView() {
   } catch(e) {}
 
   await loadTimerPhrases();
+  initOverlayStudio();
+  requestAnimationFrame(() => {
+    updateStageMockups();
+  });
+  setTimeout(updateStageMockups, 100);
 }
 
 async function loadTimerPhrases() {
@@ -3901,9 +4809,1009 @@ async function deleteTimerPhrase(idx) {
   }
 }
 
-// ─── CONTROL Y PERSONALIZACIÓN DINÁMICA DEL OVERLAY ───
-function populateOverlayCustomizationForm(cfg) {
-  if (!cfg) return;
+// ─── ESTUDIO VISUAL Y PERSONALIZACIÓN MODULAR DE OVERLAYS ───
+let isDraggingStage = false;
+let isResizingStage = false;
+let activeStageTarget = null;
+let currentSelectedModule = 'now_playing';
+let stageDragStartX = 0;
+let stageDragStartY = 0;
+let stageOrigX = 0;
+let stageOrigY = 0;
+let stageOrigScale = 1.0;
+let modularSaveTimeout = null;
+let stageGuidesVisible = true;
+
+function hexToRgba(hex, alpha) {
+  if (!hex) return `rgba(10, 10, 10, ${alpha})`;
+  if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
+  let cleanHex = hex.replace('#', '');
+  if (cleanHex.length === 3) cleanHex = cleanHex.split('').map(c => c + c).join('');
+  const r = parseInt(cleanHex.substring(0, 2), 16) || 10;
+  const g = parseInt(cleanHex.substring(2, 4), 16) || 10;
+  const b = parseInt(cleanHex.substring(4, 6), 16) || 10;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function colorToHex(col, fallback = '#ffffff') {
+  if (!col || typeof col !== 'string') return fallback;
+  col = col.trim();
+  if (col.startsWith('#')) {
+    if (col.length === 4) {
+      return '#' + col[1] + col[1] + col[2] + col[2] + col[3] + col[3];
+    }
+    if (col.length >= 7) {
+      return col.substring(0, 7);
+    }
+  }
+  const match = col.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (match) {
+    const r = Math.min(255, parseInt(match[1], 10)).toString(16).padStart(2, '0');
+    const g = Math.min(255, parseInt(match[2], 10)).toString(16).padStart(2, '0');
+    const b = Math.min(255, parseInt(match[3], 10)).toString(16).padStart(2, '0');
+    return `#${r}${g}${b}`;
+  }
+  return fallback;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function toggleStageGuides() {
+  stageGuidesVisible = !stageGuidesVisible;
+  const guides = document.getElementById('stageGuides');
+  if (guides) {
+    guides.style.display = stageGuidesVisible ? 'block' : 'none';
+  }
+  const btn = document.getElementById('btnToggleGuides');
+  if (btn) {
+    btn.classList.toggle('active', stageGuidesVisible);
+  }
+}
+
+let stageBgMode = 'dark';
+function toggleStageBgMode() {
+  const canvas = document.getElementById('stageCanvas');
+  const btn = document.getElementById('btnToggleBgMode');
+  if (!canvas) return;
+  if (stageBgMode === 'dark') {
+    stageBgMode = 'checkerboard';
+    canvas.classList.remove('bg-dark');
+    canvas.classList.add('bg-checkerboard');
+    if (btn) btn.textContent = '🏁 Fondo: Cuadrícula';
+    showToast('Fondo cambiado a Cuadrícula Transparente');
+  } else {
+    stageBgMode = 'dark';
+    canvas.classList.remove('bg-checkerboard');
+    canvas.classList.add('bg-dark');
+    if (btn) btn.textContent = '🏁 Fondo: Oscuro';
+    showToast('Fondo cambiado a Oscuro OBS');
+  }
+}
+
+let layersPanelVisible = false;
+function toggleLayersPanel() {
+  layersPanelVisible = !layersPanelVisible;
+  const panel = document.getElementById('stageLayersPanel');
+  const btn = document.getElementById('btnToggleLayers');
+  if (panel) {
+    panel.style.display = layersPanelVisible ? 'block' : 'none';
+    if (layersPanelVisible) renderLayersList();
+  }
+  if (btn) btn.classList.toggle('btn-accent', layersPanelVisible);
+}
+
+function renderLayersList() {
+  const listEl = document.getElementById('stageLayersList');
+  if (!listEl) return;
+  const items = [
+    { id: 'now_playing', name: '🎵 Now Playing', z: config.overlay_now_playing_z_index !== undefined ? config.overlay_now_playing_z_index : 30 },
+    { id: 'timer', name: '⏱️ Temporizador', z: config.overlay_timer_z_index !== undefined ? config.overlay_timer_z_index : 20 },
+    { id: 'lyrics', name: '📜 Letras', z: config.overlay_lyrics_z_index !== undefined ? config.overlay_lyrics_z_index : 15 }
+  ];
+  (config.overlay_custom_texts || []).forEach((t, i) => {
+    items.push({
+      id: 'custom_text_' + t.id,
+      name: `🔤 Texto #${i+1}: ${t.text ? t.text.substring(0, 14) : 'Texto'}`,
+      z: t.z_index !== undefined ? t.z_index : 25
+    });
+  });
+
+  items.sort((a, b) => b.z - a.z);
+
+  listEl.innerHTML = items.map((it, idx) => `
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 8px; border-radius:6px; background:${currentSelectedModule === it.id ? 'rgba(232,255,71,0.18)' : 'rgba(255,255,255,0.04)'}; border:1px solid ${currentSelectedModule === it.id ? 'var(--accent)' : 'rgba(255,255,255,0.08)'}; font-size:11px; cursor:pointer;" onclick="selectStageElement('${it.id}')">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-family:'Space Mono',monospace; font-weight:700; color:var(--muted); font-size:10px;">#${items.length - idx}</span>
+        <span style="font-weight:700; color:${currentSelectedModule === it.id ? 'var(--accent)' : '#fff'};">${escapeHtml(it.name)}</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:4px;" onclick="event.stopPropagation()">
+        <span style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); font-weight:700; min-width:24px; text-align:right;">${it.z}</span>
+        <button class="btn btn-sm" style="padding:1px 5px; font-size:10px;" onclick="changeModuleLayer('${it.id}', 5)" title="Subir nivel">▲</button>
+        <button class="btn btn-sm" style="padding:1px 5px; font-size:10px;" onclick="changeModuleLayer('${it.id}', -5)" title="Bajar nivel">▼</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function setModuleLayer(modId, val) {
+  val = Math.max(1, Math.min(999, parseInt(val, 10) || 10));
+  if (modId === 'now_playing') {
+    config.overlay_now_playing_z_index = val;
+    const inp = document.getElementById('modNpZIndex');
+    const badge = document.getElementById('modNpZVal');
+    if (inp) inp.value = val;
+    if (badge) badge.textContent = val;
+  } else if (modId === 'timer') {
+    config.overlay_timer_z_index = val;
+    const inp = document.getElementById('modTmZIndex');
+    const badge = document.getElementById('modTmZVal');
+    if (inp) inp.value = val;
+    if (badge) badge.textContent = val;
+  } else if (modId === 'lyrics') {
+    config.overlay_lyrics_z_index = val;
+    const inp = document.getElementById('modLyZIndex');
+    const badge = document.getElementById('modLyZVal');
+    if (inp) inp.value = val;
+    if (badge) badge.textContent = val;
+  } else if (modId.startsWith('custom_text_')) {
+    const txtId = modId.replace('custom_text_', '');
+    const item = (config.overlay_custom_texts || []).find(t => t.id === txtId);
+    if (item) item.z_index = val;
+  }
+  updateStageMockups();
+  renderLayersList();
+  scheduleModularConfigSave();
+}
+
+function changeModuleLayer(modId, delta) {
+  let currentVal = 20;
+  if (modId === 'now_playing') currentVal = config.overlay_now_playing_z_index !== undefined ? config.overlay_now_playing_z_index : 30;
+  else if (modId === 'timer') currentVal = config.overlay_timer_z_index !== undefined ? config.overlay_timer_z_index : 20;
+  else if (modId === 'lyrics') currentVal = config.overlay_lyrics_z_index !== undefined ? config.overlay_lyrics_z_index : 15;
+  else if (modId.startsWith('custom_text_')) {
+    const txtId = modId.replace('custom_text_', '');
+    const item = (config.overlay_custom_texts || []).find(t => t.id === txtId);
+    if (item) currentVal = item.z_index !== undefined ? item.z_index : 25;
+  }
+  setModuleLayer(modId, currentVal + delta);
+}
+
+function alignActiveModule(alignment) {
+  const modId = currentSelectedModule || 'now_playing';
+  const canvasW = 1920;
+  const canvasH = 1080;
+  const pad = 48;
+
+  const isTL = (alignment === 'tl' || alignment === 'top-left');
+  const isTR = (alignment === 'tr' || alignment === 'top-right');
+  const isBL = (alignment === 'bl' || alignment === 'bottom-left');
+  const isBR = (alignment === 'br' || alignment === 'bottom-right');
+  const isCenter = (alignment === 'center' || alignment === 'c');
+
+  if (modId === 'now_playing') {
+    const w = parseInt(config.overlay_now_playing_width || 380, 10);
+    const h = 76;
+    let nx = Number(config.overlay_now_playing_x) || 40;
+    let ny = Number(config.overlay_now_playing_y) || 40;
+
+    if (isTL) { nx = pad; ny = canvasH - h - pad; }
+    else if (isTR) { nx = canvasW - w - pad; ny = canvasH - h - pad; }
+    else if (isBL) { nx = pad; ny = pad; }
+    else if (isBR) { nx = canvasW - w - pad; ny = pad; }
+    else if (isCenter) { nx = Math.round((canvasW - w) / 2); ny = Math.round((canvasH - h) / 2); }
+
+    config.overlay_now_playing_x = nx;
+    config.overlay_now_playing_y = ny;
+    const inpX = document.getElementById('modNpX');
+    const inpY = document.getElementById('modNpY');
+    if (inpX) inpX.value = nx;
+    if (inpY) inpY.value = ny;
+    showToast(`Now Playing alineado: ${alignment}`);
+  } else if (modId === 'timer') {
+    const w = parseInt(config.overlay_timer_width || 560, 10);
+    const h = 260;
+    let nx = Number(config.overlay_timer_x) || 680;
+    let ny = Number(config.overlay_timer_y) || 320;
+
+    if (isTL) { nx = pad; ny = pad; }
+    else if (isTR) { nx = canvasW - w - pad; ny = pad; }
+    else if (isBL) { nx = pad; ny = canvasH - h - pad; }
+    else if (isBR) { nx = canvasW - w - pad; ny = canvasH - h - pad; }
+    else if (isCenter) { nx = Math.round((canvasW - w) / 2); ny = Math.round((canvasH - h) / 2); }
+
+    config.overlay_timer_x = nx;
+    config.overlay_timer_y = ny;
+    const inpX = document.getElementById('modTmX');
+    const inpY = document.getElementById('modTmY');
+    if (inpX) inpX.value = nx;
+    if (inpY) inpY.value = ny;
+    showToast(`Temporizador alineado: ${alignment}`);
+  } else if (modId === 'lyrics') {
+    const w = parseInt(config.overlay_lyrics_width || 440, 10);
+    const h = parseInt(config.overlay_lyrics_max_height || 150, 10);
+    let nx = Number(config.overlay_lyrics_x) || 40;
+    let ny = Number(config.overlay_lyrics_y) || 130;
+
+    if (isTL) { nx = pad; ny = canvasH - h - pad; }
+    else if (isTR) { nx = canvasW - w - pad; ny = canvasH - h - pad; }
+    else if (isBL) { nx = pad; ny = pad; }
+    else if (isBR) { nx = canvasW - w - pad; ny = pad; }
+    else if (isCenter) { nx = Math.round((canvasW - w) / 2); ny = Math.round((canvasH - h) / 2); }
+
+    config.overlay_lyrics_x = nx;
+    config.overlay_lyrics_y = ny;
+    const inpX = document.getElementById('modLyX');
+    const inpY = document.getElementById('modLyY');
+    if (inpX) inpX.value = nx;
+    if (inpY) inpY.value = ny;
+    showToast(`Letras alineadas: ${alignment}`);
+  } else if (modId.startsWith('custom_text_')) {
+    const txtId = modId.replace('custom_text_', '');
+    const item = (config.overlay_custom_texts || []).find(t => t.id === txtId);
+    if (item) {
+      const w = 320;
+      const h = 50;
+      let nx = Number(item.x) || 100;
+      let ny = Number(item.y) || 100;
+
+      if (isTL) { nx = pad; ny = pad; }
+      else if (isTR) { nx = canvasW - w - pad; ny = pad; }
+      else if (isBL) { nx = pad; ny = canvasH - h - pad; }
+      else if (isBR) { nx = canvasW - w - pad; ny = pad; }
+      else if (isCenter) { nx = Math.round((canvasW - w) / 2); ny = Math.round((canvasH - h) / 2); }
+
+      item.x = nx;
+      item.y = ny;
+      showToast(`Texto alineado: ${alignment}`);
+    }
+  }
+
+  updateStageMockups();
+  scheduleModularConfigSave();
+}
+
+function setStudioMode(mode) {
+  const visualBtn = document.getElementById('btnStudioModeVisual');
+  const timerBtn = document.getElementById('btnStudioModeTimer');
+  const visualContainer = document.getElementById('studioVisualContainer');
+  const timerContainer = document.getElementById('studioTimerOpContainer');
+  const simToggles = document.getElementById('studioSimToggles');
+
+  if (mode === 'visual') {
+    if (visualBtn) visualBtn.className = 'btn btn-sm btn-accent';
+    if (timerBtn) timerBtn.className = 'btn btn-sm';
+    if (visualContainer) visualContainer.style.display = 'flex';
+    if (timerContainer) timerContainer.style.display = 'none';
+    if (simToggles) simToggles.style.display = 'flex';
+    requestAnimationFrame(updateStageMockups);
+  } else {
+    if (visualBtn) visualBtn.className = 'btn btn-sm';
+    if (timerBtn) timerBtn.className = 'btn btn-sm btn-accent';
+    if (visualContainer) visualContainer.style.display = 'none';
+    if (timerContainer) timerContainer.style.display = 'block';
+    if (simToggles) simToggles.style.display = 'none';
+  }
+}
+
+function toggleSimModule(mod, visible) {
+  if (mod === 'now_playing') {
+    const el = document.getElementById('stageNowPlaying');
+    if (el) el.style.display = visible ? 'flex' : 'none';
+  } else if (mod === 'timer') {
+    const el = document.getElementById('stageTimer');
+    if (el) el.style.display = visible ? 'flex' : 'none';
+  } else if (mod === 'lyrics') {
+    const el = document.getElementById('stageLyrics');
+    if (el) el.style.display = visible ? 'flex' : 'none';
+  }
+}
+
+function switchInspectorTab(tabKey, updateSelection = true) {
+  const tabs = {
+    'now_playing': { tab: 'tabInspNp', pane: 'paneInspNowPlaying', stageId: 'stageNowPlaying' },
+    'timer': { tab: 'tabInspTimer', pane: 'paneInspTimer', stageId: 'stageTimer' },
+    'lyrics': { tab: 'tabInspLyrics', pane: 'paneInspLyrics', stageId: 'stageLyrics' },
+    'custom_texts': { tab: 'tabInspTexts', pane: 'paneInspTexts', stageId: null }
+  };
+
+  Object.entries(tabs).forEach(([k, info]) => {
+    const t = document.getElementById(info.tab);
+    const p = document.getElementById(info.pane);
+    if (t) t.classList.toggle('active', k === tabKey);
+    if (p) p.style.display = (k === tabKey) ? 'flex' : 'none';
+  });
+
+  if (updateSelection && tabs[tabKey] && tabs[tabKey].stageId) {
+    selectStageElement(tabKey);
+  }
+}
+
+function selectStageElement(modId) {
+  currentSelectedModule = modId;
+  document.querySelectorAll('.stage-item').forEach(el => el.classList.remove('selected'));
+  let targetEl = null;
+  let label = 'Now Playing';
+
+  if (modId === 'now_playing') {
+    targetEl = document.getElementById('stageNowPlaying');
+    switchInspectorTab('now_playing', false);
+    label = 'Now Playing';
+  } else if (modId === 'timer') {
+    targetEl = document.getElementById('stageTimer');
+    switchInspectorTab('timer', false);
+    label = 'Temporizador';
+  } else if (modId === 'lyrics') {
+    targetEl = document.getElementById('stageLyrics');
+    switchInspectorTab('lyrics', false);
+    label = 'Letras';
+  } else if (modId.startsWith('custom_text_')) {
+    const txtId = modId.replace('custom_text_', '');
+    targetEl = document.getElementById('stageCustomText_' + txtId);
+    switchInspectorTab('custom_texts', false);
+    const item = (config.overlay_custom_texts || []).find(t => t.id === txtId);
+    label = item && item.text ? `Texto: "${item.text.substring(0, 16)}"` : 'Texto Modular';
+  }
+
+  if (targetEl) targetEl.classList.add('selected');
+  const badge = document.getElementById('stageActiveElementName');
+  if (badge) badge.textContent = label;
+  if (layersPanelVisible) renderLayersList();
+}
+
+function showStageTooltip(x, y, text) {
+  const tt = document.getElementById('stageTooltip');
+  if (!tt) return;
+  const canvas = document.getElementById('stageCanvas');
+  const rect = canvas ? canvas.getBoundingClientRect() : { left: 0, top: 0 };
+  tt.style.left = (x - rect.left + 14) + 'px';
+  tt.style.top = (y - rect.top + 14) + 'px';
+  tt.textContent = text;
+  tt.classList.add('visible');
+}
+
+function hideStageTooltip() {
+  const tt = document.getElementById('stageTooltip');
+  if (tt) tt.classList.remove('visible');
+}
+
+function centerTimerModule() {
+  alignActiveModule('center');
+}
+
+function updateModularProp(mod, prop, val) {
+  if (mod === 'now_playing') {
+    if (prop === 'enabled') {
+      config.overlay_now_playing_enabled = val;
+    } else if (prop === 'source_mode') {
+      config.overlay_source_mode = val;
+    } else if (prop === 'x') {
+      config.overlay_now_playing_x = parseInt(val, 10) || 0;
+    } else if (prop === 'y') {
+      config.overlay_now_playing_y = parseInt(val, 10) || 0;
+    } else if (prop === 'scale') {
+      config.overlay_now_playing_scale = parseFloat(val) || 1.0;
+      const lb = document.getElementById('modNpScaleVal');
+      if (lb) lb.textContent = config.overlay_now_playing_scale.toFixed(2) + 'x';
+    } else if (prop === 'width') {
+      config.overlay_now_playing_width = parseInt(val, 10) || 380;
+    } else if (prop === 'bg_color') {
+      config.overlay_now_playing_bg_color = val;
+    } else if (prop === 'bg_opacity') {
+      config.overlay_now_playing_bg_opacity = parseInt(val, 10) || 0;
+      const lb = document.getElementById('modNpOpVal');
+      if (lb) lb.textContent = val + '%';
+    } else if (prop === 'border_color') {
+      config.overlay_now_playing_border_color = val;
+    } else if (prop === 'border_radius') {
+      config.overlay_now_playing_border_radius = parseInt(val, 10) || 0;
+      const lb = document.getElementById('modNpRadiusVal');
+      if (lb) lb.textContent = val + 'px';
+    } else if (prop === 'font') {
+      config.overlay_now_playing_font = val;
+    } else if (prop === 'text_color') {
+      config.overlay_now_playing_text_color = val;
+    } else if (prop === 'wave') {
+      config.overlay_now_playing_wave = parseInt(val, 10) || 0;
+      const lb = document.getElementById('modNpWaveVal');
+      if (lb) lb.textContent = val;
+    } else if (prop === 'show_cover') {
+      config.overlay_show_cover = Boolean(val);
+    } else if (prop === 'show_badge') {
+      config.overlay_show_badge = Boolean(val);
+    } else if (prop === 'show_title') {
+      config.overlay_show_song_title = Boolean(val);
+      config.overlay_show_title = Boolean(val);
+    } else if (prop === 'show_artist') {
+      config.overlay_show_artist = Boolean(val);
+    } else if (prop === 'show_equalizer') {
+      config.overlay_show_equalizer = Boolean(val);
+    }
+  } else if (mod === 'timer') {
+    if (prop === 'enabled') {
+      config.overlay_timer_enabled = val;
+    } else if (prop === 'x') {
+      config.overlay_timer_x = parseInt(val, 10) || 0;
+    } else if (prop === 'y') {
+      config.overlay_timer_y = parseInt(val, 10) || 0;
+    } else if (prop === 'scale') {
+      config.overlay_timer_scale = parseFloat(val) || 1.0;
+      const lb = document.getElementById('modTmScaleVal');
+      if (lb) lb.textContent = config.overlay_timer_scale.toFixed(2) + 'x';
+    } else if (prop === 'width') {
+      config.overlay_timer_width = parseInt(val, 10) || 560;
+    } else if (prop === 'bg_color') {
+      config.overlay_timer_bg_color = val;
+    } else if (prop === 'bg_opacity') {
+      config.overlay_timer_bg_opacity = parseInt(val, 10) || 0;
+      const lb = document.getElementById('modTmOpVal');
+      if (lb) lb.textContent = val + '%';
+    } else if (prop === 'border_color') {
+      config.overlay_timer_border_color = val;
+    } else if (prop === 'border_radius') {
+      config.overlay_timer_border_radius = parseInt(val, 10) || 0;
+      const lb = document.getElementById('modTmRadiusVal');
+      if (lb) lb.textContent = val + 'px';
+    } else if (prop === 'badge_text') {
+      config.overlay_timer_badge_text = val;
+    } else if (prop === 'badge_color') {
+      config.overlay_timer_badge_color = val;
+    } else if (prop === 'title_text') {
+      config.overlay_timer_title_text = val;
+    } else if (prop === 'title_color') {
+      config.overlay_timer_title_color = val;
+    } else if (prop === 'clock_color') {
+      config.overlay_timer_clock_color = val;
+    } else if (prop === 'progress_color') {
+      config.overlay_timer_progress_color = val;
+    } else if (prop === 'phrase_color') {
+      config.overlay_timer_phrase_color = val;
+    } else if (prop === 'show_badge') {
+      config.overlay_timer_show_badge = Boolean(val);
+    } else if (prop === 'show_title') {
+      config.overlay_timer_show_title = Boolean(val);
+    } else if (prop === 'show_clock') {
+      config.overlay_timer_show_clock = Boolean(val);
+    } else if (prop === 'show_progress') {
+      config.overlay_timer_show_progress = Boolean(val);
+    } else if (prop === 'show_phrase') {
+      config.overlay_timer_show_phrase = Boolean(val);
+    }
+  } else if (mod === 'lyrics') {
+    if (prop === 'enabled') {
+      config.overlay_show_lyrics = Boolean(val);
+    } else if (prop === 'x') {
+      config.overlay_lyrics_x = parseInt(val, 10) || 0;
+    } else if (prop === 'y') {
+      config.overlay_lyrics_y = parseInt(val, 10) || 0;
+    } else if (prop === 'scale') {
+      config.overlay_lyrics_scale = parseFloat(val) || 1.0;
+      const lb = document.getElementById('modLyScaleVal');
+      if (lb) lb.textContent = config.overlay_lyrics_scale.toFixed(2) + 'x';
+    } else if (prop === 'width') {
+      config.overlay_lyrics_width = parseInt(val, 10) || 440;
+    } else if (prop === 'max_height') {
+      config.overlay_lyrics_max_height = parseInt(val, 10) || 150;
+    } else if (prop === 'bg_color') {
+      config.overlay_lyrics_bg_color = val;
+    } else if (prop === 'bg_opacity') {
+      config.overlay_lyrics_bg_opacity = parseInt(val, 10) || 0;
+      const lb = document.getElementById('modLyOpVal');
+      if (lb) lb.textContent = val + '%';
+    } else if (prop === 'text_color') {
+      config.overlay_lyrics_text_color = val;
+    } else if (prop === 'font_size') {
+      config.overlay_lyrics_font_size = parseInt(val, 10) || 13;
+    }
+  }
+
+  updateStageMockups();
+  scheduleModularConfigSave();
+}
+
+function onStagePointerDown(e, modId) {
+  if (e.target.classList.contains('resize-handle')) return;
+  e.preventDefault();
+
+  isDraggingStage = true;
+  isResizingStage = false;
+  activeStageTarget = modId;
+  stageDragStartX = e.clientX;
+  stageDragStartY = e.clientY;
+
+  selectStageElement(modId);
+
+  if (modId === 'now_playing') {
+    stageOrigX = Number(config.overlay_now_playing_x !== undefined ? config.overlay_now_playing_x : (config.overlay_pos_x !== undefined ? config.overlay_pos_x : 40));
+    stageOrigY = Number(config.overlay_now_playing_y !== undefined ? config.overlay_now_playing_y : (config.overlay_pos_y !== undefined ? config.overlay_pos_y : 40));
+  } else if (modId === 'lyrics') {
+    stageOrigX = Number(config.overlay_lyrics_x !== undefined ? config.overlay_lyrics_x : 40);
+    stageOrigY = Number(config.overlay_lyrics_y !== undefined ? config.overlay_lyrics_y : 130);
+  } else if (modId === 'timer') {
+    stageOrigX = Number(config.overlay_timer_x !== undefined ? config.overlay_timer_x : 680);
+    stageOrigY = Number(config.overlay_timer_y !== undefined ? config.overlay_timer_y : 320);
+  } else if (modId.startsWith('custom_text_')) {
+    const txtId = modId.replace('custom_text_', '');
+    const item = (config.overlay_custom_texts || []).find(t => t.id === txtId);
+    stageOrigX = Number(item && item.x !== undefined ? item.x : 100);
+    stageOrigY = Number(item && item.y !== undefined ? item.y : 100);
+  }
+
+  showStageTooltip(e.clientX, e.clientY, `X: ${stageOrigX}px | Y: ${stageOrigY}px`);
+}
+
+function onResizePointerDown(e, modId) {
+  e.stopPropagation();
+  e.preventDefault();
+
+  isResizingStage = true;
+  isDraggingStage = false;
+  activeStageTarget = modId;
+  stageDragStartX = e.clientX;
+  stageDragStartY = e.clientY;
+
+  selectStageElement(modId);
+
+  if (modId === 'now_playing') {
+    stageOrigScale = parseFloat(config.overlay_now_playing_scale !== undefined ? config.overlay_now_playing_scale : (config.overlay_scale || 1.0));
+  } else if (modId === 'timer') {
+    stageOrigScale = parseFloat(config.overlay_timer_scale || 1.0);
+  } else if (modId === 'lyrics') {
+    stageOrigScale = parseFloat(config.overlay_lyrics_scale || 1.0);
+  } else if (modId.startsWith('custom_text_')) {
+    const txtId = modId.replace('custom_text_', '');
+    const item = (config.overlay_custom_texts || []).find(t => t.id === txtId);
+    stageOrigScale = parseFloat(item && item.scale !== undefined ? item.scale : 1.0);
+  }
+}
+
+function onGlobalStagePointerMove(e) {
+  if (!isDraggingStage && !isResizingStage) return;
+  if (!activeStageTarget) return;
+
+  const canvas = document.getElementById('stageCanvas');
+  if (!canvas) return;
+  const canvasW = canvas.offsetWidth || canvas.getBoundingClientRect().width || 960;
+  const stageScale = Math.max(0.1, canvasW / 1920);
+
+  if (isDraggingStage) {
+    const dx = (e.clientX - stageDragStartX) / stageScale;
+    const dy = (e.clientY - stageDragStartY) / stageScale;
+
+    if (activeStageTarget === 'now_playing') {
+      const newX = Math.round(Math.max(0, Math.min(1820, stageOrigX + dx)));
+      const newY = Math.round(Math.max(0, Math.min(1020, stageOrigY - dy)));
+      config.overlay_now_playing_x = newX;
+      config.overlay_now_playing_y = newY;
+      const inpX = document.getElementById('modNpX');
+      const inpY = document.getElementById('modNpY');
+      if (inpX) inpX.value = newX;
+      if (inpY) inpY.value = newY;
+      const el = document.getElementById('stageNowPlaying');
+      if (el) {
+        el.style.left = (newX * stageScale) + 'px';
+        el.style.bottom = (newY * stageScale) + 'px';
+        el.style.top = '';
+      }
+      showStageTooltip(e.clientX, e.clientY, `Now Playing: X: ${newX}px, Y: ${newY}px`);
+    } else if (activeStageTarget === 'lyrics') {
+      const newX = Math.round(Math.max(0, Math.min(1820, stageOrigX + dx)));
+      const newY = Math.round(Math.max(0, Math.min(1020, stageOrigY - dy)));
+      config.overlay_lyrics_x = newX;
+      config.overlay_lyrics_y = newY;
+      const inpX = document.getElementById('modLyX');
+      const inpY = document.getElementById('modLyY');
+      if (inpX) inpX.value = newX;
+      if (inpY) inpY.value = newY;
+      const el = document.getElementById('stageLyrics');
+      if (el) {
+        el.style.left = (newX * stageScale) + 'px';
+        el.style.bottom = (newY * stageScale) + 'px';
+        el.style.top = '';
+      }
+      showStageTooltip(e.clientX, e.clientY, `Letras: X: ${newX}px, Y: ${newY}px`);
+    } else if (activeStageTarget === 'timer') {
+      const newX = Math.round(Math.max(0, Math.min(1720, stageOrigX + dx)));
+      const newY = Math.round(Math.max(0, Math.min(980, stageOrigY + dy)));
+      config.overlay_timer_x = newX;
+      config.overlay_timer_y = newY;
+      const inpX = document.getElementById('modTmX');
+      const inpY = document.getElementById('modTmY');
+      if (inpX) inpX.value = newX;
+      if (inpY) inpY.value = newY;
+      const el = document.getElementById('stageTimer');
+      if (el) {
+        const sc = parseFloat(config.overlay_timer_scale || 1.0);
+        el.style.left = (newX * stageScale) + 'px';
+        el.style.top = (newY * stageScale) + 'px';
+        el.style.bottom = '';
+        el.style.transform = `scale(${stageScale * sc})`;
+        el.style.transformOrigin = 'top left';
+      }
+      showStageTooltip(e.clientX, e.clientY, `Temporizador: X: ${newX}px, Y: ${newY}px`);
+    } else if (activeStageTarget.startsWith('custom_text_')) {
+      const txtId = activeStageTarget.replace('custom_text_', '');
+      const item = (config.overlay_custom_texts || []).find(t => t.id === txtId);
+      if (item) {
+        const newX = Math.round(Math.max(0, Math.min(1860, stageOrigX + dx)));
+        const newY = Math.round(Math.max(0, Math.min(1050, stageOrigY + dy)));
+        item.x = newX;
+        item.y = newY;
+        const el = document.getElementById(`stageCustomText_${txtId}`);
+        if (el) {
+          el.style.left = (newX * stageScale) + 'px';
+          el.style.top = (newY * stageScale) + 'px';
+          el.style.bottom = '';
+        }
+        showStageTooltip(e.clientX, e.clientY, `Texto: X: ${newX}px, Y: ${newY}px`);
+      }
+    }
+  } else if (isResizingStage) {
+    const dx = e.clientX - stageDragStartX;
+    const ds = dx / 160;
+    const newScale = Math.max(0.4, Math.min(2.5, +(stageOrigScale + ds).toFixed(2)));
+
+    if (activeStageTarget === 'now_playing') {
+      config.overlay_now_playing_scale = newScale;
+      const sl = document.getElementById('modNpScale');
+      const lb = document.getElementById('modNpScaleVal');
+      if (sl) sl.value = newScale;
+      if (lb) lb.textContent = newScale.toFixed(2) + 'x';
+      const el = document.getElementById('stageNowPlaying');
+      if (el) el.style.transform = `scale(${stageScale * newScale})`;
+      showStageTooltip(e.clientX, e.clientY, `Escala Now Playing: ${newScale}x`);
+    } else if (activeStageTarget === 'timer') {
+      config.overlay_timer_scale = newScale;
+      const sl = document.getElementById('modTmScale');
+      const lb = document.getElementById('modTmScaleVal');
+      if (sl) sl.value = newScale;
+      if (lb) lb.textContent = newScale.toFixed(2) + 'x';
+      const el = document.getElementById('stageTimer');
+      if (el) el.style.transform = `scale(${stageScale * newScale})`;
+      showStageTooltip(e.clientX, e.clientY, `Escala Temporizador: ${newScale}x`);
+    } else if (activeStageTarget === 'lyrics') {
+      config.overlay_lyrics_scale = newScale;
+      const sl = document.getElementById('modLyScale');
+      const lb = document.getElementById('modLyScaleVal');
+      if (sl) sl.value = newScale;
+      if (lb) lb.textContent = newScale.toFixed(2) + 'x';
+      const el = document.getElementById('stageLyrics');
+      if (el) el.style.transform = `scale(${stageScale * newScale})`;
+      showStageTooltip(e.clientX, e.clientY, `Escala Letras: ${newScale}x`);
+    } else if (activeStageTarget.startsWith('custom_text_')) {
+      const txtId = activeStageTarget.replace('custom_text_', '');
+      const item = (config.overlay_custom_texts || []).find(t => t.id === txtId);
+      if (item) {
+        item.scale = newScale;
+        const el = document.getElementById(`stageCustomText_${txtId}`);
+        if (el) el.style.transform = `scale(${stageScale * newScale})`;
+        showStageTooltip(e.clientX, e.clientY, `Escala Texto: ${newScale}x`);
+      }
+    }
+  }
+}
+
+function onGlobalStagePointerUp() {
+  if (isDraggingStage || isResizingStage) {
+    isDraggingStage = false;
+    isResizingStage = false;
+    activeStageTarget = null;
+    hideStageTooltip();
+    scheduleModularConfigSave();
+  }
+}
+
+// Escuchadores globales persistentes para que no se pierdan eventos
+window.addEventListener('pointermove', onGlobalStagePointerMove);
+window.addEventListener('pointerup', onGlobalStagePointerUp);
+window.addEventListener('pointercancel', onGlobalStagePointerUp);
+
+function addCustomText() {
+  if (!config.overlay_custom_texts) config.overlay_custom_texts = [];
+  const newId = 'txt_' + Math.random().toString(36).substring(2, 8);
+  const newTxt = {
+    id: newId,
+    text: 'Aviso o Red Social: @usuario',
+    x: 400 + Math.floor(Math.random() * 200),
+    y: 180 + Math.floor(Math.random() * 150),
+    scale: 1.0,
+    z_index: 25,
+    color: '#ffffff',
+    bg_color: '#0a0a0a',
+    bg_opacity: 75,
+    border_color: '#e8ff47',
+    border_radius: 8,
+    font_size: 16,
+    font_family: 'system-ui',
+    animation: 'none'
+  };
+  config.overlay_custom_texts.push(newTxt);
+  switchInspectorTab('custom_texts');
+  updateStageMockups();
+  renderLayersList();
+  selectStageElement('custom_text_' + newId);
+  scheduleModularConfigSave();
+  showToast('Nuevo texto agregado al lienzo');
+}
+
+function deleteCustomText(id) {
+  if (!config.overlay_custom_texts) return;
+  config.overlay_custom_texts = config.overlay_custom_texts.filter(t => t.id !== id);
+  updateStageMockups();
+  renderLayersList();
+  scheduleModularConfigSave();
+  showToast('Texto eliminado');
+}
+
+function updateCustomTextProp(id, prop, val) {
+  if (!config.overlay_custom_texts) return;
+  const item = config.overlay_custom_texts.find(t => t.id === id);
+  if (!item) return;
+  item[prop] = val;
+  updateStageMockups();
+  renderLayersList();
+  scheduleModularConfigSave();
+}
+
+function updateStageMockups() {
+  const canvas = document.getElementById('stageCanvas');
+  if (!canvas) return;
+  const canvasW = canvas.offsetWidth || canvas.getBoundingClientRect().width || 960;
+  const scale = Math.max(0.1, canvasW / 1920);
+
+  // 1. NOW PLAYING
+  const npEl = document.getElementById('stageNowPlaying');
+  const npCard = document.getElementById('stageNpCard');
+  if (npEl && npCard) {
+    const npX = config.overlay_now_playing_x !== undefined ? config.overlay_now_playing_x : (config.overlay_pos_x !== undefined ? config.overlay_pos_x : 40);
+    const npY = config.overlay_now_playing_y !== undefined ? config.overlay_now_playing_y : (config.overlay_pos_y !== undefined ? config.overlay_pos_y : 40);
+    const npScale = parseFloat(config.overlay_now_playing_scale !== undefined ? config.overlay_now_playing_scale : (config.overlay_scale || 1.0));
+    const npWidth = parseInt(config.overlay_now_playing_width || 380, 10);
+    const npBg = config.overlay_now_playing_bg_color || config.overlay_bg_color || '#0a0a0a';
+    const npOp = (config.overlay_now_playing_bg_opacity !== undefined ? config.overlay_now_playing_bg_opacity : (config.overlay_bg_opacity !== undefined ? config.overlay_bg_opacity : 78)) / 100;
+    const npBorder = config.overlay_now_playing_border_color || config.overlay_border_color || 'rgba(255, 255, 255, 0.12)';
+    const npRadius = (config.overlay_now_playing_border_radius !== undefined ? config.overlay_now_playing_border_radius : (config.overlay_border_radius !== undefined ? config.overlay_border_radius : 12)) + 'px';
+    const npFont = config.overlay_now_playing_font || config.overlay_font_family || 'system-ui';
+    const npTextCol = config.overlay_now_playing_text_color || config.overlay_text_color || '#ffffff';
+    const npZ = config.overlay_now_playing_z_index !== undefined ? config.overlay_now_playing_z_index : 30;
+
+    npEl.style.left = (npX * scale) + 'px';
+    npEl.style.bottom = (npY * scale) + 'px';
+    npEl.style.top = '';
+    npEl.style.transform = `scale(${scale * npScale})`;
+    npEl.style.transformOrigin = 'bottom left';
+    npEl.style.opacity = (config.overlay_now_playing_enabled !== false) ? '1' : '0.4';
+    npEl.style.zIndex = (currentSelectedModule === 'now_playing' ? 1000 : npZ);
+
+    npCard.style.width = npWidth + 'px';
+    npCard.style.background = hexToRgba(npBg, npOp);
+    npCard.style.borderColor = npBorder;
+    npCard.style.borderRadius = npRadius;
+    npCard.style.fontFamily = npFont;
+
+    const titleEl = document.getElementById('stageNpTitle');
+    if (titleEl) {
+      titleEl.style.color = npTextCol;
+      titleEl.style.display = (config.overlay_show_song_title !== false && config.overlay_show_title !== false) ? 'block' : 'none';
+    }
+    const artistEl = document.getElementById('stageNpArtist');
+    if (artistEl) artistEl.style.display = (config.overlay_show_artist !== false) ? 'block' : 'none';
+    const coverEl = document.getElementById('stageNpCover');
+    if (coverEl) coverEl.style.display = (config.overlay_show_cover !== false) ? 'block' : 'none';
+    const badgeEl = document.getElementById('stageNpBadge');
+    if (badgeEl) badgeEl.style.display = (config.overlay_show_badge !== false) ? 'flex' : 'none';
+  }
+
+  // 2. TEMPORIZADOR
+  const tmEl = document.getElementById('stageTimer');
+  const tmCard = document.getElementById('stageTimerCard');
+  if (tmEl && tmCard) {
+    const tmX = config.overlay_timer_x !== undefined ? config.overlay_timer_x : 680;
+    const tmY = config.overlay_timer_y !== undefined ? config.overlay_timer_y : 320;
+    const tmScale = parseFloat(config.overlay_timer_scale || 1.0);
+    const tmWidth = parseInt(config.overlay_timer_width || 560, 10);
+    const tmBg = config.overlay_timer_bg_color || '#0a0a0a';
+    const tmOp = (config.overlay_timer_bg_opacity !== undefined ? config.overlay_timer_bg_opacity : 85) / 100;
+    const tmBorder = config.overlay_timer_border_color || 'rgba(232, 255, 71, 0.35)';
+    const tmRadius = (config.overlay_timer_border_radius !== undefined ? config.overlay_timer_border_radius : 20) + 'px';
+    const tmFont = config.overlay_timer_font || 'system-ui';
+    const tmZ = config.overlay_timer_z_index !== undefined ? config.overlay_timer_z_index : 20;
+
+    tmEl.style.opacity = (config.overlay_timer_enabled !== false) ? '1' : '0.4';
+    tmEl.style.left = (tmX * scale) + 'px';
+    tmEl.style.top = (tmY * scale) + 'px';
+    tmEl.style.bottom = '';
+    tmEl.style.transform = `scale(${scale * tmScale})`;
+    tmEl.style.transformOrigin = 'top left';
+    tmEl.style.zIndex = (currentSelectedModule === 'timer' ? 1000 : tmZ);
+
+    tmCard.style.width = tmWidth + 'px';
+    tmCard.style.background = hexToRgba(tmBg, tmOp);
+    tmCard.style.borderColor = tmBorder;
+    tmCard.style.borderRadius = tmRadius;
+    tmCard.style.fontFamily = tmFont;
+
+    const bBadge = document.getElementById('stageTimerBadge');
+    if (bBadge) {
+      bBadge.style.display = (config.overlay_timer_show_badge !== false) ? 'inline-flex' : 'none';
+      if (config.overlay_timer_badge_text) bBadge.textContent = config.overlay_timer_badge_text;
+      if (config.overlay_timer_badge_color) {
+        bBadge.style.color = config.overlay_timer_badge_color;
+        bBadge.style.borderColor = config.overlay_timer_badge_color;
+      }
+    }
+
+    const bTitle = document.getElementById('stageTimerTitle');
+    if (bTitle) {
+      bTitle.style.display = (config.overlay_timer_show_title !== false) ? 'block' : 'none';
+      if (config.overlay_timer_title_text) bTitle.textContent = config.overlay_timer_title_text;
+      if (config.overlay_timer_title_color) bTitle.style.color = config.overlay_timer_title_color;
+    }
+
+    const bClock = document.getElementById('stageTimerClock');
+    if (bClock) {
+      bClock.style.display = (config.overlay_timer_show_clock !== false) ? 'block' : 'none';
+      if (config.overlay_timer_clock_color) {
+        bClock.style.color = config.overlay_timer_clock_color;
+        bClock.style.textShadow = `0 0 16px ${hexToRgba(config.overlay_timer_clock_color, 0.45)}`;
+      }
+    }
+
+    const bProgTrack = document.getElementById('stageTimerProgressTrack');
+    const bProgBar = document.getElementById('stageTimerProgressBar');
+    if (bProgTrack) bProgTrack.style.display = (config.overlay_timer_show_progress !== false) ? 'block' : 'none';
+    if (bProgBar && config.overlay_timer_progress_color) bProgBar.style.background = config.overlay_timer_progress_color;
+
+    const bPhrase = document.getElementById('stageTimerPhrase');
+    if (bPhrase) {
+      bPhrase.style.display = (config.overlay_timer_show_phrase !== false) ? 'block' : 'none';
+      if (config.overlay_timer_phrase_color) bPhrase.style.color = config.overlay_timer_phrase_color;
+    }
+  }
+
+  // 3. LYRICS (LETRAS)
+  const lyEl = document.getElementById('stageLyrics');
+  const lyCard = document.getElementById('stageLyricsCard');
+  if (lyEl && lyCard) {
+    const lyX = config.overlay_lyrics_x !== undefined ? config.overlay_lyrics_x : 40;
+    const lyY = config.overlay_lyrics_y !== undefined ? config.overlay_lyrics_y : 130;
+    const lyScale = parseFloat(config.overlay_lyrics_scale || 1.0);
+    const lyWidth = parseInt(config.overlay_lyrics_width || 440, 10);
+    const lyMaxH = parseInt(config.overlay_lyrics_max_height || 150, 10);
+    const lyBg = config.overlay_lyrics_bg_color || '#0a0a0a';
+    const lyOp = (config.overlay_lyrics_bg_opacity !== undefined ? config.overlay_lyrics_bg_opacity : 75) / 100;
+    const lyBorder = config.overlay_lyrics_border_color || 'rgba(255, 255, 255, 0.12)';
+    const lyRadius = (config.overlay_lyrics_border_radius !== undefined ? config.overlay_lyrics_border_radius : 10) + 'px';
+    const lyTextCol = config.overlay_lyrics_text_color || '#e0e0e0';
+    const lyFontSize = (config.overlay_lyrics_font_size || 13) + 'px';
+    const lyZ = config.overlay_lyrics_z_index !== undefined ? config.overlay_lyrics_z_index : 15;
+
+    lyEl.style.left = (lyX * scale) + 'px';
+    lyEl.style.bottom = (lyY * scale) + 'px';
+    lyEl.style.top = '';
+    lyEl.style.transform = `scale(${scale * lyScale})`;
+    lyEl.style.transformOrigin = 'bottom left';
+    lyEl.style.opacity = (config.overlay_show_lyrics !== false) ? '1' : '0.4';
+    lyEl.style.zIndex = (currentSelectedModule === 'lyrics' ? 1000 : lyZ);
+
+    lyCard.style.width = lyWidth + 'px';
+    lyCard.style.maxHeight = lyMaxH + 'px';
+    lyCard.style.background = hexToRgba(lyBg, lyOp);
+    lyCard.style.borderColor = lyBorder;
+    lyCard.style.borderRadius = lyRadius;
+
+    const lt = document.getElementById('stageLyricsText');
+    if (lt) {
+      lt.style.color = lyTextCol;
+      lt.style.fontSize = lyFontSize;
+    }
+  }
+
+  // 4. TEXTOS PERSONALIZADOS
+  renderStageCustomTexts(scale);
+}
+
+function renderStageCustomTexts(scale) {
+  const container = document.getElementById('stageCustomTextsContainer');
+  const listEl = document.getElementById('inspectorCustomTextsList');
+  const countBadge = document.getElementById('txtCountBadge');
+  const texts = config.overlay_custom_texts || [];
+
+  if (countBadge) countBadge.textContent = texts.length;
+
+  if (container) {
+    container.innerHTML = texts.map(t => {
+      const posX = t.x !== undefined ? t.x : 100;
+      const posY = t.y !== undefined ? t.y : 100;
+      const tScale = t.scale !== undefined ? t.scale : 1.0;
+      const bgOpacity = (t.bg_opacity !== undefined ? t.bg_opacity : 75) / 100;
+      const bgColor = t.bg_color ? hexToRgba(t.bg_color, bgOpacity) : 'transparent';
+      const border = t.border_color ? `1px solid ${t.border_color}` : 'none';
+      const radius = (t.border_radius !== undefined ? t.border_radius : 8) + 'px';
+      const color = t.color || '#ffffff';
+      const font = t.font_family || 'system-ui';
+      const size = (t.font_size || 16) + 'px';
+      const tZ = t.z_index !== undefined ? t.z_index : 25;
+      const isSel = currentSelectedModule === ('custom_text_' + t.id);
+
+      return `
+        <div class="stage-item${isSel ? ' selected' : ''}" id="stageCustomText_${t.id}" data-module="custom_text_${t.id}"
+             onpointerdown="onStagePointerDown(event, 'custom_text_${t.id}')"
+             style="left:${posX * scale}px; top:${posY * scale}px; transform:scale(${scale * tScale}); transform-origin:top left; z-index:${isSel ? 1000 : tZ};">
+          <span class="stage-tag">🔤 Texto</span>
+          <div style="background:${bgColor}; border:${border}; border-radius:${radius}; padding:8px 14px; color:${color}; font-family:${font}; font-size:${size}; font-weight:700; white-space:pre-wrap; max-width:500px; box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+            ${escapeHtml(t.text || 'Texto')}
+          </div>
+          <div class="resize-handle" onpointerdown="onResizePointerDown(event, 'custom_text_${t.id}')">⤡</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  if (listEl) {
+    if (texts.length === 0) {
+      listEl.innerHTML = '<div style="font-size:11px; color:var(--muted); text-align:center; padding:16px;">No hay textos adicionales. Haz clic en "➕ Nuevo Texto" para agregar uno.</div>';
+    } else {
+      listEl.innerHTML = texts.map((t, idx) => `
+        <div class="inspector-section" style="border-left:3px solid var(--accent); position:relative;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-weight:700; font-size:12px; color:var(--accent);">#${idx + 1} - ${escapeHtml(t.text ? t.text.substring(0, 16) : 'Texto')}</span>
+            <div style="display:flex; gap:4px;">
+              <button class="btn btn-sm" onclick="selectStageElement('custom_text_${t.id}')" style="padding:2px 8px; font-size:10px;">🎯 Enfocar</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteCustomText('${t.id}')" style="padding:2px 6px; font-size:10px;">🗑</button>
+            </div>
+          </div>
+          <div>
+            <label class="form-label" style="font-size:10px;">Texto en Pantalla</label>
+            <input type="text" class="form-input" style="font-size:11px;" value="${escapeHtml(t.text || '')}" oninput="updateCustomTextProp('${t.id}', 'text', this.value)">
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">
+            <div>
+              <label class="form-label" style="font-size:10px;">Color Letra</label>
+              <input type="color" class="form-input" style="height:28px; padding:2px;" value="${colorToHex(t.color, '#ffffff')}" oninput="updateCustomTextProp('${t.id}', 'color', this.value)">
+            </div>
+            <div>
+              <label class="form-label" style="font-size:10px;">Color Fondo</label>
+              <input type="color" class="form-input" style="height:28px; padding:2px;" value="${colorToHex(t.bg_color, '#0a0a0a')}" oninput="updateCustomTextProp('${t.id}', 'bg_color', this.value)">
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">
+            <div>
+              <label class="form-label" style="font-size:10px;">Color Borde</label>
+              <input type="color" class="form-input" style="height:28px; padding:2px;" value="${colorToHex(t.border_color, '#e8ff47')}" oninput="updateCustomTextProp('${t.id}', 'border_color', this.value)">
+            </div>
+            <div>
+              <label class="form-label" style="font-size:10px;">Tamaño (px)</label>
+              <input type="number" class="form-input" style="font-size:11px;" min="10" max="64" value="${t.font_size || 16}" oninput="updateCustomTextProp('${t.id}', 'font_size', parseInt(this.value, 10))">
+            </div>
+          </div>
+          <div style="margin-top:6px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <div style="flex:1;">
+              <label class="form-label" style="font-size:10px;">Animación</label>
+              <select class="form-input" style="font-size:11px;" onchange="updateCustomTextProp('${t.id}', 'animation', this.value)">
+                <option value="none" ${t.animation === 'none' ? 'selected' : ''}>Ninguna (Estático)</option>
+                <option value="wave" ${t.animation === 'wave' ? 'selected' : ''}>Onda Suave (Wave)</option>
+                <option value="pulse" ${t.animation === 'pulse' ? 'selected' : ''}>Pulso Brillante</option>
+              </select>
+            </div>
+            <div style="width:100px;">
+              <label class="form-label" style="font-size:10px;">Capa (Z)</label>
+              <div style="display:flex; gap:2px;">
+                <input type="number" class="form-input" style="font-size:11px; padding:3px 4px; text-align:center;" min="1" max="999" value="${t.z_index !== undefined ? t.z_index : 25}" onchange="updateCustomTextProp('${t.id}', 'z_index', parseInt(this.value, 10) || 25)">
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+function initOverlayStudio() {
+  if (!config) return;
+
   const setCheck = (id, val, defVal = true) => {
     const el = document.getElementById(id);
     if (el) el.checked = (val !== undefined ? Boolean(val) : defVal);
@@ -3912,122 +5820,201 @@ function populateOverlayCustomizationForm(cfg) {
     const el = document.getElementById(id);
     if (el) el.value = (val !== undefined ? val : defVal);
   };
+  const setColorVal = (id, val, defFallback = '#ffffff') => {
+    const el = document.getElementById(id);
+    if (el) el.value = colorToHex(val, defFallback);
+  };
+  const setText = (id, txt) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = txt;
+  };
 
-  // Switches específicos de cada sección
-  setCheck('ovCfgTimerEnabled', cfg.overlay_timer_enabled, true);
-  setCheck('ovCfgNowPlayingEnabled', cfg.overlay_now_playing_enabled, true);
-  setVal('ovCfgSourceMode', cfg.overlay_source_mode, 'both');
-  setCheck('ovCfgLyricsQuick', cfg.overlay_show_lyrics, true);
-  setCheck('ovCfgRequireFocusQuick', cfg.overlay_require_focus, false);
+  // 1. Inputs Now Playing
+  setCheck('modNpEnabled', config.overlay_now_playing_enabled, true);
+  setVal('modNpSourceMode', config.overlay_source_mode, 'both');
+  const npX = config.overlay_now_playing_x !== undefined ? config.overlay_now_playing_x : (config.overlay_pos_x !== undefined ? config.overlay_pos_x : 40);
+  const npY = config.overlay_now_playing_y !== undefined ? config.overlay_now_playing_y : (config.overlay_pos_y !== undefined ? config.overlay_pos_y : 40);
+  const npScale = parseFloat(config.overlay_now_playing_scale !== undefined ? config.overlay_now_playing_scale : (config.overlay_scale || 1.0));
+  setVal('modNpX', npX);
+  setVal('modNpY', npY);
+  setVal('modNpScale', npScale);
+  setText('modNpScaleVal', npScale.toFixed(2) + 'x');
+  setVal('modNpWidth', config.overlay_now_playing_width, 380);
+  setColorVal('modNpBgColor', config.overlay_now_playing_bg_color || config.overlay_bg_color, '#0a0a0a');
+  const npOp = config.overlay_now_playing_bg_opacity !== undefined ? config.overlay_now_playing_bg_opacity : (config.overlay_bg_opacity !== undefined ? config.overlay_bg_opacity : 78);
+  setVal('modNpBgOpacity', npOp);
+  setText('modNpOpVal', npOp + '%');
+  setColorVal('modNpBorderColor', config.overlay_now_playing_border_color || config.overlay_border_color, '#ffffff');
+  const npRad = config.overlay_now_playing_border_radius !== undefined ? config.overlay_now_playing_border_radius : (config.overlay_border_radius !== undefined ? config.overlay_border_radius : 12);
+  setVal('modNpBorderRadius', npRad);
+  setText('modNpRadiusVal', npRad + 'px');
+  setVal('modNpFont', config.overlay_now_playing_font || config.overlay_font_family, 'system-ui');
+  setColorVal('modNpTextColor', config.overlay_now_playing_text_color || config.overlay_text_color, '#ffffff');
+  const npWave = config.overlay_now_playing_wave !== undefined ? config.overlay_now_playing_wave : (config.overlay_text_wave || 0);
+  setVal('modNpWave', npWave);
+  setText('modNpWaveVal', npWave);
+  setCheck('modNpShowCover', config.overlay_show_cover, true);
+  setCheck('modNpShowBadge', config.overlay_show_badge, true);
+  setCheck('modNpShowTitle', (config.overlay_show_song_title !== undefined ? config.overlay_show_song_title : config.overlay_show_title), true);
+  setCheck('modNpShowArtist', config.overlay_show_artist, true);
+  setCheck('modNpShowEq', config.overlay_show_equalizer, true);
+  const npZ = config.overlay_now_playing_z_index !== undefined ? config.overlay_now_playing_z_index : 30;
+  setVal('modNpZIndex', npZ);
+  setText('modNpZVal', npZ);
 
-  // Toggles de contenido en personalización
-  setCheck('ovCfgSongTitle', cfg.overlay_show_song_title, true);
-  setCheck('ovCfgVideoTitle', cfg.overlay_show_video_title, true);
-  setCheck('ovCfgArtist', cfg.overlay_show_artist, true);
-  setCheck('ovCfgCover', cfg.overlay_show_cover, true);
-  setCheck('ovCfgBadge', cfg.overlay_show_badge, true);
-  setCheck('ovCfgEq', cfg.overlay_show_equalizer, true);
-  setCheck('ovCfgLyrics', cfg.overlay_show_lyrics, true);
-  setCheck('ovCfgRequireFocus', cfg.overlay_require_focus, false);
+  // 2. Inputs Temporizador
+  setCheck('modTmEnabled', config.overlay_timer_enabled, true);
+  setVal('modTmX', config.overlay_timer_x !== undefined ? config.overlay_timer_x : 680);
+  setVal('modTmY', config.overlay_timer_y !== undefined ? config.overlay_timer_y : 320);
+  const tmScale = parseFloat(config.overlay_timer_scale || 1.0);
+  setVal('modTmScale', tmScale);
+  setText('modTmScaleVal', tmScale.toFixed(2) + 'x');
+  setVal('modTmWidth', config.overlay_timer_width, 560);
+  setColorVal('modTmBgColor', config.overlay_timer_bg_color, '#0a0a0a');
+  const tmOp = config.overlay_timer_bg_opacity !== undefined ? config.overlay_timer_bg_opacity : 85;
+  setVal('modTmBgOpacity', tmOp);
+  setText('modTmOpVal', tmOp + '%');
+  setColorVal('modTmBorderColor', config.overlay_timer_border_color, '#e8ff47');
+  const tmRad = config.overlay_timer_border_radius !== undefined ? config.overlay_timer_border_radius : 20;
+  setVal('modTmBorderRadius', tmRad);
+  setText('modTmRadiusVal', tmRad + 'px');
+  setVal('modTmBadgeText', config.overlay_timer_badge_text, '⏱️ PAUSA DE STREAM & CLASE');
+  setColorVal('modTmBadgeColor', config.overlay_timer_badge_color, '#e8ff47');
+  setVal('modTmTitleText', config.overlay_timer_title_text, 'Ya Vuelvo');
+  setColorVal('modTmTitleColor', config.overlay_timer_title_color, '#ffffff');
+  setColorVal('modTmClockColor', config.overlay_timer_clock_color, '#e8ff47');
+  setColorVal('modTmProgressColor', config.overlay_timer_progress_color, '#e8ff47');
+  setColorVal('modTmPhraseColor', config.overlay_timer_phrase_color, '#bbbbbb');
+  setCheck('modTmShowBadge', config.overlay_timer_show_badge, true);
+  setCheck('modTmShowTitle', config.overlay_timer_show_title, true);
+  setCheck('modTmShowClock', config.overlay_timer_show_clock, true);
+  setCheck('modTmShowProgress', config.overlay_timer_show_progress, true);
+  setCheck('modTmShowPhrase', config.overlay_timer_show_phrase, true);
+  const tmZ = config.overlay_timer_z_index !== undefined ? config.overlay_timer_z_index : 20;
+  setVal('modTmZIndex', tmZ);
+  setText('modTmZVal', tmZ);
 
-  setVal('ovCfgPosition', cfg.overlay_position, 'bottom-left');
-  setVal('ovCfgPosX', cfg.overlay_pos_x, 28);
-  setVal('ovCfgPosY', cfg.overlay_pos_y, 28);
-  setVal('ovCfgScale', cfg.overlay_scale, 1.0);
-  const scaleVal = document.getElementById('ovCfgScaleVal');
-  if (scaleVal) scaleVal.textContent = (cfg.overlay_scale || 1.0) + 'x';
+  // 3. Inputs Letras
+  setCheck('modLyEnabled', config.overlay_show_lyrics, true);
+  setVal('modLyX', config.overlay_lyrics_x !== undefined ? config.overlay_lyrics_x : 40);
+  setVal('modLyY', config.overlay_lyrics_y !== undefined ? config.overlay_lyrics_y : 130);
+  const lyScale = parseFloat(config.overlay_lyrics_scale || 1.0);
+  setVal('modLyScale', lyScale);
+  setText('modLyScaleVal', lyScale.toFixed(2) + 'x');
+  setVal('modLyWidth', config.overlay_lyrics_width, 440);
+  setVal('modLyMaxHeight', config.overlay_lyrics_max_height, 150);
+  setColorVal('modLyBgColor', config.overlay_lyrics_bg_color, '#0a0a0a');
+  const lyOp = config.overlay_lyrics_bg_opacity !== undefined ? config.overlay_lyrics_bg_opacity : 75;
+  setVal('modLyBgOpacity', lyOp);
+  setText('modLyOpVal', lyOp + '%');
+  setColorVal('modLyTextColor', config.overlay_lyrics_text_color, '#e0e0e0');
+  setVal('modLyFontSize', config.overlay_lyrics_font_size, 13);
+  const lyZ = config.overlay_lyrics_z_index !== undefined ? config.overlay_lyrics_z_index : 15;
+  setVal('modLyZIndex', lyZ);
+  setText('modLyZVal', lyZ);
 
-  setVal('ovCfgBgColor', cfg.overlay_bg_color, '#0a0a0a');
-  setVal('ovCfgBgOpacity', cfg.overlay_bg_opacity, 78);
-  const opVal = document.getElementById('ovCfgOpacityVal');
-  if (opVal) opVal.textContent = (cfg.overlay_bg_opacity || 78) + '%';
-
-  setVal('ovCfgBorderRadius', cfg.overlay_border_radius, 12);
-  const radVal = document.getElementById('ovCfgRadiusVal');
-  if (radVal) radVal.textContent = (cfg.overlay_border_radius || 12) + 'px';
-
-  setVal('ovCfgTextColor', cfg.overlay_text_color, '#ffffff');
-  setVal('ovCfgFont', cfg.overlay_font_family, 'system-ui');
-
-  setVal('ovCfgWave', cfg.overlay_text_wave, 0);
-  const waveVal = document.getElementById('ovCfgWaveVal');
-  if (waveVal) waveVal.textContent = (cfg.overlay_text_wave == 0 || !cfg.overlay_text_wave) ? '0 (Desactivado)' : cfg.overlay_text_wave;
-
-  setVal('ovCfgExtraText', cfg.overlay_extra_text, '');
+  updateStageMockups();
+  renderLayersList();
 }
 
-async function saveOverlayToggle(key, val) {
-  try {
-    const payload = {};
-    payload[key] = val;
+function scheduleModularConfigSave(immediate = false) {
+  if (modularSaveTimeout) clearTimeout(modularSaveTimeout);
+  if (immediate) {
+    saveModularOverlayConfig();
+  } else {
+    modularSaveTimeout = setTimeout(saveModularOverlayConfig, 400);
+  }
+}
 
-    // Sincronizar checkboxes duplicados
-    if (key === 'overlay_show_lyrics') {
-      const q = document.getElementById('ovCfgLyricsQuick');
-      const c = document.getElementById('ovCfgLyrics');
-      if (q) q.checked = val;
-      if (c) c.checked = val;
-    }
-    if (key === 'overlay_require_focus') {
-      const q = document.getElementById('ovCfgRequireFocusQuick');
-      const c = document.getElementById('ovCfgRequireFocus');
-      if (q) q.checked = val;
-      if (c) c.checked = val;
-    }
+async function saveModularOverlayConfig() {
+  try {
+    const payload = {
+      // Now playing
+      overlay_now_playing_enabled: config.overlay_now_playing_enabled !== false,
+      overlay_source_mode: config.overlay_source_mode || 'both',
+      overlay_now_playing_x: config.overlay_now_playing_x !== undefined ? config.overlay_now_playing_x : (config.overlay_pos_x !== undefined ? config.overlay_pos_x : 40),
+      overlay_now_playing_y: config.overlay_now_playing_y !== undefined ? config.overlay_now_playing_y : (config.overlay_pos_y !== undefined ? config.overlay_pos_y : 40),
+      overlay_now_playing_scale: parseFloat(config.overlay_now_playing_scale !== undefined ? config.overlay_now_playing_scale : (config.overlay_scale || 1.0)),
+      overlay_now_playing_width: parseInt(config.overlay_now_playing_width || 380, 10),
+      overlay_now_playing_z_index: parseInt(config.overlay_now_playing_z_index !== undefined ? config.overlay_now_playing_z_index : 30, 10),
+      overlay_now_playing_bg_color: config.overlay_now_playing_bg_color || config.overlay_bg_color || '#0a0a0a',
+      overlay_now_playing_bg_opacity: parseInt(config.overlay_now_playing_bg_opacity !== undefined ? config.overlay_now_playing_bg_opacity : (config.overlay_bg_opacity !== undefined ? config.overlay_bg_opacity : 78), 10),
+      overlay_now_playing_border_color: config.overlay_now_playing_border_color || config.overlay_border_color || 'rgba(255, 255, 255, 0.12)',
+      overlay_now_playing_border_radius: parseInt(config.overlay_now_playing_border_radius !== undefined ? config.overlay_now_playing_border_radius : (config.overlay_border_radius !== undefined ? config.overlay_border_radius : 12), 10),
+      overlay_now_playing_text_color: config.overlay_now_playing_text_color || config.overlay_text_color || '#ffffff',
+      overlay_now_playing_font: config.overlay_now_playing_font || config.overlay_font_family || 'system-ui',
+      overlay_now_playing_wave: parseInt(config.overlay_now_playing_wave !== undefined ? config.overlay_now_playing_wave : (config.overlay_text_wave || 0), 10),
+      overlay_show_cover: config.overlay_show_cover !== false,
+      overlay_show_badge: config.overlay_show_badge !== false,
+      overlay_show_song_title: config.overlay_show_song_title !== false,
+      overlay_show_title: config.overlay_show_song_title !== false,
+      overlay_show_artist: config.overlay_show_artist !== false,
+      overlay_show_equalizer: config.overlay_show_equalizer !== false,
+
+      // Timer
+      overlay_timer_enabled: config.overlay_timer_enabled !== false,
+      overlay_timer_x: config.overlay_timer_x !== undefined ? config.overlay_timer_x : 680,
+      overlay_timer_y: config.overlay_timer_y !== undefined ? config.overlay_timer_y : 320,
+      overlay_timer_scale: parseFloat(config.overlay_timer_scale || 1.0),
+      overlay_timer_width: parseInt(config.overlay_timer_width || 560, 10),
+      overlay_timer_z_index: parseInt(config.overlay_timer_z_index !== undefined ? config.overlay_timer_z_index : 20, 10),
+      overlay_timer_bg_color: config.overlay_timer_bg_color || '#0a0a0a',
+      overlay_timer_bg_opacity: parseInt(config.overlay_timer_bg_opacity !== undefined ? config.overlay_timer_bg_opacity : 85, 10),
+      overlay_timer_border_color: config.overlay_timer_border_color || 'rgba(232, 255, 71, 0.35)',
+      overlay_timer_border_radius: parseInt(config.overlay_timer_border_radius !== undefined ? config.overlay_timer_border_radius : 20, 10),
+      overlay_timer_font: config.overlay_timer_font || 'system-ui',
+      overlay_timer_badge_text: config.overlay_timer_badge_text || '⏱️ PAUSA DE STREAM & CLASE',
+      overlay_timer_badge_color: config.overlay_timer_badge_color || '#e8ff47',
+      overlay_timer_title_text: config.overlay_timer_title_text || 'Ya Vuelvo',
+      overlay_timer_title_color: config.overlay_timer_title_color || '#ffffff',
+      overlay_timer_clock_color: config.overlay_timer_clock_color || '#e8ff47',
+      overlay_timer_progress_color: config.overlay_timer_progress_color || '#e8ff47',
+      overlay_timer_phrase_color: config.overlay_timer_phrase_color || '#bbbbbb',
+      overlay_timer_show_badge: config.overlay_timer_show_badge !== false,
+      overlay_timer_show_title: config.overlay_timer_show_title !== false,
+      overlay_timer_show_clock: config.overlay_timer_show_clock !== false,
+      overlay_timer_show_progress: config.overlay_timer_show_progress !== false,
+      overlay_timer_show_phrase: config.overlay_timer_show_phrase !== false,
+
+      // Lyrics
+      overlay_show_lyrics: config.overlay_show_lyrics !== false,
+      overlay_lyrics_x: config.overlay_lyrics_x !== undefined ? config.overlay_lyrics_x : 40,
+      overlay_lyrics_y: config.overlay_lyrics_y !== undefined ? config.overlay_lyrics_y : 130,
+      overlay_lyrics_scale: parseFloat(config.overlay_lyrics_scale || 1.0),
+      overlay_lyrics_width: parseInt(config.overlay_lyrics_width || 440, 10),
+      overlay_lyrics_max_height: parseInt(config.overlay_lyrics_max_height || 150, 10),
+      overlay_lyrics_z_index: parseInt(config.overlay_lyrics_z_index !== undefined ? config.overlay_lyrics_z_index : 15, 10),
+      overlay_lyrics_bg_color: config.overlay_lyrics_bg_color || '#0a0a0a',
+      overlay_lyrics_bg_opacity: parseInt(config.overlay_lyrics_bg_opacity !== undefined ? config.overlay_lyrics_bg_opacity : 75, 10),
+      overlay_lyrics_border_color: config.overlay_lyrics_border_color || 'rgba(255, 255, 255, 0.12)',
+      overlay_lyrics_border_radius: parseInt(config.overlay_lyrics_border_radius !== undefined ? config.overlay_lyrics_border_radius : 10, 10),
+      overlay_lyrics_text_color: config.overlay_lyrics_text_color || '#e0e0e0',
+      overlay_lyrics_font: config.overlay_lyrics_font || 'system-ui',
+      overlay_lyrics_font_size: parseInt(config.overlay_lyrics_font_size || 13, 10),
+
+      // Custom texts
+      overlay_custom_texts: config.overlay_custom_texts || []
+    };
 
     const res = await fetch('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    config[key] = val;
-    showToast('Ajuste de Overlay actualizado en vivo ✓');
-  } catch(e) {
-    showToast('Error al actualizar ajuste');
+    const data = await res.json();
+    if (data.config) config = data.config;
+  } catch(e) {}
+}
+
+async function saveAllModularOverlay(showToastNotice = true) {
+  await saveModularOverlayConfig();
+  if (showToastNotice) {
+    showToast('¡Configuración guardada y sincronizada en OBS! ✨');
   }
 }
 
-async function saveOverlayCustomization() {
-  const ovCfg = {
-    overlay_timer_enabled: document.getElementById('ovCfgTimerEnabled').checked,
-    overlay_now_playing_enabled: document.getElementById('ovCfgNowPlayingEnabled').checked,
-    overlay_source_mode: document.getElementById('ovCfgSourceMode').value,
-
-    overlay_show_song_title: document.getElementById('ovCfgSongTitle').checked,
-    overlay_show_video_title: document.getElementById('ovCfgVideoTitle').checked,
-    overlay_show_artist: document.getElementById('ovCfgArtist').checked,
-    overlay_show_cover: document.getElementById('ovCfgCover').checked,
-    overlay_show_badge: document.getElementById('ovCfgBadge').checked,
-    overlay_show_equalizer: document.getElementById('ovCfgEq').checked,
-    overlay_show_lyrics: document.getElementById('ovCfgLyrics').checked,
-    overlay_require_focus: document.getElementById('ovCfgRequireFocus').checked,
-
-    overlay_position: document.getElementById('ovCfgPosition').value,
-    overlay_pos_x: parseInt(document.getElementById('ovCfgPosX').value, 10) || 28,
-    overlay_pos_y: parseInt(document.getElementById('ovCfgPosY').value, 10) || 28,
-    overlay_scale: parseFloat(document.getElementById('ovCfgScale').value) || 1.0,
-
-    overlay_bg_color: document.getElementById('ovCfgBgColor').value,
-    overlay_bg_opacity: parseInt(document.getElementById('ovCfgBgOpacity').value, 10) || 78,
-    overlay_border_radius: parseInt(document.getElementById('ovCfgBorderRadius').value, 10) || 12,
-    overlay_text_color: document.getElementById('ovCfgTextColor').value,
-    overlay_font_family: document.getElementById('ovCfgFont').value,
-
-    overlay_text_wave: parseInt(document.getElementById('ovCfgWave').value, 10) || 0,
-    overlay_extra_text: document.getElementById('ovCfgExtraText').value.trim()
-  };
-
-  try {
-    const res = await fetch('/api/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ovCfg)
-    });
-    config = Object.assign({}, config, ovCfg);
-    showToast('¡Configuración del Overlay guardada y sincronizada en OBS! ✨');
-  } catch(e) {
-    showToast('Error al guardar configuración del overlay');
-  }
+function populateOverlayCustomizationForm(cfg) {
+  initOverlayStudio();
 }
 
 function updateHeaderHeight() {
@@ -4037,7 +6024,12 @@ function updateHeaderHeight() {
     document.documentElement.style.setProperty('--header-h', height + 'px');
   }
 }
-window.addEventListener('resize', updateHeaderHeight, { passive: true });
+window.addEventListener('resize', () => {
+  updateHeaderHeight();
+  if (currentView === 'overlays') {
+    updateStageMockups();
+  }
+}, { passive: true });
 window.addEventListener('DOMContentLoaded', updateHeaderHeight);
 
 window.addEventListener('DOMContentLoaded', () => {

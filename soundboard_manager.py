@@ -9,6 +9,8 @@ import os
 import re
 import sys
 import time
+import json
+import shutil
 import urllib.request
 import urllib.parse
 import subprocess
@@ -37,11 +39,15 @@ REGION_URL_TEMPLATES = {
 }
 
 class SoundboardManager:
-    def __init__(self, config_loader, config_saver):
+    def __init__(self, config_loader, config_saver, on_idle=None):
         self.load_config = config_loader
         self.save_config = config_saver
+        self.on_idle = on_idle
         self.active_processes = []
         self.lock = threading.Lock()
+        cfg = self.load_config()
+        self.current_volume = cfg.get("soundboard_volume", 80) if cfg else 80
+        self.has_wpctl = shutil.which("wpctl") is not None
 
         # Directorio de caché local para reproducción instantánea con 0 latencia
         self.cache_dir = Path.home() / ".cache" / "youtube-stream-controller" / "sounds"
@@ -57,12 +63,75 @@ class SoundboardManager:
             "Accept-Language": "es-ES,es;q=0.9,en;q=0.8"
         }
 
+    # ─── GESTIÓN DINÁMICA DE VOLUMEN EN TIEMPO REAL (PIPEWIRE) ───
+
+    def _apply_volume_to_node(self, node_id, vol: int):
+        """Aplica instantáneamente el volumen o mute a un nodo de PipeWire."""
+        if not node_id or not self.has_wpctl:
+            return
+        try:
+            nid = str(node_id)
+            if vol <= 0:
+                subprocess.run(["wpctl", "set-mute", nid, "1"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run(["wpctl", "set-volume", nid, "0%"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                subprocess.run(["wpctl", "set-mute", nid, "0"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run(["wpctl", "set-volume", nid, f"{vol}%"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+    def _find_node_for_pid(self, pid: int):
+        """Busca el ID de nodo de PipeWire asociado al proceso especificado."""
+        try:
+            res = subprocess.check_output(["pw-dump"], timeout=0.6)
+            data = json.loads(res.decode("utf-8", errors="ignore"))
+            for item in data:
+                if item.get("type") == "PipeWire:Interface:Node":
+                    props = item.get("info", {}).get("props", {})
+                    if props.get("application.process.id") == pid:
+                        return item.get("id")
+        except Exception:
+            pass
+        return None
+
+    def _track_process_volume(self, item: dict, target_vol: int):
+        """Espera a que el stream aparezca en PipeWire y le aplica el volumen actual."""
+        pid = item.get("pid")
+        for _ in range(30):
+            proc = item.get("proc")
+            if proc and proc.poll() is not None:
+                return
+            nid = self._find_node_for_pid(pid)
+            if nid:
+                item["node_id"] = nid
+                vol_to_apply = self.current_volume if self.current_volume is not None else target_vol
+                self._apply_volume_to_node(nid, vol_to_apply)
+                break
+            time.sleep(0.015)
+
+    def _watch_process_completion(self, item: dict):
+        """Monitorea el proceso de audio y notifica cuando todos los audios terminaron."""
+        proc = item.get("proc")
+        if proc:
+            try:
+                proc.wait()
+            except Exception:
+                pass
+        with self.lock:
+            self.active_processes = [p for p in self.active_processes if p["proc"].poll() is None]
+            still_running = len(self.active_processes) > 0
+        if not still_running and self.on_idle:
+            try:
+                self.on_idle()
+            except Exception:
+                pass
+
     # ─── REPRODUCCIÓN DE AUDIO EN LA PC ───
 
-    def play(self, mp3_url: str, title: str = "", volume: int = 80) -> dict:
+    def play(self, mp3_url: str, title: str = "", volume: int = None) -> dict:
         """
         Descarga (si no está en caché) y reproduce el sonido localmente
-        a través de ffplay directamente en el servidor Linux.
+        a través de ffplay directamente en el servidor Linux con control de volumen en vivo.
         """
         if not mp3_url:
             return {"success": False, "error": "No se proporcionó URL de MP3"}
@@ -76,16 +145,21 @@ class SoundboardManager:
         if os.path.exists(runtime_dir):
             env["XDG_RUNTIME_DIR"] = runtime_dir
 
-        vol = max(0, min(100, int(volume)))
-        vol_ratio = f"{vol / 100.0:.2f}"
+        if volume is not None:
+            try:
+                vol = max(0, min(100, int(volume)))
+            except (ValueError, TypeError):
+                vol = self.current_volume
+        else:
+            vol = self.current_volume
+
+        self.current_volume = vol
 
         cmd = [
             "ffplay",
             "-nodisp",
             "-autoexit",
             "-loglevel", "error",
-            "-volume", str(vol),
-            "-af", f"volume={vol_ratio}",
             str(target_file)
         ]
 
@@ -97,9 +171,15 @@ class SoundboardManager:
                 env=env,
                 start_new_session=True
             )
+            item = {"proc": proc, "pid": proc.pid, "node_id": None}
             with self.lock:
-                self.active_processes = [p for p in self.active_processes if p.poll() is None]
-                self.active_processes.append(proc)
+                self.active_processes = [p for p in self.active_processes if p["proc"].poll() is None]
+                self.active_processes.append(item)
+
+            if self.has_wpctl:
+                threading.Thread(target=self._track_process_volume, args=(item, vol), daemon=True).start()
+
+            threading.Thread(target=self._watch_process_completion, args=(item,), daemon=True).start()
 
             return {
                 "success": True,
@@ -114,9 +194,10 @@ class SoundboardManager:
     def stop_all(self) -> dict:
         """Detiene de inmediato todos los sonidos en reproducción en la PC."""
         with self.lock:
-            for p in self.active_processes:
+            for item in self.active_processes:
                 try:
-                    if p.poll() is None:
+                    p = item.get("proc")
+                    if p and p.poll() is None:
                         p.terminate()
                 except Exception:
                     pass
@@ -124,6 +205,7 @@ class SoundboardManager:
 
         try:
             subprocess.run(["pkill", "-f", "ffplay.*sounds"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["pkill", "-f", "ffplay"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception:
             pass
 
@@ -495,10 +577,50 @@ class SoundboardManager:
         }
 
     def set_volume(self, volume: int) -> dict:
-        """Actualiza y persiste el volumen predeterminado de la botonera."""
+        """Actualiza, persiste y aplica en tiempo real el volumen a todos los audios en reproducción."""
         try:
             vol = max(0, min(100, int(volume)))
         except (ValueError, TypeError):
             vol = 80
+
+        self.current_volume = vol
         self.save_config({"soundboard_volume": vol})
+
+        if not self.has_wpctl:
+            return {"success": True, "volume": vol}
+
+        with self.lock:
+            self.active_processes = [p for p in self.active_processes if p["proc"].poll() is None]
+            current_items = list(self.active_processes)
+
+        missing_items = []
+        for item in current_items:
+            nid = item.get("node_id")
+            if nid:
+                self._apply_volume_to_node(nid, vol)
+            else:
+                missing_items.append(item)
+
+        # Si hay procesos cuyo ID aún no teníamos en caché, o para asegurar cualquier ffplay
+        if missing_items or current_items:
+            try:
+                res = subprocess.check_output(["pw-dump"], timeout=0.6)
+                data = json.loads(res.decode("utf-8", errors="ignore"))
+                for dump_item in data:
+                    if dump_item.get("type") == "PipeWire:Interface:Node":
+                        props = dump_item.get("info", {}).get("props", {})
+                        pid = props.get("application.process.id")
+                        app_name = props.get("application.name")
+                        nid = dump_item.get("id")
+                        if not nid:
+                            continue
+                        for m in missing_items:
+                            if pid == m.get("pid"):
+                                m["node_id"] = nid
+                                self._apply_volume_to_node(nid, vol)
+                        if app_name == "ffplay":
+                            self._apply_volume_to_node(nid, vol)
+            except Exception:
+                pass
+
         return {"success": True, "volume": vol}

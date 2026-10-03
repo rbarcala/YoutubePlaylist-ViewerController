@@ -237,7 +237,8 @@ channel.onmessage = (e) => {
 
 // 2. Server-Sent Events (SSE) (Para sincronizar con Desktop App y Celular)
 function initSSE() {
-  const evtSource = new EventSource('/api/events');
+  const viewerSessionId = 'viewer_' + Math.random().toString(36).substring(2, 10);
+  const evtSource = new EventSource('/api/events?client=viewer&id=' + viewerSessionId);
 
   evtSource.addEventListener('sync_state', (e) => {
     try {
@@ -263,6 +264,12 @@ function initSSE() {
           try { window.focus(); } catch(err) {}
         }
       }
+    } catch(err) {}
+  });
+
+  evtSource.addEventListener('focus_viewer', () => {
+    try {
+      window.focus();
     } catch(err) {}
   });
 

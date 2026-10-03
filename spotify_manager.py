@@ -14,6 +14,10 @@ class SpotifyManager:
     def __init__(self, config_getter, config_saver):
         self.get_config = config_getter
         self.save_config = config_saver
+        self._last_seek_time = 0
+        self._last_seek_pos = 0
+        self._last_volume_time = 0
+        self._last_volume = 50
 
     def _get_tokens(self):
         cfg = self.get_config()
@@ -159,16 +163,32 @@ class SpotifyManager:
             if item.get("album", {}).get("images"):
                 album_art = item["album"]["images"][0]["url"]
 
+            progress_ms = res.get("progress_ms", 0)
+            is_playing = res.get("is_playing", False)
+            duration_ms = item.get("duration_ms", 0)
+
+            # Optimistic seek resolution: si hubo un seek en los últimos 3.5 segundos y el backend aún reporta la posición vieja
+            now = time.time()
+            if (now - self._last_seek_time) < 3.5:
+                elapsed = int((now - self._last_seek_time) * 1000) if is_playing else 0
+                estimated_pos = min(duration_ms, self._last_seek_pos + elapsed)
+                if abs(progress_ms - estimated_pos) > 2000:
+                    progress_ms = estimated_pos
+
+            volume_pct = res.get("device", {}).get("volume_percent", 50)
+            if (now - self._last_volume_time) < 3.0:
+                volume_pct = self._last_volume
+
             return {
                 "available": True,
-                "is_playing": res.get("is_playing", False),
+                "is_playing": is_playing,
                 "title": item.get("name", "Desconocido"),
                 "artist": artists,
                 "album": item.get("album", {}).get("name", ""),
                 "album_art": album_art,
-                "progress_ms": res.get("progress_ms", 0),
-                "duration_ms": item.get("duration_ms", 0),
-                "volume_percent": res.get("device", {}).get("volume_percent", 50),
+                "progress_ms": progress_ms,
+                "duration_ms": duration_ms,
+                "volume_percent": volume_pct,
                 "device_name": res.get("device", {}).get("name", "PC")
             }
 
@@ -194,6 +214,8 @@ class SpotifyManager:
     def seek(self, position_ms: int) -> dict:
         """Adelanta o retrocede a un minuto/segundo específico de la canción."""
         pos = max(0, int(position_ms))
+        self._last_seek_time = time.time()
+        self._last_seek_pos = pos
         res = self._api_request(f"me/player/seek?position_ms={pos}", method="PUT")
         if "error" in res:
             try:
@@ -210,6 +232,8 @@ class SpotifyManager:
 
     def set_volume(self, volume_percent: int) -> dict:
         vol = max(0, min(100, int(volume_percent)))
+        self._last_volume_time = time.time()
+        self._last_volume = vol
         return self._api_request(f"me/player/volume?volume_percent={vol}", method="PUT")
 
     def add_to_queue(self, uri: str) -> dict:

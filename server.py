@@ -1,7 +1,9 @@
 import os
+import re
 import sys
 import json
 import time
+import subprocess
 import queue
 import socket
 import threading
@@ -54,6 +56,8 @@ current_state = {
 # Cola de eventos SSE para todos los clientes conectados
 event_listeners = set()
 listeners_lock = threading.Lock()
+active_viewer_ids = set()
+active_viewer_lock = threading.Lock()
 video_cache = {}  # Cache de URLs resueltas por yt-dlp
 
 def broadcast_event(event_type: str, data: dict):
@@ -79,6 +83,7 @@ def broadcast_event(event_type: str, data: dict):
 
 # Gestor de Overlays y Temporizador
 overlay_mgr = OverlayManager(broadcast_event, load_config, save_config)
+soundboard_mgr.on_idle = lambda: broadcast_event("soundboard_stop", {})
 
 def get_lan_ip():
     """Detecta la IP local de la máquina en la red Wi-Fi / Ethernet."""
@@ -141,6 +146,16 @@ def get_state():
 @app.route('/api/events')
 def sse_events():
     """Stream de Server-Sent Events (SSE) para sincronización en tiempo real."""
+    client_type = request.args.get('client', '')
+    client_id = request.args.get('id', '')
+    is_viewer = (client_type == 'viewer')
+
+    if is_viewer and client_id:
+        with active_viewer_lock:
+            active_viewer_ids.add(client_id)
+            current_state["activeViewers"] = len(active_viewer_ids)
+            broadcast_event("state", current_state)
+
     q = queue.Queue(maxsize=50)
     with listeners_lock:
         event_listeners.add(q)
@@ -162,6 +177,11 @@ def sse_events():
             with listeners_lock:
                 event_listeners.discard(q)
                 current_state["activeControllers"] = len(event_listeners)
+            if is_viewer and client_id:
+                with active_viewer_lock:
+                    active_viewer_ids.discard(client_id)
+                    current_state["activeViewers"] = len(active_viewer_ids)
+                    broadcast_event("state", current_state)
 
     return Response(
         event_stream(),
@@ -287,7 +307,7 @@ def open_smart_viewer():
 
     if target == "viewer" or request.path == "/api/open_viewer":
         viewer_url = f"http://localhost:{port}/viewer.html"
-        res = browser_mgr.open_smart_viewer(viewer_url)
+        res = browser_mgr.open_smart_viewer(viewer_url, port=port)
         return jsonify(res)
     else:
         url = f"http://localhost:{port}/controller.html"
@@ -298,6 +318,7 @@ def open_smart_viewer():
 def focus_viewer_route():
     """Pone la pestaña/ventana del Viewer en primer plano en el sistema operativo."""
     focused = browser_mgr.focus_viewer()
+    broadcast_event("focus_viewer", {})
     return jsonify({"success": True, "focused": focused})
 
 @app.route('/api/open_obs', methods=['POST'])
@@ -480,20 +501,73 @@ def spotify_playlist():
     return jsonify(spotify_mgr.get_playlist(playlist_id))
 
 
+_lyrics_cache = {}
+
 @app.route('/api/spotify/lyrics')
 def spotify_lyrics():
-    artist = request.args.get("artist", "")
-    title = request.args.get("title", "")
+    artist = (request.args.get("artist") or "").strip()
+    title = (request.args.get("title") or "").strip()
     if not artist or not title:
         return jsonify({"lyrics": ""})
-    try:
-        url = f"https://api.lyrics.ovh/v1/{urllib.parse.quote(artist)}/{urllib.parse.quote(title)}"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=3) as res:
-            data = json.loads(res.read().decode('utf-8'))
-            return jsonify({"lyrics": data.get("lyrics", "")})
-    except Exception:
-        return jsonify({"lyrics": ""})
+
+    cache_key = f"{artist.lower()}|||{title.lower()}"
+    if cache_key in _lyrics_cache:
+        return jsonify({"lyrics": _lyrics_cache[cache_key]})
+
+    # 1. Candidatos de artista (artista principal o lista completa)
+    artist_candidates = []
+    a1 = re.split(r'[,&]|\s+feat\b|\s+ft\b', artist, flags=re.I)[0].strip()
+    if a1:
+        artist_candidates.append(a1)
+    if artist not in artist_candidates:
+        artist_candidates.append(artist)
+
+    # 2. Candidatos de título (eliminar sufijos remaster, live, edit, paréntesis)
+    title_candidates = [title]
+    t1 = re.sub(r'\s*-\s*(?:\d{4}\s+)?(?:remaster|remastered|live|radio edit|edit|mono|stereo|deluxe|bonus|single|album|mix|acoustic|version|original).*$', '', title, flags=re.I).strip()
+    if t1 and t1 not in title_candidates:
+        title_candidates.append(t1)
+    t2 = re.sub(r'\s*[\(\[].*?[\)\]]', '', t1).strip()
+    if t2 and t2 not in title_candidates:
+        title_candidates.append(t2)
+    t3 = title.split(' - ')[0].strip()
+    if t3 and t3 not in title_candidates:
+        title_candidates.append(t3)
+
+    ua = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
+
+    for a in artist_candidates:
+        for t in title_candidates:
+            # Proveedor A: lrclib.net (base de datos masiva sincronizada para Spotify)
+            try:
+                url = 'https://lrclib.net/api/get?' + urllib.parse.urlencode({'artist_name': a, 'track_name': t})
+                req = urllib.request.Request(url, headers={'User-Agent': ua})
+                with urllib.request.urlopen(req, timeout=3) as r:
+                    d = json.loads(r.read().decode('utf-8'))
+                    raw_lyrics = d.get('plainLyrics') or d.get('syncedLyrics') or ''
+                    if raw_lyrics.strip():
+                        clean_lyrics = re.sub(r'\[\d{2}:\d{2}(?:\.\d{2,3})?\]\s*', '', raw_lyrics).strip()
+                        if clean_lyrics:
+                            _lyrics_cache[cache_key] = clean_lyrics
+                            return jsonify({"lyrics": clean_lyrics, "source": "lrclib"})
+            except Exception:
+                pass
+
+            # Proveedor B: api.lyrics.ovh
+            try:
+                url = f"https://api.lyrics.ovh/v1/{urllib.parse.quote(a)}/{urllib.parse.quote(t)}"
+                req = urllib.request.Request(url, headers={'User-Agent': ua})
+                with urllib.request.urlopen(req, timeout=3) as r:
+                    d = json.loads(r.read().decode('utf-8'))
+                    lyrics = d.get('lyrics', '').strip()
+                    if lyrics:
+                        _lyrics_cache[cache_key] = lyrics
+                        return jsonify({"lyrics": lyrics, "source": "lyrics.ovh"})
+            except Exception:
+                pass
+
+    _lyrics_cache[cache_key] = ""
+    return jsonify({"lyrics": ""})
 
 @app.route('/api/spotify/queue', methods=['POST'])
 def spotify_queue():
@@ -507,6 +581,71 @@ def spotify_play_track():
     uri = data.get("uri", "")
     if not uri: return jsonify({"error": "No uri"}), 400
     return jsonify(spotify_mgr.play(track_uris=[uri]))
+
+# ─── API YOUTUBE PLAYLIST (FONDOS) ───
+@app.route('/api/youtube/playlist')
+def get_youtube_playlist():
+    cfg = load_config()
+    playlist_id = request.args.get('playlist_id') or cfg.get('playlist_id', 'PL7E8lrk1ePfZVWMM2vsUkpQ6vbpbHi4G_')
+    api_key = request.args.get('key') or cfg.get('youtube_api_key', '')
+
+    # 1. Si hay API key, consultar primero con YouTube Data API v3
+    if api_key:
+        try:
+            items = []
+            page_token = ""
+            while True:
+                url = f"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId={playlist_id}&key={api_key}"
+                if page_token:
+                    url += f"&pageToken={page_token}"
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    data = json.loads(resp.read().decode())
+                if data.get("error"):
+                    break
+                for item in data.get("items", []):
+                    vid = item.get("snippet", {}).get("resourceId", {}).get("videoId")
+                    thumbs = item.get("snippet", {}).get("thumbnails", {})
+                    thumb_url = thumbs.get("medium", {}).get("url") or thumbs.get("default", {}).get("url") or f"https://i.ytimg.com/vi/{vid}/mqdefault.jpg"
+                    if vid:
+                        items.append({
+                            "videoId": vid,
+                            "title": item.get("snippet", {}).get("title", ""),
+                            "thumb": thumb_url
+                        })
+                page_token = data.get("nextPageToken")
+                if not page_token or len(items) >= 200:
+                    break
+            if items:
+                return jsonify({"success": True, "source": "api", "items": items})
+        except Exception as e:
+            print(f"[youtube_playlist] API Key falló ({e}), usando fallback con yt-dlp...")
+
+    # 2. Fallback ultra confiable con yt-dlp (no requiere API key ni cuotas)
+    try:
+        pl_url = f"https://www.youtube.com/playlist?list={playlist_id}"
+        cmd = ["yt-dlp", "--flat-playlist", "-J", pl_url]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=12)
+        if res.returncode == 0:
+            data = json.loads(res.stdout)
+            items = []
+            for entry in data.get("entries", []):
+                vid = entry.get("id")
+                if not vid:
+                    continue
+                thumbs = entry.get("thumbnails", [])
+                thumb_url = thumbs[0].get("url") if thumbs else f"https://i.ytimg.com/vi/{vid}/mqdefault.jpg"
+                items.append({
+                    "videoId": vid,
+                    "title": entry.get("title", ""),
+                    "thumb": thumb_url
+                })
+            if items:
+                return jsonify({"success": True, "source": "yt-dlp", "items": items})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+    return jsonify({"success": False, "error": "No se pudo cargar la playlist"}), 500
 
 # ─── API YOUTUBE LIVE MONITOR ───
 _resolved_channel_ids = {}

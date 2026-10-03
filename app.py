@@ -362,7 +362,7 @@ def launch_native_window(url: str, title: str = "YouTube Stream Controller"):
     btn_viewer.set_tooltip_text("Abrir pantalla completa del Viewer para compartir en Meet / OBS")
     def on_open_viewer_clicked(widget):
         viewer_url = url.replace("controller.html", "viewer.html")
-        threading.Thread(target=browser_mgr.open_smart_viewer, args=(viewer_url,), daemon=True).start()
+        threading.Thread(target=browser_mgr.open_smart_viewer, args=(viewer_url, port), daemon=True).start()
     btn_viewer.connect("clicked", on_open_viewer_clicked)
     header.pack_start(btn_viewer)
 
@@ -422,26 +422,11 @@ def main():
     # Si se pide abrir el viewer directamente
     if args.viewer:
         print(f"[app] Abriendo Viewer inteligentemente: {viewer_url}")
-        browser_mgr.open_smart_viewer(viewer_url)
+        browser_mgr.open_smart_viewer(viewer_url, port=port)
         return
 
     # Apertura automática de OBS Studio si no está en ejecución
     threading.Thread(target=launch_obs_if_needed, daemon=True).start()
-
-    # Apertura automática e inteligente del Viewer al abrir el Controller (Meet -> Pestaña abierta -> Nueva ventana)
-    if cfg.get("auto_open_viewer", True):
-        try:
-            import urllib.request, json
-            req = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/state", timeout=1)
-            state = json.loads(req.read().decode())
-            if state.get("activeViewers", 0) > 0:
-                print("[app] Viewer ya conectado (activo). No se abrirá otro.")
-            else:
-                print(f"[app] Abriendo Viewer automáticamente: {viewer_url}")
-                threading.Thread(target=browser_mgr.open_smart_viewer, args=(viewer_url,), daemon=True).start()
-        except Exception:
-            print(f"[app] Abriendo Viewer automáticamente: {viewer_url}")
-            threading.Thread(target=browser_mgr.open_smart_viewer, args=(viewer_url,), daemon=True).start()
 
     if mode == "web":
         print(f"[app] Abriendo Controller en navegador web: {controller_url}")
@@ -453,8 +438,18 @@ def main():
         except KeyboardInterrupt:
             print("\n[app] Cerrando aplicación.")
     else:
-        print(f"[app] Abriendo Controller en ventana de escritorio nativa...")
-        launch_native_window(controller_url)
+        # En modo escritorio, solo abrir el viewer si está explícitamente activado en la configuración
+        if cfg.get("auto_open_viewer", False):
+            def _smart_open_viewer():
+                time.sleep(1.2)
+                if not browser_mgr.is_viewer_open(port):
+                    print(f"[app] Abriendo Viewer automáticamente: {viewer_url}")
+                    browser_mgr.open_smart_viewer(viewer_url, port=port)
+
+            threading.Thread(target=_smart_open_viewer, daemon=True).start()
+
+        print(f"[app] Abriendo Controller nativo de escritorio: {controller_url}")
+        launch_native_window(controller_url, title="YouTube Stream Controller")
 
 if __name__ == "__main__":
     main()
