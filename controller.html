@@ -813,7 +813,7 @@
     <!-- Volumen de la PC -->
     <div style="display:flex; align-items:center; gap:12px; justify-content:center;">
       <span style="font-size:11px; color:#aaa;">🔊 Volumen PC:</span>
-      <input type="range" id="spVolumeSlider" min="0" max="100" value="50" onchange="spotifySetVolume(this.value)" style="accent-color:var(--accent-spotify); width:200px;">
+      <input type="range" id="spVolumeSlider" min="0" max="100" value="50" oninput="document.getElementById('spVolumeValue').textContent = this.value + '%'" onchange="spotifySetVolume(this.value)" style="accent-color:var(--accent-spotify); width:200px;">
       <span id="spVolumeValue" style="font-size:11px; color:var(--accent-spotify);">50%</span>
     </div>
   </div>
@@ -1048,6 +1048,20 @@ let viewerConnected = false;
 let viewerWindow = null;
 
 const channel = new BroadcastChannel('fondos_stream');
+const myClientId = 'client_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+
+function applySoundboardVolume(vol) {
+  const num = parseInt(vol, 10);
+  sbVolume = isNaN(num) ? 80 : Math.max(0, Math.min(100, num));
+  const slider = document.getElementById('sbVolumeSlider');
+  const text = document.getElementById('sbVolumeText');
+  if (slider && !sbIsAdjustingVolume) slider.value = sbVolume;
+  if (text) text.textContent = sbVolume + '%';
+  const cfgSlider = document.getElementById('cfgSoundboardVolume');
+  if (cfgSlider) cfgSlider.value = sbVolume;
+  const cfgVal = document.getElementById('cfgSbVolVal');
+  if (cfgVal) cfgVal.textContent = sbVolume + '%';
+}
 
 // Manejo del botón atrás (Android Go Back & Browser Back)
 window.addEventListener('popstate', (e) => {
@@ -1098,7 +1112,7 @@ async function initApp() {
       document.getElementById('cfgAutoFocusViewer').checked = config.auto_focus_viewer;
     }
     if (config.soundboard_volume !== undefined) {
-      sbVolume = config.soundboard_volume;
+      applySoundboardVolume(config.soundboard_volume);
     }
   } catch(e) {}
 
@@ -1120,17 +1134,44 @@ async function initApp() {
   setInterval(() => {
     if (currentView === 'spotify') loadSpotifyData();
   }, 4000);
+
+  // Asegurar que el Viewer esté abierto automáticamente si no está conectado
+  setTimeout(() => {
+    if (!viewerConnected) {
+      fetch('/api/open_viewer', { method: 'POST' }).catch(() => {});
+    }
+  }, 1200);
 }
 
-// ─── SINCRONIZACIÓN SSE ───
+// ─── SINCRONIZACIÓN SSE (TIEMPO REAL ENTRE DISPOSITIVOS) ───
 function initSSE() {
   const evtSource = new EventSource('/api/events');
+
   evtSource.addEventListener('sync_state', (e) => {
     try {
       const data = JSON.parse(e.data).data;
+      if (!data) return;
       if (data.videoId) highlightActiveCard(data.videoId);
       if (data.title) document.getElementById('nowPlayingTitle').textContent = data.title;
       if (data.activeViewers !== undefined) setConnected(data.activeViewers > 0);
+      if (data.playbackRate !== undefined) {
+        currentPlaybackRate = parseFloat(data.playbackRate);
+        const sl = document.getElementById('speedSlider');
+        const tx = document.getElementById('speedValue');
+        if (sl) sl.value = currentPlaybackRate;
+        if (tx) tx.textContent = currentPlaybackRate.toFixed(1) + 'x';
+      }
+      if (data.muted !== undefined) {
+        isMuted = Boolean(data.muted);
+        const btn = document.getElementById('muteBtn');
+        if (btn) {
+          btn.textContent = isMuted ? 'Muted' : 'Unmuted';
+          btn.classList.toggle('btn-accent', !isMuted);
+        }
+      }
+      if (data.soundboard_volume !== undefined && !sbIsAdjustingVolume) {
+        applySoundboardVolume(data.soundboard_volume);
+      }
     } catch(err) {}
   });
 
@@ -1142,13 +1183,159 @@ function initSSE() {
     } catch(err) {}
   });
 
+  evtSource.addEventListener('state', (e) => {
+    try {
+      const data = JSON.parse(e.data).data;
+      if (data.playbackRate !== undefined) {
+        currentPlaybackRate = parseFloat(data.playbackRate);
+        const sl = document.getElementById('speedSlider');
+        const tx = document.getElementById('speedValue');
+        if (sl) sl.value = currentPlaybackRate;
+        if (tx) tx.textContent = currentPlaybackRate.toFixed(1) + 'x';
+      }
+      if (data.muted !== undefined) {
+        isMuted = Boolean(data.muted);
+        const btn = document.getElementById('muteBtn');
+        if (btn) {
+          btn.textContent = isMuted ? 'Muted' : 'Unmuted';
+          btn.classList.toggle('btn-accent', !isMuted);
+        }
+      }
+      if (data.videoId) highlightActiveCard(data.videoId);
+      if (data.title) document.getElementById('nowPlayingTitle').textContent = data.title;
+    } catch(err) {}
+  });
+
+  // Volumen de la botonera en tiempo real
+  evtSource.addEventListener('soundboard_volume', (e) => {
+    try {
+      const data = JSON.parse(e.data).data;
+      if (data && data.volume !== undefined && data.clientId !== myClientId) {
+        applySoundboardVolume(data.volume);
+      }
+    } catch(err) {}
+  });
+
+  // Sonido reproducido en vivo
+  evtSource.addEventListener('soundboard_play', (e) => {
+    try {
+      const data = JSON.parse(e.data).data;
+      if (data) {
+        const npText = document.getElementById('sbNowPlayingText');
+        if (npText) npText.textContent = '▶ ' + (data.title || 'Sonido');
+        document.querySelectorAll('.sound-card').forEach(c => {
+          if (c.dataset.mp3 === data.mp3 || (data.title && c.querySelector('.sound-name')?.textContent === data.title)) {
+            c.classList.add('playing');
+          } else {
+            c.classList.remove('playing');
+          }
+        });
+        if (playingResetTimer) clearTimeout(playingResetTimer);
+        playingResetTimer = setTimeout(() => {
+          document.querySelectorAll('.sound-card').forEach(c => c.classList.remove('playing'));
+          if (npText && npText.textContent.startsWith('▶')) npText.textContent = 'Listo / Silencio';
+        }, 2500);
+      }
+    } catch(err) {}
+  });
+
+  // Sonido detenido
+  evtSource.addEventListener('soundboard_stop', () => {
+    try {
+      const npText = document.getElementById('sbNowPlayingText');
+      if (npText) npText.textContent = '⏹️ Detenido';
+      document.querySelectorAll('.sound-card').forEach(c => c.classList.remove('playing'));
+    } catch(err) {}
+  });
+
+  // Favoritos actualizados
+  evtSource.addEventListener('soundboard_favorites_updated', (e) => {
+    try {
+      const data = JSON.parse(e.data).data;
+      if (data && data.favorites) {
+        savedFavorites = data.favorites;
+        if (currentSbTab === 'favorites') {
+          renderSoundboardCards(savedFavorites, false);
+        } else {
+          document.querySelectorAll('.sound-card').forEach(card => {
+            const btn = card.querySelector('.sound-fav-btn');
+            const mp3 = card.dataset.mp3;
+            if (btn && mp3) {
+              const fav = savedFavorites.some(f => f.mp3 === mp3);
+              btn.classList.toggle('is-fav', fav);
+              btn.textContent = fav ? '★' : '☆';
+            }
+          });
+        }
+      }
+    } catch(err) {}
+  });
+
+  // Spotify sincronizado en tiempo real
+  evtSource.addEventListener('spotify_volume', (e) => {
+    try {
+      const data = JSON.parse(e.data).data;
+      if (data && data.volume !== undefined && data.clientId !== myClientId) {
+        const slider = document.getElementById('spVolumeSlider');
+        const valText = document.getElementById('spVolumeValue');
+        if (slider) slider.value = data.volume;
+        if (valText) valText.textContent = data.volume + '%';
+      }
+    } catch(err) {}
+  });
+
+  evtSource.addEventListener('spotify_action', () => {
+    setTimeout(loadSpotifyData, 400);
+  });
+
+  // OBS actualizado
+  evtSource.addEventListener('obs_updated', (e) => {
+    try {
+      const data = JSON.parse(e.data).data;
+      if (data?.scene) highlightCurrentScene(data.scene);
+    } catch(err) {}
+  });
+  evtSource.addEventListener('obs_status_changed', () => loadObsData());
+
   evtSource.addEventListener('viewer_ready', () => setConnected(true));
 }
 
+// ─── SINCRONIZACIÓN LOCAL (BroadcastChannel) ───
 function initBroadcastChannel() {
   channel.onmessage = (e) => {
-    if (e.data?.type === 'viewer_ready') setConnected(true);
-    if (e.data?.type === 'play' && e.data.videoId) highlightActiveCard(e.data.videoId);
+    const d = e.data;
+    if (!d || d.clientId === myClientId) return;
+    if (d.type === 'viewer_ready') setConnected(true);
+    if (d.type === 'play' && d.videoId) highlightActiveCard(d.videoId);
+    if (d.type === 'soundboard_volume' && d.volume !== undefined) {
+      applySoundboardVolume(d.volume);
+    }
+    if (d.type === 'soundboard_play') {
+      const npText = document.getElementById('sbNowPlayingText');
+      if (npText) npText.textContent = '▶ ' + (d.title || 'Sonido');
+    }
+    if (d.type === 'soundboard_stop') {
+      const npText = document.getElementById('sbNowPlayingText');
+      if (npText) npText.textContent = '⏹️ Detenido';
+      document.querySelectorAll('.sound-card').forEach(c => c.classList.remove('playing'));
+    }
+    if (d.type === 'state') {
+      if (d.playbackRate !== undefined) {
+        currentPlaybackRate = parseFloat(d.playbackRate);
+        const sl = document.getElementById('speedSlider');
+        const tx = document.getElementById('speedValue');
+        if (sl) sl.value = currentPlaybackRate;
+        if (tx) tx.textContent = currentPlaybackRate.toFixed(1) + 'x';
+      }
+      if (d.muted !== undefined) {
+        isMuted = Boolean(d.muted);
+        const btn = document.getElementById('muteBtn');
+        if (btn) {
+          btn.textContent = isMuted ? 'Muted' : 'Unmuted';
+          btn.classList.toggle('btn-accent', !isMuted);
+        }
+      }
+    }
   };
 }
 
@@ -1228,6 +1415,7 @@ function playVideoByIndex(i) {
       try { viewerWindow.focus(); } catch(e) {}
     }
     channel.postMessage({ type: 'focus_viewer' });
+    fetch('/api/focus_viewer', { method: 'POST' }).catch(() => {});
   }
 
   fetch('/api/action', {
@@ -1365,7 +1553,7 @@ function spotifySetVolume(val) {
   fetch('/api/spotify/volume', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ volume: parseInt(val) })
+    body: JSON.stringify({ volume: parseInt(val), clientId: myClientId })
   });
 }
 
@@ -1480,6 +1668,8 @@ let sbIsLoadingMore = false;
 let sbAllLoadedSounds = [];
 let savedFavorites = [];
 let sbVolume = 80;
+let sbVolDebounceTimer = null;
+let sbIsAdjustingVolume = false;
 let playingResetTimer = null;
 let sbIntersectionObserver = null;
 
@@ -1501,12 +1691,8 @@ async function updateSoundboardAccountDisplay() {
     if (userEl) {
       userEl.textContent = user ? '@' + user : 'Sin vincular';
     }
-    if (data.volume !== undefined) {
-      sbVolume = data.volume;
-      const slider = document.getElementById('sbVolumeSlider');
-      const text = document.getElementById('sbVolumeText');
-      if (slider) slider.value = sbVolume;
-      if (text) text.textContent = sbVolume + '%';
+    if (data.volume !== undefined && !sbIsAdjustingVolume) {
+      applySoundboardVolume(data.volume);
     }
   } catch(e) {}
 }
@@ -1718,7 +1904,8 @@ async function triggerPlaySound(mp3Url, title, cardEl) {
       body: JSON.stringify({
         mp3: mp3Url,
         title: title,
-        volume: sbVolume
+        volume: sbVolume,
+        clientId: myClientId
       })
     });
     const data = await res.json();
@@ -1737,7 +1924,11 @@ async function triggerPlaySound(mp3Url, title, cardEl) {
 
 async function stopSoundboard() {
   try {
-    await fetch('/api/soundboard/stop', { method: 'POST' });
+    await fetch('/api/soundboard/stop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId: myClientId })
+    });
     const npText = document.getElementById('sbNowPlayingText');
     if (npText) npText.textContent = '⏹️ Detenido';
     document.querySelectorAll('.sound-card').forEach(c => c.classList.remove('playing'));
@@ -1745,8 +1936,20 @@ async function stopSoundboard() {
   } catch(e) {}
 }
 
+let lastVolSentTime = 0;
+
+function sendSoundboardVolumeToServer(vol) {
+  fetch('/api/soundboard/volume', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ volume: vol, clientId: myClientId })
+  }).catch(() => {});
+  if (config) config.soundboard_volume = vol;
+}
+
 function updateSoundboardVolume(val) {
-  sbVolume = parseInt(val) || 80;
+  const num = parseInt(val, 10);
+  sbVolume = isNaN(num) ? 80 : Math.max(0, Math.min(100, num));
   const label = document.getElementById('sbVolumeText');
   if (label) label.textContent = sbVolume + '%';
   // Actualizar también en el slider de ajustes si está abierto
@@ -1754,6 +1957,21 @@ function updateSoundboardVolume(val) {
   if (cfgSlider) cfgSlider.value = sbVolume;
   const cfgVal = document.getElementById('cfgSbVolVal');
   if (cfgVal) cfgVal.textContent = sbVolume + '%';
+
+  sbIsAdjustingVolume = true;
+  channel.postMessage({ type: 'soundboard_volume', volume: sbVolume, clientId: myClientId });
+
+  const now = Date.now();
+  if (now - lastVolSentTime > 60) {
+    lastVolSentTime = now;
+    sendSoundboardVolumeToServer(sbVolume);
+  }
+
+  if (sbVolDebounceTimer) clearTimeout(sbVolDebounceTimer);
+  sbVolDebounceTimer = setTimeout(() => {
+    sendSoundboardVolumeToServer(sbVolume);
+    setTimeout(() => { sbIsAdjustingVolume = false; }, 120);
+  }, 100);
 }
 
 async function toggleFavoriteSound(sound, btnEl) {
@@ -1763,7 +1981,7 @@ async function toggleFavoriteSound(sound, btnEl) {
       const res = await fetch('/api/soundboard/favorites/remove', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: sound.id, title: sound.title, mp3: sound.mp3 })
+        body: JSON.stringify({ id: sound.id, title: sound.title, mp3: sound.mp3, clientId: myClientId })
       });
       savedFavorites = await res.json();
       btnEl.classList.remove('is-fav');
@@ -1778,7 +1996,7 @@ async function toggleFavoriteSound(sound, btnEl) {
       const res = await fetch('/api/soundboard/favorites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sound)
+        body: JSON.stringify({ ...sound, clientId: myClientId })
       });
       savedFavorites = await res.json();
       btnEl.classList.add('is-fav');
@@ -1874,11 +2092,12 @@ function openViewer() {
   if (viewerWindow) {
     try { viewerWindow.focus(); } catch(e) {}
   }
-  fetch('/api/open_browser', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ target: 'viewer' })
-  }).then(() => showToast('Abriendo / enfocando Viewer...'));
+  fetch('/api/open_viewer', { method: 'POST' })
+    .then(r => r.json())
+    .then(res => {
+      showToast('Viewer conectado / enfocado 📺');
+    })
+    .catch(() => {});
 }
 
 function openWebController() {
@@ -1943,7 +2162,7 @@ async function saveSettings() {
     obs_port: parseInt(document.getElementById('cfgObsPort').value),
     obs_password: document.getElementById('cfgObsPassword').value,
     soundboard_username: document.getElementById('cfgSoundboardUsername').value.trim(),
-    soundboard_volume: parseInt(document.getElementById('cfgSoundboardVolume').value) || 80
+    soundboard_volume: isNaN(parseInt(document.getElementById('cfgSoundboardVolume').value, 10)) ? 80 : Math.max(0, Math.min(100, parseInt(document.getElementById('cfgSoundboardVolume').value, 10)))
   };
 
   const res = await fetch('/api/config', {

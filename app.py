@@ -18,6 +18,9 @@ BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
 from config_manager import load_config, save_config
+from browser_manager import BrowserManager
+
+browser_mgr = BrowserManager()
 
 def check_dependencies() -> bool:
     """Verifica que las librerías necesarias de Python estén instaladas."""
@@ -163,7 +166,7 @@ def launch_native_window(url: str, title: str = "YouTube Stream Controller"):
     btn_viewer.set_tooltip_text("Abrir pantalla completa del Viewer para compartir en Meet / OBS")
     def on_open_viewer_clicked(widget):
         viewer_url = url.replace("controller.html", "viewer.html")
-        webbrowser.open(viewer_url)
+        threading.Thread(target=browser_mgr.open_smart_viewer, args=(viewer_url,), daemon=True).start()
     btn_viewer.connect("clicked", on_open_viewer_clicked)
     header.pack_start(btn_viewer)
 
@@ -222,9 +225,13 @@ def main():
 
     # Si se pide abrir el viewer directamente
     if args.viewer:
-        print(f"[app] Abriendo Viewer en navegador: {viewer_url}")
-        webbrowser.open(viewer_url)
+        print(f"[app] Abriendo Viewer inteligentemente: {viewer_url}")
+        browser_mgr.open_smart_viewer(viewer_url)
         return
+
+    # Apertura automática e inteligente del Viewer al abrir el Controller (Meet -> Pestaña abierta -> Nueva ventana)
+    print(f"[app] Abriendo Viewer automáticamente: {viewer_url}")
+    threading.Thread(target=browser_mgr.open_smart_viewer, args=(viewer_url,), daemon=True).start()
 
     if mode == "web":
         print(f"[app] Abriendo Controller en navegador web: {controller_url}")

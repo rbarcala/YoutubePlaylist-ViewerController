@@ -16,6 +16,7 @@ from config_manager import load_config, save_config
 from obs_client import OBSController
 from spotify_manager import SpotifyManager
 from soundboard_manager import SoundboardManager
+from browser_manager import BrowserManager
 from qr_svg import generate_qr_svg
 
 app = Flask(__name__, static_folder='.', static_url_path='')
@@ -30,6 +31,7 @@ def add_cache_headers(response):
 
 spotify_mgr = SpotifyManager(load_config, save_config)
 soundboard_mgr = SoundboardManager(load_config, save_config)
+browser_mgr = BrowserManager()
 
 # ─── ESTADO CENTRALIZADO Y SINCRONIZACIÓN EN TIEMPO REAL ───
 initial_cfg = load_config()
@@ -43,6 +45,7 @@ current_state = {
     "isPlaying": False,
     "activeViewers": 0,
     "activeControllers": 0,
+    "soundboard_volume": int(initial_cfg.get("soundboard_volume", 80)),
     "lastAction": "init",
     "updatedAt": time.time()
 }
@@ -59,9 +62,15 @@ def broadcast_event(event_type: str, data: dict):
     
     with listeners_lock:
         dead_queues = []
-        for q in event_listeners:
+        for q in list(event_listeners):
             try:
                 q.put_nowait(sse_message)
+            except queue.Full:
+                try:
+                    q.get_nowait()
+                    q.put_nowait(sse_message)
+                except Exception:
+                    pass
             except Exception:
                 dead_queues.append(q)
         for dead in dead_queues:
@@ -180,6 +189,9 @@ def handle_action():
                 obs.switch_scene(cfg.get("obs_scene_on_play"))
             threading.Thread(target=_switch_obs, daemon=True).start()
 
+        if cfg.get("auto_focus_viewer", True):
+            threading.Thread(target=browser_mgr.focus_viewer, daemon=True).start()
+
     elif action_type == "state":
         if "playbackRate" in data:
             current_state["playbackRate"] = float(data["playbackRate"])
@@ -251,7 +263,8 @@ def network_info():
         "qr_code_svg": qr_svg
     })
 
-# ─── APERTURA DE VENTANAS EN NAVEGADOR DEL SISTEMA ───
+# ─── APERTURA INTELIGENTE DEL VIEWER Y NAVEGADOR DEL SISTEMA ───
+@app.route('/api/open_viewer', methods=['GET', 'POST'])
 @app.route('/api/open_browser', methods=['POST'])
 def open_browser():
     data = request.get_json(force=True, silent=True) or {}
@@ -259,16 +272,20 @@ def open_browser():
     cfg = load_config()
     port = cfg.get("port", 8000)
 
-    url = f"http://localhost:{port}/viewer.html" if target == "viewer" else f"http://localhost:{port}/controller.html"
-    
-    def _open():
-        try:
-            webbrowser.open(url)
-        except Exception as e:
-            print(f"[browser] Error abriendo {url}: {e}")
+    if target == "viewer" or request.path == "/api/open_viewer":
+        viewer_url = f"http://localhost:{port}/viewer.html"
+        res = browser_mgr.open_smart_viewer(viewer_url)
+        return jsonify(res)
+    else:
+        url = f"http://localhost:{port}/controller.html"
+        threading.Thread(target=lambda: webbrowser.open(url), daemon=True).start()
+        return jsonify({"success": True, "url": url})
 
-    threading.Thread(target=_open, daemon=True).start()
-    return jsonify({"success": True, "url": url})
+@app.route('/api/focus_viewer', methods=['POST'])
+def focus_viewer_route():
+    """Pone la pestaña/ventana del Viewer en primer plano en el sistema operativo."""
+    focused = browser_mgr.focus_viewer()
+    return jsonify({"success": True, "focused": focused})
 
 # ─── API OBS STUDIO EXPANDIDA ───
 @app.route('/api/obs/status')
@@ -360,25 +377,43 @@ def spotify_state():
 @app.route('/api/spotify/play', methods=['POST'])
 def spotify_play():
     data = request.get_json(force=True, silent=True) or {}
-    return jsonify(spotify_mgr.play(context_uri=data.get("context_uri"), track_uris=data.get("track_uris")))
+    res = spotify_mgr.play(context_uri=data.get("context_uri"), track_uris=data.get("track_uris"))
+    client_id = data.get("clientId") or data.get("client_id")
+    broadcast_event("spotify_action", {"action": "play", "clientId": client_id})
+    return jsonify(res)
 
 @app.route('/api/spotify/pause', methods=['POST'])
 def spotify_pause():
-    return jsonify(spotify_mgr.pause())
+    data = request.get_json(force=True, silent=True) or {}
+    res = spotify_mgr.pause()
+    client_id = data.get("clientId") or data.get("client_id")
+    broadcast_event("spotify_action", {"action": "pause", "clientId": client_id})
+    return jsonify(res)
 
 @app.route('/api/spotify/next', methods=['POST'])
 def spotify_next():
-    return jsonify(spotify_mgr.next_track())
+    data = request.get_json(force=True, silent=True) or {}
+    res = spotify_mgr.next_track()
+    client_id = data.get("clientId") or data.get("client_id")
+    broadcast_event("spotify_action", {"action": "next", "clientId": client_id})
+    return jsonify(res)
 
 @app.route('/api/spotify/previous', methods=['POST'])
 def spotify_prev():
-    return jsonify(spotify_mgr.previous_track())
+    data = request.get_json(force=True, silent=True) or {}
+    res = spotify_mgr.previous_track()
+    client_id = data.get("clientId") or data.get("client_id")
+    broadcast_event("spotify_action", {"action": "previous", "clientId": client_id})
+    return jsonify(res)
 
 @app.route('/api/spotify/volume', methods=['POST'])
 def spotify_volume():
     data = request.get_json(force=True, silent=True) or {}
     vol = data.get("volume", 50)
-    return jsonify(spotify_mgr.set_volume(vol))
+    res = spotify_mgr.set_volume(vol)
+    client_id = data.get("clientId") or data.get("client_id")
+    broadcast_event("spotify_volume", {"volume": vol, "clientId": client_id})
+    return jsonify(res)
 
 @app.route('/api/spotify/search')
 def spotify_search():
@@ -471,7 +506,10 @@ def soundboard_favorites():
     """Obtiene o agrega a la lista persistida de favoritos."""
     if request.method == 'POST':
         data = request.get_json(force=True, silent=True) or {}
-        return jsonify(soundboard_mgr.add_favorite(data))
+        favs = soundboard_mgr.add_favorite(data)
+        client_id = data.get('clientId') or data.get('client_id')
+        broadcast_event("soundboard_favorites_updated", {"favorites": favs, "clientId": client_id})
+        return jsonify(favs)
     return jsonify(soundboard_mgr.get_saved_favorites())
 
 @app.route('/api/soundboard/favorites/remove', methods=['POST'])
@@ -479,7 +517,10 @@ def soundboard_favorites_remove():
     """Elimina un sonido de los favoritos."""
     data = request.get_json(force=True, silent=True) or {}
     sound_id = data.get('id') or data.get('title') or data.get('mp3')
-    return jsonify(soundboard_mgr.remove_favorite(sound_id))
+    favs = soundboard_mgr.remove_favorite(sound_id)
+    client_id = data.get('clientId') or data.get('client_id')
+    broadcast_event("soundboard_favorites_updated", {"favorites": favs, "clientId": client_id})
+    return jsonify(favs)
 
 @app.route('/api/soundboard/play', methods=['POST'])
 def soundboard_play():
@@ -488,14 +529,34 @@ def soundboard_play():
     mp3_url = data.get('mp3') or data.get('url', '')
     title = data.get('title', '')
     cfg = load_config()
-    vol = data.get('volume', cfg.get('soundboard_volume', 80))
+    vol = data.get('volume')
+    if vol is None:
+        vol = cfg.get('soundboard_volume', 80)
     res = soundboard_mgr.play(mp3_url, title, vol)
+    client_id = data.get('clientId') or data.get('client_id')
+    broadcast_event("soundboard_play", {"title": title, "mp3": mp3_url, "volume": vol, "clientId": client_id})
+    return jsonify(res)
+
+@app.route('/api/soundboard/volume', methods=['POST'])
+def soundboard_volume():
+    """Actualiza y persiste el volumen predeterminado de la botonera."""
+    data = request.get_json(force=True, silent=True) or {}
+    vol = data.get('volume', 80)
+    res = soundboard_mgr.set_volume(vol)
+    vol_val = res.get("volume", vol)
+    current_state["soundboard_volume"] = vol_val
+    client_id = data.get('clientId') or data.get('client_id')
+    broadcast_event("soundboard_volume", {"volume": vol_val, "clientId": client_id})
     return jsonify(res)
 
 @app.route('/api/soundboard/stop', methods=['POST'])
 def soundboard_stop():
     """Detiene cualquier sonido en reproducción en la PC."""
-    return jsonify(soundboard_mgr.stop_all())
+    data = request.get_json(force=True, silent=True) or {}
+    res = soundboard_mgr.stop_all()
+    client_id = data.get('clientId') or data.get('client_id')
+    broadcast_event("soundboard_stop", {"clientId": client_id})
+    return jsonify(res)
 
 @app.route('/api/soundboard/sync_account', methods=['POST'])
 def soundboard_sync_account():

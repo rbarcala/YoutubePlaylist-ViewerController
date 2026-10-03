@@ -77,6 +77,7 @@ class SoundboardManager:
             env["XDG_RUNTIME_DIR"] = runtime_dir
 
         vol = max(0, min(100, int(volume)))
+        vol_ratio = f"{vol / 100.0:.2f}"
 
         cmd = [
             "ffplay",
@@ -84,6 +85,7 @@ class SoundboardManager:
             "-autoexit",
             "-loglevel", "error",
             "-volume", str(vol),
+            "-af", f"volume={vol_ratio}",
             str(target_file)
         ]
 
@@ -343,3 +345,12 @@ class SoundboardManager:
             "new_added": added_count,
             "favorites": existing_favs
         }
+
+    def set_volume(self, volume: int) -> dict:
+        """Actualiza y persiste el volumen predeterminado de la botonera."""
+        try:
+            vol = max(0, min(100, int(volume)))
+        except (ValueError, TypeError):
+            vol = 80
+        self.save_config({"soundboard_volume": vol})
+        return {"success": True, "volume": vol}
