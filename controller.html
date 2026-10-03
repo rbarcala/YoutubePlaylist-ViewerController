@@ -369,15 +369,15 @@
   }
 
   
-  /* ─── 4. VISTA SPOTIFY REMOTE (WIDESCREEN DASHBOARD) ─── */
+    /* ─── 4. VISTA SPOTIFY REMOTE (WIDESCREEN DASHBOARD & MATRIX GRID) ─── */
   .spotify-dashboard-grid {
     display: grid;
-    grid-template-columns: 340px 1fr;
-    gap: 20px;
+    grid-template-columns: 320px 1fr;
+    gap: 16px;
     align-items: start;
     width: 100%;
   }
-  @media (max-width: 960px) {
+  @media (max-width: 900px) {
     .spotify-dashboard-grid {
       grid-template-columns: 1fr;
     }
@@ -385,26 +385,26 @@
   .spotify-side-panel {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
   }
   .spotify-player-card {
     background: #121212;
     border: 1px solid #282828;
     border-radius: 12px;
-    padding: 18px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
     width: 100%;
     margin: 0;
   }
   .spotify-track-info {
     display: flex;
-    gap: 14px;
+    gap: 12px;
     align-items: center;
   }
   .spotify-art {
-    width: 80px; height: 80px;
+    width: 76px; height: 76px;
     border-radius: 8px;
     object-fit: cover;
     background: #222;
@@ -414,9 +414,9 @@
     overflow: hidden;
   }
   .spotify-meta h3 {
-    font-size: 15px;
+    font-size: 14px;
     color: #fff;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -433,7 +433,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
   }
   .spotify-saved-box {
     background: rgba(255, 255, 255, 0.02);
@@ -466,83 +466,129 @@
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
+  /* MATRIZ DE CUADRADOS EN TODO EL ESPACIO DERECHO */
   .spotify-results-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    max-height: calc(100vh - 210px);
-    overflow-y: auto;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-height: calc(100vh - 180px) !important;
+    overflow-y: auto !important;
     padding-right: 6px;
+    align-content: start;
   }
-  .spotify-compact-row {
+  .sp-track-card {
     background: #141414;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    padding: 6px 12px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    transition: background 0.12s;
-  }
-  .spotify-compact-row:hover {
-    background: #1e1e1e;
-    border-color: rgba(255, 255, 255, 0.15);
-  }
-  .sp-col-idx {
-    font-size: 11px;
-    color: var(--muted);
-    font-family: 'Space Mono', monospace;
-    width: 24px;
-    text-align: center;
-    flex-shrink: 0;
-  }
-  .sp-col-thumb {
-    width: 32px;
-    height: 32px;
-    border-radius: 4px;
-    object-fit: cover;
-    flex-shrink: 0;
-  }
-  .sp-col-meta {
-    flex: 1;
-    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+    padding: 7px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 2px;
+    justify-content: space-between;
+    gap: 6px;
+    transition: background 0.12s, border-color 0.12s, transform 0.12s;
+    user-select: none;
+    cursor: pointer;
+    contain: content;
   }
-  .sp-col-title {
-    font-size: 12px;
+  .sp-track-card:hover {
+    background: #202020;
+    border-color: var(--accent-spotify);
+    transform: translateY(-2px);
+  }
+  .sp-card-thumb-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1/1;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #111;
+  }
+  .sp-card-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .sp-card-idx {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: 'Space Mono', monospace;
+  }
+  .sp-card-dur {
+    position: absolute;
+    bottom: 3px;
+    right: 3px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #ccc;
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: 'Space Mono', monospace;
+  }
+  .sp-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow: hidden;
+  }
+  .sp-card-title {
+    font-size: 11px;
     font-weight: 700;
     color: #fff;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.25;
   }
-  .sp-col-artist {
-    font-size: 11px;
+  .sp-card-artist {
+    font-size: 10px;
     color: #888;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.2;
   }
-  .sp-col-album {
-    font-size: 11px;
-    color: var(--muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 200px;
-  }
-  .sp-col-actions {
+  .sp-card-actions {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
+    gap: 4px;
+    width: 100%;
   }
+  .sp-card-btn-play {
+    flex: 1;
+    background: var(--accent-spotify);
+    color: #000;
+    font-weight: 700;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 10px;
+    cursor: pointer;
+    text-align: center;
+    transition: opacity 0.1s;
+  }
+  .sp-card-btn-play:hover { opacity: 0.85; }
+  .sp-card-btn-queue {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-weight: 700;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 7px;
+    font-size: 10px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .sp-card-btn-queue:hover { background: rgba(255, 255, 255, 0.2); }
 
   /* ─── 6. VISTA SOUNDBOARD / BOTONERA ULTRA-RÁPIDA (FLAT TILES) ─── */
   .soundboard-container {
@@ -1184,7 +1230,7 @@
     <div class="spotify-main-panel">
       <div class="spotify-search-box">
         <div style="display:flex; gap:8px;">
-          <input type="text" id="spSearchInput" class="form-input" style="flex:1;" placeholder="Buscar canción, artista o pegar enlace https://open.spotify.com/playlist/..." onkeydown="if(event.key === 'Enter') spotifySearch()">
+          <input type="text" id="spSearchInput" class="form-input" style="flex:1;" placeholder="Buscar canción o: https://open.spotify.com/playlist/... [término para filtrar]" oninput="onSpotifySearchInput(this.value)" onkeydown="if(event.key === 'Enter') spotifySearch()">
           <button class="btn btn-spotify" onclick="spotifySearch()" style="font-weight:700; padding:8px 20px;">🔍 Buscar</button>
         </div>
 
@@ -2274,7 +2320,11 @@ async function toggleObsRecord() {
   loadObsData();
 }
 
-// ─── 3. SPOTIFY REMOTE LOGIC ───
+// ─── 3. SPOTIFY REMOTE LOGIC & MATRIZ DE CANCIONES ───
+let spCurrentLoadedTracks = [];
+let spCurrentPlaylistInfo = null;
+let spFilterDebounce = null;
+
 async function loadSpotifyData() {
   try {
     const res = await fetch('/api/spotify/state');
@@ -2319,99 +2369,253 @@ function spotifySetVolume(val) {
   });
 }
 
-
 async function loadSavedPlaylists() {
+  const container = document.getElementById('spSavedPlaylists');
+  const countEl = document.getElementById('spSavedCount');
+  if (!container) return;
+
   try {
     const res = await fetch('/api/spotify/saved_playlists');
     const data = await res.json();
-    const container = document.getElementById('spSavedPlaylists');
-    if (!data.playlists || data.playlists.length === 0) {
-      container.innerHTML = '<span style="color:var(--muted); font-size:11px;">No tienes playlists guardadas. Pega un enlace de Spotify arriba para agregar una.</span>';
+    const playlists = data.playlists || [];
+
+    if (countEl) countEl.textContent = `${playlists.length} guardadas`;
+
+    if (playlists.length === 0) {
+      container.innerHTML = '<span style="color:var(--muted); font-size:11px;">No tienes playlists guardadas. Pega un enlace arriba y haz clic en Buscar.</span>';
       return;
     }
-    
-    container.innerHTML = data.playlists.map(p => `
-      <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding:4px 10px; border-radius:12px; display:flex; align-items:center; gap:6px; font-size:11px;">
-        <span style="cursor:pointer; color:var(--accent);" onclick="loadPlaylist('${p.id}')">🎵 ${p.name}</span>
-        <button style="background:none; border:none; color:var(--muted); cursor:pointer; margin-left:4px;" onclick="deleteSpotifyPlaylist('${p.id}')">✖</button>
+
+    container.innerHTML = playlists.map(p => `
+      <div class="sp-playlist-item" onclick="loadPlaylist('${p.id}')" title="Cargar canciones de ${p.name}">
+        <span style="color:var(--accent); font-weight:700; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">
+          🎵 ${p.name}
+        </span>
+        <button style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:12px; padding:2px 4px;" onclick="event.stopPropagation(); deleteSpotifyPlaylist('${p.id}', '${p.name.replace(/'/g, "\'")}')" title="Eliminar de guardadas">✖</button>
       </div>
     `).join('');
-  } catch(e) {}
+  } catch(e) {
+    if (container) container.innerHTML = '<span style="color:var(--accent2); font-size:11px;">Error al cargar playlists guardadas.</span>';
+  }
+}
+
+async function promptAddPlaylist() {
+  const url = prompt("Pega aquí el enlace de la Playlist de Spotify (ej: https://open.spotify.com/playlist/...):");
+  if (!url || !url.trim()) return;
+  const parsed = parseSearchInput(url);
+  if (!parsed.isPlaylist) {
+    showToast("Enlace de playlist no válido");
+    return;
+  }
+  const pid = parsed.playlistId;
+  showToast("Cargando y guardando playlist…");
+  try {
+    const res = await fetch('/api/spotify/playlist?id=' + pid);
+    const data = await res.json();
+    if (data.name) {
+      await saveSpotifyPlaylist(pid, data.name);
+      loadPlaylist(pid);
+    } else {
+      showToast("No se pudo obtener la playlist");
+    }
+  } catch(e) {
+    showToast("Error conectando con Spotify");
+  }
 }
 
 async function saveSpotifyPlaylist(id, name) {
-  await fetch('/api/spotify/saved_playlists', { method: 'POST', body: JSON.stringify({id, name}) });
-  loadSavedPlaylists();
-    populateOverlayCustomizationForm(config);
-    updateHeaderHeight();
+  try {
+    await fetch('/api/spotify/saved_playlists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name })
+    });
+    showToast(`Playlist "${name}" guardada ⭐`);
+    loadSavedPlaylists();
+  } catch(e) {
+    showToast('Error al guardar playlist');
+  }
 }
 
-async function deleteSpotifyPlaylist(id) {
-  await fetch('/api/spotify/saved_playlists', { method: 'DELETE', body: JSON.stringify({id}) });
-  loadSavedPlaylists();
-    populateOverlayCustomizationForm(config);
-    updateHeaderHeight();
+async function deleteSpotifyPlaylist(id, name) {
+  if (!confirm(`¿Eliminar la playlist "${name || id}" de tu lista guardada?`)) return;
+  try {
+    await fetch('/api/spotify/saved_playlists', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    showToast('Playlist eliminada de guardadas');
+    loadSavedPlaylists();
+  } catch(e) {
+    showToast('Error al eliminar playlist');
+  }
 }
 
 function loadPlaylist(id) {
-  document.getElementById('spSearchInput').value = 'https://open.spotify.com/playlist/' + id;
+  const input = document.getElementById('spSearchInput');
+  if (input) input.value = 'https://open.spotify.com/playlist/' + id;
   spotifySearch();
 }
 
-async function spotifySearch() {
-  const q = document.getElementById('spSearchInput').value.trim();
-  if (!q) return;
+function formatDurationMs(ms) {
+  if (!ms) return '';
+  const totalSecs = Math.floor(ms / 1000);
+  const m = Math.floor(totalSecs / 60);
+  const s = totalSecs % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// Analizador de input: detecta si es playlist y extrae filtros después del espacio
+function parseSearchInput(val) {
+  const trimmed = (val || '').trim();
+  const urlMatch = trimmed.match(/(?:https?:\/\/open\.spotify\.com\/playlist\/|spotify:playlist:)([a-zA-Z0-9]+)(?:\s+(.*))?/i);
+  if (urlMatch) {
+    return {
+      isPlaylist: true,
+      playlistId: urlMatch[1],
+      filterQuery: (urlMatch[2] || '').trim()
+    };
+  }
+  return {
+    isPlaylist: false,
+    query: trimmed
+  };
+}
+
+// Búsqueda/Filtro en tiempo real al escribir
+function onSpotifySearchInput(val) {
+  const parsed = parseSearchInput(val);
+  if (parsed.isPlaylist) {
+    // Si la playlist ya está cargada en memoria, filtrar inmediatamente
+    if (spCurrentPlaylistInfo && spCurrentPlaylistInfo.id === parsed.playlistId) {
+      applyTrackFilter(parsed.filterQuery);
+      return;
+    }
+  }
+}
+
+function applyTrackFilter(filterTerm) {
+  if (!filterTerm) {
+    renderSpotifyMatrix(spCurrentLoadedTracks, spCurrentPlaylistInfo);
+    return;
+  }
+  const terms = filterTerm.toLowerCase().split(/\s+/).filter(Boolean);
+  const filtered = spCurrentLoadedTracks.filter(t => {
+    const text = `${t.title || ''} ${t.artist || ''} ${t.album || ''}`.toLowerCase();
+    return terms.every(term => text.includes(term));
+  });
+  renderSpotifyMatrix(filtered, spCurrentPlaylistInfo, filterTerm);
+}
+
+function renderSpotifyMatrix(tracks, playlistInfo = null, activeFilter = '') {
   const list = document.getElementById('spResultsList');
-  list.innerHTML = '<p style="color:var(--muted); font-size:12px;">Buscando en Spotify…</p>';
+  const header = document.getElementById('spPlaylistHeader');
+  if (!list) return;
 
-  try {
-    let res, data;
-    const playlistMatch = q.match(/playlist\/([a-zA-Z0-9]+)/);
-    
-    if (playlistMatch) {
-      list.innerHTML = '<p style="color:var(--muted); font-size:12px;">Cargando playlist…</p>';
-      res = await fetch('/api/spotify/playlist?id=' + playlistMatch[1]);
-      data = await res.json();
-    } else {
-      res = await fetch('/api/spotify/search?q=' + encodeURIComponent(q));
-      data = await res.json();
-    }
-    
-    list.innerHTML = '';
-    
-    
-    if (playlistMatch && data.name) {
-      list.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h4 style="color:var(--accent);">🎵 Playlist: ${data.name}</h4>
-        <button class="btn" style="padding:4px 8px; font-size:11px;" onclick="saveSpotifyPlaylist('${playlistMatch[1]}', '${data.name.replace(/'/g, "\'")}')">⭐ Guardar Playlist</button>
-      </div>`;
-    }
-
-
-    if (data.tracks && data.tracks.length > 0) {
-      data.tracks.forEach(track => {
-        const row = document.createElement('div');
-        row.className = 'spotify-item-row';
-        row.innerHTML = `
-          <div style="display:flex; align-items:center; gap:10px; overflow:hidden;">
-            <img src="${track.thumb || '/assets/icon.png'}" style="width:36px; height:36px; border-radius:4px;">
-            <div style="overflow:hidden;">
-              <p style="font-size:12px; font-weight:bold; color:#fff; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${track.title}</p>
-              <p style="font-size:11px; color:#888;">${track.artist}</p>
-            </div>
+  if (playlistInfo) {
+    if (header) {
+      header.style.display = 'block';
+      const isSaved = (config.spotify_playlists || []).some(p => p.id === playlistInfo.id);
+      header.innerHTML = `
+        <div style="background:rgba(232,255,71,0.06); border:1px solid rgba(232,255,71,0.25); border-radius:10px; padding:10px 14px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <div>
+            <span style="font-size:14px; font-weight:800; color:var(--accent);">🎵 ${playlistInfo.name}</span>
+            <span style="font-size:12px; color:var(--muted); margin-left:8px;">(${tracks.length} ${activeFilter ? `encontradas con "${activeFilter}"` : 'canciones'})</span>
           </div>
-          <div style="display:flex; gap:6px; flex-shrink:0;">
-            <button class="btn btn-spotify" style="padding:4px 8px; font-size:10px;" onclick="spotifyPlayTrack('${track.uri}')">▶ Reproducir</button>
-            <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="spotifyAddQueue('${track.uri}')">➕ Cola</button>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-accent" style="padding:5px 12px; font-size:11px; font-weight:700;" onclick="saveSpotifyPlaylist('${playlistInfo.id}', '${playlistInfo.name.replace(/'/g, "\'")}')">
+              ${isSaved ? '⭐ Guardada' : '⭐ Guardar Playlist'}
+            </button>
           </div>
-        `;
-        list.appendChild(row);
-      });
-    } else {
-      list.innerHTML = '<p style="color:var(--muted); font-size:12px;">Sin resultados o vincula tu cuenta de Spotify en Ajustes.</p>';
+        </div>
+      `;
     }
-  } catch(e) {
-    list.innerHTML = '<p style="color:var(--accent2); font-size:12px;">Error en búsqueda de Spotify.</p>';
+  } else {
+    if (header) {
+      header.style.display = 'none';
+      header.innerHTML = '';
+    }
+  }
+
+  if (!tracks || tracks.length === 0) {
+    list.innerHTML = `<div style="grid-column:1/-1; color:var(--muted); font-size:13px; text-align:center; padding:60px 20px;">
+      ${activeFilter ? `No se encontraron canciones que coincidan con "${activeFilter}".` : 'No se encontraron resultados.'}
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = tracks.map((track, idx) => {
+    const safeTitle = (track.title || '').replace(/"/g, '&quot;');
+    const safeArtist = (track.artist || '').replace(/"/g, '&quot;');
+    const safeUri = track.uri || '';
+    const dur = formatDurationMs(track.duration_ms);
+    const thumb = track.thumb || '/assets/icon.png';
+    const indexNum = track.index || (idx + 1);
+
+    return `
+      <div class="sp-track-card" data-uri="${safeUri}" title="${safeTitle} — ${safeArtist}" onclick="spotifyPlayTrack('${safeUri}')">
+        <div class="sp-card-thumb-wrap">
+          <img class="sp-card-thumb" src="${thumb}" loading="lazy" alt="art">
+          <span class="sp-card-idx">#${indexNum}</span>
+          ${dur ? `<span class="sp-card-dur">${dur}</span>` : ''}
+        </div>
+        <div class="sp-card-info">
+          <span class="sp-card-title">${safeTitle}</span>
+          <span class="sp-card-artist">${safeArtist}</span>
+        </div>
+        <div class="sp-card-actions" onclick="event.stopPropagation()">
+          <button class="sp-card-btn-play" onclick="spotifyPlayTrack('${safeUri}')" title="Reproducir">▶ Play</button>
+          <button class="sp-card-btn-queue" onclick="spotifyAddQueue('${safeUri}')" title="Agregar a la cola">➕</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function spotifySearch() {
+  const val = document.getElementById('spSearchInput').value.trim();
+  if (!val) return;
+  const parsed = parseSearchInput(val);
+
+  if (parsed.isPlaylist) {
+    const pid = parsed.playlistId;
+    const filterTerm = parsed.filterQuery;
+
+    // Si ya tenemos esta playlist cargada en memoria, aplicar filtro al instante
+    if (spCurrentPlaylistInfo && spCurrentPlaylistInfo.id === pid && spCurrentLoadedTracks.length > 0) {
+      applyTrackFilter(filterTerm);
+      return;
+    }
+
+    const list = document.getElementById('spResultsList');
+    list.innerHTML = '<p style="grid-column:1/-1; color:var(--muted); font-size:13px; text-align:center; padding:50px;">Cargando todas las canciones de la playlist…</p>';
+
+    try {
+      const res = await fetch('/api/spotify/playlist?id=' + pid);
+      const data = await res.json();
+      if (data.tracks && data.tracks.length > 0) {
+        spCurrentLoadedTracks = data.tracks;
+        spCurrentPlaylistInfo = { id: pid, name: data.name || 'Playlist' };
+        applyTrackFilter(filterTerm);
+      } else {
+        list.innerHTML = `<p style="grid-column:1/-1; color:var(--accent2); font-size:12px; text-align:center; padding:30px;">No se encontraron canciones en esta playlist (${data.error || 'Revisa tu cuenta de Spotify en Ajustes'}).</p>`;
+      }
+    } catch(e) {
+      list.innerHTML = '<p style="grid-column:1/-1; color:var(--accent2); font-size:12px; text-align:center; padding:30px;">Error al cargar la playlist.</p>';
+    }
+  } else {
+    const list = document.getElementById('spResultsList');
+    list.innerHTML = '<p style="grid-column:1/-1; color:var(--muted); font-size:13px; text-align:center; padding:50px;">Buscando en Spotify…</p>';
+    try {
+      const res = await fetch('/api/spotify/search?q=' + encodeURIComponent(parsed.query));
+      const data = await res.json();
+      spCurrentLoadedTracks = data.tracks || [];
+      spCurrentPlaylistInfo = null;
+      renderSpotifyMatrix(spCurrentLoadedTracks, null);
+    } catch(e) {
+      list.innerHTML = '<p style="grid-column:1/-1; color:var(--accent2); font-size:12px; text-align:center; padding:30px;">Error en búsqueda de Spotify.</p>';
+    }
   }
 }
 
@@ -2431,16 +2635,6 @@ async function spotifyAddQueue(uri) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ uri })
-  });
-}
-
-function loginSpotifyOAuth() {
-  fetch('/api/spotify/auth_url').then(r => r.json()).then(d => {
-    if (d.auth_url) {
-      window.location.href = d.auth_url;
-    } else {
-      alert("Ingresa primero tu Spotify Client ID en los campos de arriba.");
-    }
   });
 }
 
