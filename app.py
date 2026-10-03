@@ -22,6 +22,68 @@ from browser_manager import BrowserManager
 
 browser_mgr = BrowserManager()
 
+def is_obs_running() -> bool:
+    """Verifica si OBS Studio ya se encuentra en ejecución."""
+    try:
+        import subprocess
+        current_pid = os.getpid()
+        res = subprocess.run(['pgrep', '-x', 'obs'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        pids = [int(p.strip()) for p in res.stdout.strip().split() if p.strip().isdigit() and int(p.strip()) != current_pid]
+        if pids:
+            return True
+        res2 = subprocess.run(['pgrep', '-f', 'obs-studio/bin|/app/bin/obs|com.obsproject.Studio'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        pids2 = [int(p.strip()) for p in res2.stdout.strip().split() if p.strip().isdigit() and int(p.strip()) != current_pid]
+        if pids2:
+            return True
+    except Exception:
+        pass
+    return False
+
+def find_obs_command() -> list[str] | None:
+    """Encuentra el comando adecuado para iniciar OBS Studio (Nativo, Flatpak o Snap)."""
+    import shutil, subprocess
+    if shutil.which("obs"):
+        return ["obs"]
+    if shutil.which("flatpak"):
+        try:
+            r = subprocess.run(["flatpak", "info", "com.obsproject.Studio"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if r.returncode == 0:
+                return ["flatpak", "run", "com.obsproject.Studio"]
+        except Exception:
+            pass
+    if shutil.which("obs-studio"):
+        return ["obs-studio"]
+    if os.path.isfile("/snap/bin/obs-studio"):
+        return ["/snap/bin/obs-studio"]
+    return None
+
+def launch_obs_if_needed():
+    """Inicia OBS Studio en segundo plano si no está en ejecución."""
+    cfg = load_config()
+    if not cfg.get("auto_open_obs", True):
+        return
+
+    if is_obs_running():
+        print("[app] OBS Studio ya se encuentra en ejecución.")
+        return
+
+    cmd = find_obs_command()
+    if not cmd:
+        print("[app] OBS Studio no encontrado en el sistema.")
+        return
+
+    print(f"[app] Abriendo OBS Studio automáticamente ({' '.join(cmd)})...")
+    try:
+        import subprocess
+        subprocess.Popen(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True
+        )
+    except Exception as e:
+        print(f"[app] Error al abrir OBS Studio: {e}")
+
 def check_dependencies() -> bool:
     """Verifica que las librerías necesarias de Python estén instaladas."""
     missing = []
@@ -359,6 +421,9 @@ def main():
         print(f"[app] Abriendo Viewer inteligentemente: {viewer_url}")
         browser_mgr.open_smart_viewer(viewer_url)
         return
+
+    # Apertura automática de OBS Studio si no está en ejecución
+    threading.Thread(target=launch_obs_if_needed, daemon=True).start()
 
     # Apertura automática e inteligente del Viewer al abrir el Controller (Meet -> Pestaña abierta -> Nueva ventana)
     print(f"[app] Abriendo Viewer automáticamente: {viewer_url}")

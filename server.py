@@ -300,6 +300,18 @@ def focus_viewer_route():
     focused = browser_mgr.focus_viewer()
     return jsonify({"success": True, "focused": focused})
 
+@app.route('/api/open_obs', methods=['POST'])
+def open_obs_route():
+    """Abre OBS Studio en segundo plano si no está corriendo."""
+    try:
+        from app import launch_obs_if_needed, is_obs_running
+        running = is_obs_running()
+        if not running:
+            threading.Thread(target=launch_obs_if_needed, daemon=True).start()
+        return jsonify({"success": True, "was_running": running})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # ─── API OBS STUDIO EXPANDIDA ───
 @app.route('/api/obs/status')
 def get_obs_status():

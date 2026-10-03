@@ -971,7 +971,8 @@
       <h3 style="font-size:16px; margin-bottom:4px;">Estado de OBS Studio</h3>
       <p style="font-size:12px; color:var(--muted);" id="obsStatusText">Consultando conexión…</p>
     </div>
-    <div style="display:flex; gap:10px;">
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn btn-accent" id="btnLaunchObs" onclick="openObsStudio()" style="display:none;">🎬 Abrir OBS</button>
       <button class="btn" id="btnObsStream" onclick="toggleObsStream()">Iniciar Stream</button>
       <button class="btn" id="btnObsRecord" onclick="toggleObsRecord()">Iniciar Grabación</button>
     </div>
@@ -1260,6 +1261,12 @@
       <label class="form-label" style="display:flex; align-items:center; gap:8px;">
         <input type="checkbox" id="cfgObsEnabled"> Habilitar Integración con OBS Studio (WebSocket v5)
       </label>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="cfgAutoOpenObs" checked> Abrir OBS Studio automáticamente al iniciar el Controller en PC
+      </label>
+      <div class="form-help">Si OBS Studio no está en ejecución, se abre en segundo plano automáticamente al iniciar o hacer 'make run'.</div>
     </div>
     <div class="form-row">
       <div class="form-group" style="flex:2;">
@@ -1882,7 +1889,10 @@ async function loadObsData() {
     const grid = document.getElementById('obsScenesGrid');
     grid.innerHTML = '';
 
+    const btnLaunch = document.getElementById('btnLaunchObs');
+
     if (data.scenes && data.scenes.length > 0) {
+      if (btnLaunch) btnLaunch.style.display = 'none';
       data.scenes.forEach(scene => {
         const card = document.createElement('div');
         card.className = 'obs-scene-card' + (scene === data.current_scene ? ' active' : '');
@@ -1892,19 +1902,38 @@ async function loadObsData() {
       });
       document.getElementById('obsStatusText').textContent = `Conectado a OBS (Escena actual: ${data.current_scene || 'Normal'})`;
     } else {
-      grid.innerHTML = '<p style="color:var(--muted);">No se pudieron obtener escenas. Verifica que OBS Studio esté abierto con WebSocket v5.</p>';
-      document.getElementById('obsStatusText').textContent = 'OBS Studio no conectado';
+      if (btnLaunch) btnLaunch.style.display = 'inline-flex';
+      grid.innerHTML = '<p style="color:var(--muted);">OBS Studio no está conectado o está cerrado. Haz clic en "🎬 Abrir OBS" para iniciarlo.</p>';
+      document.getElementById('obsStatusText').innerHTML = 'OBS no conectado &bull; <a href="javascript:void(0)" onclick="openObsStudio()" style="color:var(--accent); text-decoration:underline;">Abrir OBS Studio</a>';
     }
 
     const stRes = await fetch('/api/obs/status');
     const st = await stRes.json();
     if (st.connected) {
+      if (btnLaunch) btnLaunch.style.display = 'none';
       document.getElementById('btnObsStream').textContent = st.is_streaming ? 'Detener Stream' : 'Iniciar Stream';
       document.getElementById('btnObsStream').className = st.is_streaming ? 'btn btn-danger' : 'btn';
       document.getElementById('btnObsRecord').textContent = st.is_recording ? 'Detener Grabación' : 'Iniciar Grabación';
       document.getElementById('btnObsRecord').className = st.is_recording ? 'btn btn-danger' : 'btn';
     }
   } catch(e) {}
+}
+
+async function openObsStudio() {
+  showToast('Iniciando OBS Studio en la computadora…');
+  try {
+    const res = await fetch('/api/open_obs', { method: 'POST' });
+    const data = await res.json();
+    if (data.was_running) {
+      showToast('OBS Studio ya estaba en ejecución.');
+    } else {
+      showToast('OBS Studio abierto con éxito ✓');
+    }
+    setTimeout(loadObsData, 2500);
+    setTimeout(loadObsData, 5000);
+  } catch(e) {
+    showToast('Error al solicitar apertura de OBS');
+  }
 }
 
 async function switchObsScene(scene) {
@@ -2720,6 +2749,7 @@ function openSettingsModal() {
   document.getElementById('cfgSpotifyClientSecret').value = config.spotify_client_secret || '';
 
   document.getElementById('cfgObsEnabled').checked = Boolean(config.obs_enabled);
+  document.getElementById('cfgAutoOpenObs').checked = config.auto_open_obs !== false;
   document.getElementById('cfgObsHost').value = config.obs_host || 'localhost';
   document.getElementById('cfgObsPort').value = config.obs_port || 4455;
   document.getElementById('cfgObsPassword').value = config.obs_password || '';
@@ -2750,6 +2780,7 @@ async function saveSettings() {
     spotify_client_id: document.getElementById('cfgSpotifyClientId').value.trim(),
     spotify_client_secret: document.getElementById('cfgSpotifyClientSecret').value.trim(),
     obs_enabled: document.getElementById('cfgObsEnabled').checked,
+    auto_open_obs: document.getElementById('cfgAutoOpenObs').checked,
     obs_host: document.getElementById('cfgObsHost').value.trim(),
     obs_port: parseInt(document.getElementById('cfgObsPort').value),
     obs_password: document.getElementById('cfgObsPassword').value,
