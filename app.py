@@ -102,6 +102,109 @@ def start_server_in_thread(port: int = 8000):
         time.sleep(0.1)
     return False
 
+def open_myinstants_login_window():
+    """
+    Abre una ventana GTK WebKit2 dedicada para que el usuario inicie sesión en MyInstants
+    (con Google o su cuenta) e intercepta automáticamente las cookies y el nombre de usuario.
+    """
+    try:
+        import gi
+        gi.require_version('Gtk', '3.0')
+        gi.require_version('WebKit2', '4.1')
+        from gi.repository import Gtk, WebKit2, GLib
+    except Exception as e:
+        print(f"[app] GTK/WebKit2 no disponible para ventana de login: {e}")
+        webbrowser.open("https://www.myinstants.com/en/favorites/")
+        return False
+
+    def _show_login_dialog():
+        win = Gtk.Window(title="Iniciar Sesión en MyInstants")
+        win.set_default_size(720, 800)
+        win.set_position(Gtk.WindowPosition.CENTER)
+
+        header = Gtk.HeaderBar()
+        header.set_show_close_button(True)
+        header.props.title = "Conectar MyInstants"
+        header.props.subtitle = "Inicia sesión con Google o tu usuario para guardar favoritos en la nube"
+        win.set_titlebar(header)
+
+        status_lbl = Gtk.Label(label="Esperando inicio de sesión en MyInstants...")
+        header.pack_start(status_lbl)
+
+        view = WebKit2.WebView()
+        st = view.get_settings()
+        # Usar User-Agent de Chrome de escritorio moderno para compatibilidad con Google OAuth
+        st.set_user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+        st.set_enable_javascript(True)
+        st.set_enable_webgl(True)
+        st.set_enable_developer_extras(True)
+
+        scr = Gtk.ScrolledWindow()
+        scr.add(view)
+        win.add(scr)
+
+        ctx = view.get_context()
+        cm = ctx.get_cookie_manager()
+        captured = {"done": False}
+
+        def on_cookies_ready(source, res, data):
+            try:
+                cookies = source.get_cookies_finish(res)
+                sess = None
+                csrf = None
+                user = None
+                for c in cookies:
+                    n = c.get_name()
+                    v = c.get_value()
+                    if n == "sessionid":
+                        sess = v
+                    elif n == "csrftoken":
+                        csrf = v
+                    elif n == "username":
+                        user = v
+
+                if sess and not captured["done"]:
+                    captured["done"] = True
+                    print(f"[soundboard] ¡Sesión de MyInstants detectada exitosamente! Usuario: {user}")
+                    from config_manager import save_config
+                    from server import broadcast_event, soundboard_mgr
+                    update_dict = {
+                        "soundboard_session_cookie": sess
+                    }
+                    if csrf:
+                        update_dict["soundboard_csrf_token"] = csrf
+                    if user:
+                        update_dict["soundboard_username"] = user
+                    save_config(update_dict)
+
+                    if user:
+                        threading.Thread(target=soundboard_mgr.sync_account, args=(user,), daemon=True).start()
+
+                    broadcast_event("soundboard_auth_success", {
+                        "username": user or "",
+                        "has_session": True
+                    })
+                    status_lbl.set_text("✅ ¡Sesión vinculada con éxito! Cerrando...")
+                    GLib.timeout_add_seconds(2, win.destroy)
+            except Exception as ex:
+                print(f"[app] Error procesando cookies: {ex}")
+
+        def on_load_changed(v, event):
+            if event == WebKit2.LoadEvent.FINISHED:
+                cm.get_cookies("https://www.myinstants.com/", None, on_cookies_ready, None)
+
+        view.connect("load-changed", on_load_changed)
+        view.load_uri("https://www.myinstants.com/en/favorites/")
+        win.show_all()
+
+    try:
+        GLib.idle_add(_show_login_dialog)
+        return True
+    except Exception as e:
+        print(f"[app] Error lanzando login window: {e}")
+        webbrowser.open("https://www.myinstants.com/en/favorites/")
+        return False
+
 def launch_native_window(url: str, title: str = "YouTube Stream Controller"):
     """Lanza la ventana nativa de escritorio usando PyGObject GTK3 + WebKit2."""
     try:
@@ -152,6 +255,29 @@ def launch_native_window(url: str, title: str = "YouTube Stream Controller"):
     settings.set_enable_webgl(True)
     settings.set_enable_media_stream(True)
     settings.set_enable_smooth_scrolling(True)
+
+    # Manejar enlaces externos y window.open para abrirlos en el navegador real
+    def on_decide_policy(view, decision, decision_type):
+        if decision_type == WebKit2.PolicyDecisionType.NAVIGATION_ACTION:
+            action = decision.get_navigation_action()
+            req = action.get_request()
+            uri = req.get_uri() if req else ""
+            if uri and not (uri.startswith("http://localhost") or uri.startswith("http://127.0.0.1") or uri.startswith("file://")):
+                webbrowser.open(uri)
+                decision.ignore()
+                return True
+        return False
+
+    webview.connect("decide-policy", on_decide_policy)
+
+    def on_create_window(view, action):
+        req = action.get_request()
+        uri = req.get_uri() if req else ""
+        if uri:
+            webbrowser.open(uri)
+        return None
+
+    webview.connect("create", on_create_window)
 
     # Botón: Abrir en Navegador Web
     btn_browser = Gtk.Button.new_with_label("🌐 Modo Web")

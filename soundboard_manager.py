@@ -183,8 +183,13 @@ class SoundboardManager:
                 slug_m = re.search(r'/instant/([^/]+)/', block)
                 sound_id = slug_m.group(1) if slug_m else Path(mp3_path).stem
 
+                loader_m = re.search(r'id=[\"\']loader-(\d+)[\"\']', block)
+                fav_m = re.search(r'favorite\([\'\"]?(\d+)[\'\"]?\)', block)
+                instant_numeric_id = fav_m.group(1) if fav_m else (loader_m.group(1) if loader_m else None)
+
                 sounds.append({
                     "id": sound_id,
+                    "instant_id": instant_numeric_id,
                     "title": title,
                     "mp3": mp3_url,
                     "color": color,
@@ -282,23 +287,143 @@ class SoundboardManager:
             print(f"[soundboard] Error cargando favoritos de '{user}': {e}")
             return []
 
+    def get_auth_status(self) -> dict:
+        """Devuelve el estado de autenticación y vinculación con MyInstants."""
+        cfg = self.load_config()
+        username = cfg.get("soundboard_username", "").strip()
+        session = cfg.get("soundboard_session_cookie", "").strip()
+        return {
+            "logged_in": bool(username or session),
+            "username": username,
+            "has_session": bool(session),
+            "favorites_count": len(cfg.get("soundboard_favorites", []))
+        }
+
+    def save_auth(self, username: str, session_cookie: str = "", csrf_token: str = "") -> dict:
+        """Guarda las credenciales de MyInstants y sincroniza los favoritos existentes."""
+        clean_user = (username or "").strip()
+        if "myinstants.com" in clean_user:
+            m = re.search(r'/profile/([^/]+)/?', clean_user)
+            if m:
+                clean_user = m.group(1)
+            else:
+                clean_user = clean_user.rstrip('/').split('/')[-1]
+
+        update = {
+            "soundboard_username": clean_user,
+            "soundboard_session_cookie": (session_cookie or "").strip(),
+        }
+        if csrf_token:
+            update["soundboard_csrf_token"] = csrf_token.strip()
+
+        self.save_config(update)
+
+        sync_result = {}
+        if clean_user:
+            try:
+                sync_result = self.sync_account(clean_user)
+            except Exception as e:
+                sync_result = {"success": False, "error": str(e)}
+
+        return {
+            "success": True,
+            "username": clean_user,
+            "has_session": bool(update["soundboard_session_cookie"]),
+            "sync": sync_result
+        }
+
     def get_saved_favorites(self) -> list[dict]:
         """Devuelve la lista persistida de favoritos en config.json."""
         cfg = self.load_config()
         return cfg.get("soundboard_favorites", [])
 
-    def add_favorite(self, sound: dict) -> list[dict]:
-        """Agrega un sonido a la lista de favoritos persistida."""
+    def add_favorite(self, sound: dict) -> dict:
+        """
+        Agrega un sonido a la lista de favoritos local y lo guarda en MyInstants en la nube
+        si el usuario tiene sesión vinculada.
+        """
         cfg = self.load_config()
         favs = cfg.get("soundboard_favorites", [])
         sound_id = sound.get("id") or sound.get("title")
-        if not any(f.get("id") == sound_id or f.get("mp3") == sound.get("mp3") for f in favs):
+
+        # Verificar si ya está en favoritos
+        existing = next((f for f in favs if f.get("id") == sound_id or f.get("mp3") == sound.get("mp3")), None)
+        if not existing:
             favs.insert(0, sound)
             self.save_config({"soundboard_favorites": favs})
-        return favs
+
+        cloud_synced = False
+        session_cookie = cfg.get("soundboard_session_cookie", "").strip()
+        csrf_token = cfg.get("soundboard_csrf_token", "").strip()
+
+        instant_id = sound.get("instant_id")
+        if not instant_id and sound_id and str(sound_id).isdigit():
+            instant_id = str(sound_id)
+
+        if session_cookie:
+            if not instant_id and sound.get("id"):
+                instant_id = self._resolve_numeric_id(sound.get("id"))
+            if instant_id:
+                threading.Thread(
+                    target=self._add_favorite_cloud,
+                    args=(instant_id, session_cookie, csrf_token),
+                    daemon=True
+                ).start()
+                cloud_synced = True
+
+        return {
+            "favorites": favs,
+            "cloud_synced": cloud_synced,
+            "has_session": bool(session_cookie)
+        }
+
+    def _add_favorite_cloud(self, instant_id: str, sessionid: str, csrftoken: str = ""):
+        """Llama al endpoint oficial de MyInstants para guardar el favorito en la cuenta del usuario."""
+        if not instant_id or not sessionid:
+            return False
+        url = f"https://www.myinstants.com/api/v1/favorite/add/{instant_id}/"
+        cookie_header = f"sessionid={sessionid}"
+        if csrftoken:
+            cookie_header += f"; csrftoken={csrftoken}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Referer": "https://www.myinstants.com/",
+            "Cookie": cookie_header
+        }
+        if csrftoken:
+            headers["X-CSRFToken"] = csrftoken
+        try:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                print(f"[soundboard] Sonido {instant_id} guardado con éxito en MyInstants en la nube (Status: {resp.status})")
+                return True
+        except urllib.error.HTTPError as e:
+            print(f"[soundboard] Error HTTP al guardar favorito {instant_id} en MyInstants: {e.code}")
+            return False
+        except Exception as e:
+            print(f"[soundboard] Error conectando a MyInstants nube para favorito {instant_id}: {e}")
+            return False
+
+    def _resolve_numeric_id(self, identifier: str) -> str | None:
+        """Intenta obtener el ID numérico a partir del slug o título."""
+        if not identifier:
+            return None
+        if str(identifier).isdigit():
+            return str(identifier)
+        try:
+            res = self.search(str(identifier), page=1)
+            for s in res.get("sounds", []):
+                if s.get("id") == identifier or identifier in s.get("mp3", ""):
+                    if s.get("instant_id"):
+                        return str(s.get("instant_id"))
+            if res.get("sounds") and res["sounds"][0].get("instant_id"):
+                return str(res["sounds"][0]["instant_id"])
+        except Exception:
+            pass
+        return None
 
     def remove_favorite(self, sound_id_or_title: str) -> list[dict]:
-        """Elimina un sonido de los favoritos."""
+        """Elimina un sonido de los favoritos locales."""
         cfg = self.load_config()
         favs = cfg.get("soundboard_favorites", [])
         favs = [f for f in favs if f.get("id") != sound_id_or_title and f.get("title") != sound_id_or_title and f.get("mp3") != sound_id_or_title]

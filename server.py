@@ -506,15 +506,68 @@ def soundboard_search():
         page = 1
     return jsonify(soundboard_mgr.search(q, page))
 
-@app.route('/api/soundboard/favorites', methods=['GET', 'POST'])
-def soundboard_favorites():
-    """Obtiene o agrega a la lista persistida de favoritos."""
+@app.route('/api/open_browser', methods=['GET', 'POST'])
+def open_browser():
+    """Abre una URL en el navegador web predeterminado del sistema anfitrión."""
+    target_url = request.args.get('url')
+    if not target_url:
+        body = request.get_json(force=True, silent=True) or {}
+        target_url = body.get('url')
+    if not target_url:
+        target_url = "https://www.myinstants.com/en/favorites/"
+    try:
+        import webbrowser
+        webbrowser.open(target_url)
+        return jsonify({"success": True, "url": target_url})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/soundboard/auth', methods=['GET', 'POST'])
+def soundboard_auth():
+    """Obtiene o actualiza las credenciales y estado de MyInstants."""
     if request.method == 'POST':
         data = request.get_json(force=True, silent=True) or {}
-        favs = soundboard_mgr.add_favorite(data)
+        user = data.get('username', '')
+        cookie = data.get('session_cookie', '')
+        csrf = data.get('csrf_token', '')
+        res = soundboard_mgr.save_auth(user, cookie, csrf)
+        client_id = data.get('clientId') or data.get('client_id')
+        broadcast_event("soundboard_auth_success", {
+            "username": res.get("username", ""),
+            "has_session": res.get("has_session", False),
+            "clientId": client_id
+        })
+        favs = soundboard_mgr.get_saved_favorites()
+        broadcast_event("soundboard_favorites_updated", {"favorites": favs, "clientId": client_id})
+        return jsonify(res)
+    return jsonify(soundboard_mgr.get_auth_status())
+
+@app.route('/api/soundboard/login_window', methods=['POST'])
+def soundboard_login_window():
+    """Abre la ventana nativa de escritorio para iniciar sesión en MyInstants."""
+    try:
+        import importlib
+        app_mod = importlib.import_module("app")
+        if hasattr(app_mod, "open_myinstants_login_window"):
+            success = app_mod.open_myinstants_login_window()
+            return jsonify({"success": success})
+    except Exception as e:
+        print(f"[server] Error abriendo ventana login: {e}")
+    # Fallback al navegador web predeterminado
+    import webbrowser
+    webbrowser.open("https://www.myinstants.com/en/favorites/")
+    return jsonify({"success": True, "fallback": "browser"})
+
+@app.route('/api/soundboard/favorites', methods=['GET', 'POST'])
+def soundboard_favorites():
+    """Obtiene o agrega a la lista persistida de favoritos con sincronización en la nube."""
+    if request.method == 'POST':
+        data = request.get_json(force=True, silent=True) or {}
+        res = soundboard_mgr.add_favorite(data)
+        favs = res.get('favorites', res) if isinstance(res, dict) else res
         client_id = data.get('clientId') or data.get('client_id')
         broadcast_event("soundboard_favorites_updated", {"favorites": favs, "clientId": client_id})
-        return jsonify(favs)
+        return jsonify(res)
     return jsonify(soundboard_mgr.get_saved_favorites())
 
 @app.route('/api/soundboard/favorites/remove', methods=['POST'])

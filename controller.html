@@ -461,15 +461,56 @@
     gap: 18px;
   }
   .soundboard-topbar {
-    background: var(--surface);
-    border: 1px solid var(--border);
+    position: -webkit-sticky;
+    position: sticky;
+    top: 56px;
+    z-index: 95;
+    background: rgba(14, 14, 14, 0.94);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: var(--radius);
-    padding: 14px 18px;
+    padding: 10px 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 14px;
+    gap: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    transition: all 0.2s ease;
+  }
+  .sb-floating-top-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 99;
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+    font-size: 18px;
+    border: none;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 20px rgba(232, 255, 71, 0.4);
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(16px);
+    transition: all 0.25s ease;
+  }
+  .sb-floating-top-btn.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+  .sb-floating-top-btn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 26px rgba(232, 255, 71, 0.6);
   }
   .soundboard-now-playing {
     display: flex;
@@ -663,6 +704,11 @@
     .nav-pills { display: none; }
     header { padding: 10px 14px; }
     .hub-grid { grid-template-columns: 1fr; }
+    .soundboard-topbar {
+      top: 52px;
+      padding: 8px 10px;
+      gap: 8px;
+    }
   }
 </style>
 </head>
@@ -852,20 +898,24 @@
 <!-- ─── 6. VISTA SOUNDBOARD / BOTONERA (MYINSTANTS) ─── -->
 <div class="view-container" id="view-soundboard">
   <div class="soundboard-container">
-    <!-- Barra superior de controles -->
+    <!-- Barra superior de controles sticky (acompaña el scroll) -->
     <div class="soundboard-topbar">
       <div class="soundboard-now-playing">
-        <span style="color:var(--muted); font-size:11px;">REPRODUCIENDO EN PC:</span>
+        <span style="color:var(--muted); font-size:11px;">EN PC:</span>
         <span class="soundboard-playing-pill" id="sbNowPlayingText">Listo / Silencio</span>
       </div>
 
-      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-        <div style="display:flex; align-items:center; gap:8px; font-size:11px;">
-          <span style="color:var(--muted);">🔊 VOLUMEN:</span>
-          <input type="range" id="sbVolumeSlider" min="0" max="100" value="80" oninput="updateSoundboardVolume(this.value)" style="accent-color:var(--accent); width:110px;">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <!-- Deslizador de volumen -->
+        <div style="display:flex; align-items:center; gap:6px; font-size:11px;">
+          <span style="color:var(--muted);">🔊</span>
+          <input type="range" id="sbVolumeSlider" min="0" max="100" value="80" oninput="updateSoundboardVolume(this.value)" style="accent-color:var(--accent); width:100px;">
           <span id="sbVolumeText" style="color:var(--accent); font-weight:700; width:34px;">80%</span>
         </div>
-        <button class="btn btn-danger" onclick="stopSoundboard()" title="Detener todo el audio">⏹️ Detener Todo</button>
+        <!-- Botón de parar -->
+        <button class="btn btn-danger" onclick="stopSoundboard()" title="Detener todo el audio">⏹️ Parar</button>
+        <!-- Botón para subir -->
+        <button class="btn btn-accent" onclick="scrollToTopSoundboard()" title="Subir al inicio">⬆️ Subir</button>
       </div>
     </div>
 
@@ -888,13 +938,14 @@
 
     <!-- Barra de cuenta vinculada y sincronización -->
     <div class="soundboard-account-bar">
-      <div style="display:flex; align-items:center; gap:8px;">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <span>👤 Cuenta MyInstants:</span>
         <strong id="sbAccountUsername" style="color:var(--accent);">Sin vincular</strong>
+        <span id="sbCloudSyncBadge" style="font-size:11px; padding:2px 8px; border-radius:10px; background:rgba(255,255,255,0.08); color:var(--muted);">Solo local</span>
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn" onclick="syncMyInstantsAccount()" title="Descargar favoritos de tu perfil público">🔄 Sincronizar Cuenta</button>
-        <button class="btn" onclick="openMyInstantsWeb()" title="Abrir MyInstants para iniciar sesión con Google">🌐 MyInstants (Google)</button>
+        <button class="btn btn-accent" onclick="openMyInstantsAuthModal()" title="Vincular cuenta con Google o sesión para guardar en la nube">🌐 Vincular con Google</button>
+        <button class="btn" onclick="syncMyInstantsAccount()" title="Descargar favoritos de tu perfil público">🔄 Sincronizar</button>
         <button class="btn" onclick="openSettingsModal()">⚙️ Ajustes</button>
       </div>
     </div>
@@ -984,12 +1035,12 @@
 
     <!-- Botonera / MyInstants -->
     <div class="form-group" style="border-top:1px solid var(--border); padding-top:10px;">
-      <label class="form-label">Botonera: Cuenta MyInstants (Favoritos &amp; Perfil)</label>
+      <label class="form-label">Botonera: Cuenta MyInstants (Favoritos &amp; Nube)</label>
       <input type="text" id="cfgSoundboardUsername" class="form-input" placeholder="Nombre de usuario o URL (ej: axelito__ o https://www.myinstants.com/en/profile/tu_usuario/)">
-      <div class="form-help">Si inicias sesión en MyInstants (con Google o correo), coloca tu usuario aquí para ver automáticamente tus sonidos favoritos en la botonera.</div>
+      <div class="form-help">Tu usuario de MyInstants para importar y sincronizar favoritos existentes.</div>
       <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
-        <button class="btn" type="button" onclick="openMyInstantsWeb()">🌐 Abrir MyInstants / Iniciar con Google</button>
-        <button class="btn btn-accent" type="button" onclick="syncMyInstantsFromSettings()">🔄 Importar Favoritos Ahora</button>
+        <button class="btn btn-accent" type="button" onclick="openMyInstantsAuthModal()">🌐 Vincular Sesión (Google / Nube)</button>
+        <button class="btn" type="button" onclick="syncMyInstantsFromSettings()">🔄 Importar Favoritos Ahora</button>
       </div>
     </div>
     <div class="form-group">
@@ -1003,6 +1054,77 @@
     <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
       <button class="btn" onclick="closeSettingsModal()">Cancelar</button>
       <button class="btn btn-accent" onclick="saveSettings()">Guardar Configuración</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE AUTENTICACIÓN / VINCULACIÓN MYINSTANTS -->
+<div class="modal-overlay" id="myinstantsAuthModal">
+  <div class="modal-content" style="max-width:540px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px;">
+      <div style="font-family:'Syne',sans-serif; font-size:18px; font-weight:700; color:var(--accent);">
+        🌐 Cuenta MyInstants &amp; Guardado en la Nube
+      </div>
+      <button onclick="closeMyInstantsAuthModal()" style="background:none; border:none; color:#aaa; font-size:20px; cursor:pointer;">&times;</button>
+    </div>
+
+    <!-- Estado actual -->
+    <div style="margin:16px 0; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:10px; padding:12px 14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="color:var(--muted); font-size:12px;">ESTADO DE CONEXIÓN:</span>
+        <span id="modalAuthStatusBadge" style="font-weight:bold; font-size:12px; color:#ff5555;">⚪ No vinculado</span>
+      </div>
+      <div style="font-size:13px; margin-bottom:4px;">
+        <strong>Usuario:</strong> <span id="modalAuthUsernameText" style="color:var(--accent);">Sin configurar</span>
+      </div>
+      <div style="font-size:12px; color:var(--muted);">
+        <strong>Guardado en servidor de MyInstants:</strong> <span id="modalAuthCloudStatus">Inactivo (solo favoritos locales)</span>
+      </div>
+    </div>
+
+    <!-- Opción 1: Iniciar Sesión con Google / MyInstants en PC -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#fff;">Opción 1: Iniciar Sesión en la PC (Recomendado)</div>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">
+        Abre una ventana para iniciar sesión con Google o tu usuario en MyInstants. La sesión y tus favoritos se vincularán automáticamente al terminar.
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-accent" type="button" onclick="startDesktopLoginWindow()" style="flex:1;">
+          🚀 Iniciar Sesión con Google (Ventana PC)
+        </button>
+        <button class="btn" type="button" onclick="openMyInstantsInBrowser()" style="flex:1;">
+          🌐 Abrir en Navegador
+        </button>
+      </div>
+    </div>
+
+    <!-- Opción 2: Vinculación manual / Cookie de sesión -->
+    <div style="border-top:1px solid var(--border); padding-top:14px;">
+      <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#fff;">Opción 2: Configuración Manual</div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label" style="font-size:12px;">Nombre de usuario en MyInstants</label>
+        <input type="text" id="modalInputUsername" class="form-input" placeholder="Ej: axelito__ o https://www.myinstants.com/en/profile/axelito__/">
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label" style="font-size:12px; display:flex; justify-content:space-between;">
+          <span>Cookie de sesión (sessionid)</span>
+          <a href="javascript:void(0)" onclick="toggleCookieHelp()" style="color:var(--accent); text-decoration:none; font-size:11px;">¿Cómo obtenerla?</a>
+        </label>
+        <input type="password" id="modalInputSessionCookie" class="form-input" placeholder="Valor de cookie sessionid (opcional para guardar en la nube)">
+        <div id="cookieHelpBox" style="display:none; font-size:11px; color:#aaa; background:rgba(0,0,0,0.5); padding:8px 10px; border-radius:6px; margin-top:6px; line-height:1.5;">
+          1. Entra a <a href="https://www.myinstants.com" target="_blank" style="color:var(--accent);">myinstants.com</a> e inicia sesión con Google o tu usuario.<br>
+          2. Presiona <kbd>F12</kbd> &rarr; pestaña <strong>Aplicación</strong> (o Almacenamiento) &rarr; <strong>Cookies</strong> &rarr; <code>myinstants.com</code>.<br>
+          3. Copia el valor de la cookie <code>sessionid</code> y pégalo aquí. ¡Listo!
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+        <button class="btn btn-danger" type="button" onclick="disconnectMyInstantsAccount()" id="btnDisconnectSb" style="display:none;">Desvincular</button>
+        <div style="margin-left:auto; display:flex; gap:10px;">
+          <button class="btn" onclick="closeMyInstantsAuthModal()">Cerrar</button>
+          <button class="btn btn-accent" onclick="saveMyInstantsAuth()">Guardar y Vincular</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1035,6 +1157,7 @@
 </div>
 
 <div id="toastNotice">Notificación</div>
+<button class="sb-floating-top-btn" id="sbFloatingTopBtn" onclick="scrollToTopSoundboard()" title="Subir al inicio">⬆️</button>
 
 <script>
 // ─── ESTADO Y NAVEGACIÓN ───
@@ -1268,6 +1391,15 @@ function initSSE() {
           });
         }
       }
+    } catch(err) {}
+  });
+
+  // Sesión y cuenta de MyInstants vinculada
+  evtSource.addEventListener('soundboard_auth_success', (e) => {
+    try {
+      const data = JSON.parse(e.data).data;
+      showToast(`¡Sesión de MyInstants vinculada como @${data.username || 'usuario'}! 🎉`);
+      updateSoundboardAccountDisplay();
     } catch(err) {}
   });
 
@@ -1684,15 +1816,31 @@ async function loadSoundboardView() {
 
 async function updateSoundboardAccountDisplay() {
   try {
-    const res = await fetch('/api/soundboard/account');
+    const res = await fetch('/api/soundboard/auth');
     const data = await res.json();
     const user = data.username || config.soundboard_username || '';
     const userEl = document.getElementById('sbAccountUsername');
     if (userEl) {
       userEl.textContent = user ? '@' + user : 'Sin vincular';
     }
-    if (data.volume !== undefined && !sbIsAdjustingVolume) {
-      applySoundboardVolume(data.volume);
+    const badgeEl = document.getElementById('sbCloudSyncBadge');
+    if (badgeEl) {
+      if (data.has_session) {
+        badgeEl.textContent = '🟢 Nube activa';
+        badgeEl.style.color = '#34C759';
+        badgeEl.style.background = 'rgba(52, 199, 89, 0.15)';
+        badgeEl.title = 'Los favoritos se guardan localmente y en el servidor de MyInstants';
+      } else if (user) {
+        badgeEl.textContent = '🟡 Solo perfil';
+        badgeEl.style.color = '#FFCC00';
+        badgeEl.style.background = 'rgba(255, 204, 0, 0.15)';
+        badgeEl.title = 'Importa favoritos públicos. Vincula sesión para guardar nuevos favoritos en la nube.';
+      } else {
+        badgeEl.textContent = 'Solo local';
+        badgeEl.style.color = 'var(--muted)';
+        badgeEl.style.background = 'rgba(255, 255, 255, 0.08)';
+        badgeEl.title = 'Los favoritos solo se guardan en este dispositivo';
+      }
     }
   } catch(e) {}
 }
@@ -1936,6 +2084,20 @@ async function stopSoundboard() {
   } catch(e) {}
 }
 
+function scrollToTopSoundboard() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+window.addEventListener('scroll', () => {
+  const floatBtn = document.getElementById('sbFloatingTopBtn');
+  if (!floatBtn) return;
+  if (currentView === 'soundboard' && window.scrollY > 160) {
+    floatBtn.classList.add('visible');
+  } else {
+    floatBtn.classList.remove('visible');
+  }
+});
+
 let lastVolSentTime = 0;
 
 function sendSoundboardVolumeToServer(vol) {
@@ -1983,7 +2145,8 @@ async function toggleFavoriteSound(sound, btnEl) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: sound.id, title: sound.title, mp3: sound.mp3, clientId: myClientId })
       });
-      savedFavorites = await res.json();
+      const data = await res.json();
+      savedFavorites = Array.isArray(data) ? data : (data.favorites || []);
       btnEl.classList.remove('is-fav');
       btnEl.textContent = '☆';
       btnEl.title = 'Agregar a favoritos';
@@ -1998,11 +2161,18 @@ async function toggleFavoriteSound(sound, btnEl) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...sound, clientId: myClientId })
       });
-      savedFavorites = await res.json();
+      const data = await res.json();
+      savedFavorites = Array.isArray(data) ? data : (data.favorites || []);
       btnEl.classList.add('is-fav');
       btnEl.textContent = '★';
       btnEl.title = 'Quitar de favoritos';
-      showToast('Guardado en favoritos ⭐');
+      if (data && data.cloud_synced) {
+        showToast('⭐ Guardado localmente y en tu cuenta de MyInstants en la nube!');
+      } else if (data && data.has_session === false) {
+        showToast('⭐ Guardado localmente. Vincula tu cuenta para guardarlo en la nube.');
+      } else {
+        showToast('Guardado en favoritos ⭐');
+      }
     }
   } catch(e) {
     showToast('Error al modificar favoritos');
@@ -2012,11 +2182,8 @@ async function toggleFavoriteSound(sound, btnEl) {
 async function syncMyInstantsAccount() {
   let user = config.soundboard_username || '';
   if (!user) {
-    const input = prompt('Ingresa tu nombre de usuario o enlace de perfil de MyInstants:');
-    if (!input) return;
-    user = input.trim();
-    config.soundboard_username = user;
-    saveSettingsQuietly({ soundboard_username: user });
+    openMyInstantsAuthModal();
+    return;
   }
 
   showToast('Sincronizando favoritos de MyInstants...');
@@ -2033,7 +2200,7 @@ async function syncMyInstantsAccount() {
       updateSoundboardAccountDisplay();
       showToast(`¡Sincronizados ${data.total_synced} favoritos de @${data.username}!`);
       if (currentSbTab === 'favorites') {
-        loadSoundboardTab('favorites');
+        loadSoundboardTab('favorites', 1);
       }
     } else {
       showToast(data.error || 'No se pudieron sincronizar los favoritos');
@@ -2070,8 +2237,146 @@ async function syncMyInstantsFromSettings() {
   }
 }
 
+// ─── MODAL Y VINCULACIÓN DE CUENTA MYINSTANTS (GOOGLE / NUBE) ───
+function openMyInstantsAuthModal() {
+  const modal = document.getElementById('myinstantsAuthModal');
+  if (modal) modal.classList.add('active');
+  loadSoundboardAuthStatus();
+}
+
+function closeMyInstantsAuthModal() {
+  const modal = document.getElementById('myinstantsAuthModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function toggleCookieHelp() {
+  const box = document.getElementById('cookieHelpBox');
+  if (box) {
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+async function loadSoundboardAuthStatus() {
+  try {
+    const res = await fetch('/api/soundboard/auth');
+    const data = await res.json();
+    const user = data.username || config.soundboard_username || '';
+    const hasSession = Boolean(data.has_session);
+
+    const userText = document.getElementById('modalAuthUsernameText');
+    if (userText) userText.textContent = user ? '@' + user : 'Sin configurar';
+
+    const inputUser = document.getElementById('modalInputUsername');
+    if (inputUser) inputUser.value = user;
+
+    const badge = document.getElementById('modalAuthStatusBadge');
+    if (badge) {
+      if (hasSession) {
+        badge.textContent = '🟢 Conectado con Sesión Activa';
+        badge.style.color = '#34C759';
+      } else if (user) {
+        badge.textContent = '🟡 Usuario vinculado (sin sesión nube)';
+        badge.style.color = '#FFCC00';
+      } else {
+        badge.textContent = '⚪ No vinculado';
+        badge.style.color = '#ff5555';
+      }
+    }
+
+    const cloudStatus = document.getElementById('modalAuthCloudStatus');
+    if (cloudStatus) {
+      if (hasSession) {
+        cloudStatus.textContent = '🟢 Activo (los nuevos favoritos se guardan en el servidor de MyInstants)';
+        cloudStatus.style.color = '#34C759';
+      } else {
+        cloudStatus.textContent = '⚪ Inactivo (los favoritos solo se guardan de forma local)';
+        cloudStatus.style.color = 'var(--muted)';
+      }
+    }
+
+    const btnDisconnect = document.getElementById('btnDisconnectSb');
+    if (btnDisconnect) {
+      btnDisconnect.style.display = (user || hasSession) ? 'inline-block' : 'none';
+    }
+  } catch(e) {}
+}
+
+async function startDesktopLoginWindow() {
+  showToast('Abriendo ventana de inicio de sesión de MyInstants...');
+  try {
+    const res = await fetch('/api/soundboard/login_window', { method: 'POST' });
+    const data = await res.json();
+    if (data.fallback === 'browser') {
+      showToast('Inicia sesión en tu navegador y copia tu usuario o cookie.');
+      openMyInstantsInBrowser();
+    } else {
+      showToast('Completa el inicio de sesión con Google en la ventana en pantalla.');
+    }
+  } catch(e) {
+    openMyInstantsInBrowser();
+  }
+}
+
+function openMyInstantsInBrowser() {
+  const url = 'https://www.myinstants.com/en/favorites/';
+  fetch(`/api/open_browser?url=${encodeURIComponent(url)}`, { method: 'POST' }).catch(() => {});
+  try {
+    window.open(url, '_blank');
+  } catch(e) {}
+  showToast('Abriendo MyInstants en el navegador 🌐');
+}
+
 function openMyInstantsWeb() {
-  window.open('https://www.myinstants.com/', '_blank');
+  openMyInstantsAuthModal();
+}
+
+async function saveMyInstantsAuth() {
+  const user = document.getElementById('modalInputUsername').value.trim();
+  const session = document.getElementById('modalInputSessionCookie').value.trim();
+
+  showToast('Guardando y sincronizando con MyInstants...');
+  try {
+    const res = await fetch('/api/soundboard/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: user,
+        session_cookie: session,
+        clientId: myClientId
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      config.soundboard_username = data.username;
+      showToast(data.has_session
+        ? '¡Cuenta vinculada y guardado en la nube activado! 🎉'
+        : '¡Usuario guardado y favoritos sincronizados!');
+      updateSoundboardAccountDisplay();
+      closeMyInstantsAuthModal();
+      if (currentSbTab === 'favorites') {
+        loadSoundboardTab('favorites', 1);
+      }
+    } else {
+      showToast('Error al vincular cuenta');
+    }
+  } catch(e) {
+    showToast('Error conectando con el servidor');
+  }
+}
+
+async function disconnectMyInstantsAccount() {
+  if (!confirm('¿Deseas desvincular tu cuenta de MyInstants de este controlador?')) return;
+  try {
+    await fetch('/api/soundboard/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: '', session_cookie: '', csrf_token: '', clientId: myClientId })
+    });
+    config.soundboard_username = '';
+    showToast('Cuenta desvinculada');
+    updateSoundboardAccountDisplay();
+    closeMyInstantsAuthModal();
+  } catch(e) {}
 }
 
 async function saveSettingsQuietly(partialCfg) {

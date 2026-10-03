@@ -33,6 +33,8 @@ DEFAULT_CONFIG = {
     "last_played_video_id": "",
     "last_played_title": "",
     "soundboard_username": "",
+    "soundboard_session_cookie": "",
+    "soundboard_csrf_token": "",
     "soundboard_volume": 80,
     "soundboard_favorites": []
 }

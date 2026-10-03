@@ -72,6 +72,24 @@ public class MainActivity extends Activity {
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                if (url != null && !url.startsWith("file://")) {
+                    String lower = url.toLowerCase();
+                    if (lower.startsWith("http://") || lower.startsWith("https://")) {
+                        String currentServer = prefs.getString(PREF_SERVER_URL, "");
+                        if (!currentServer.isEmpty() && !url.startsWith(currentServer)) {
+                            try {
+                                android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url));
+                                startActivity(intent);
+                                return true;
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
+                return false;
+            }
+
+            @Override
             public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
                 if (failingUrl != null && !failingUrl.startsWith("file://")) {
                     Toast.makeText(MainActivity.this, "Error al conectar: " + description, Toast.LENGTH_SHORT).show();
