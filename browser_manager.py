@@ -276,24 +276,35 @@ class BrowserManager:
     def is_viewer_open(self, port: int = 8000) -> bool:
         """
         Determina de manera confiable si ya existe una pestaña o ventana
-        del Viewer activa (por SSE en el servidor local, o en el navegador).
+        del Viewer activa, descartando conexiones fantasma o huérfanas de SSE.
         """
-        # 1. Comprobar estado del servidor local (SSE activo) - La fuente de verdad en tiempo real
+        # Si ningún navegador está corriendo en el sistema, es imposible que haya un viewer abierto
+        has_browser = any(self._is_process_running(b) for b in ["firefox", "chrome", "chromium", "brave", "edge"])
+        if not has_browser:
+            return False
+
+        # Verificar si en Firefox hay pestañas activas
+        ff_tabs = self.enumerate_firefox_tabs()
+        if any(t.get("is_viewer") for t in ff_tabs):
+            return True
+
+        # Verificar ventanas nativas del entorno gráfico
+        windows = self.enumerate_system_windows()
+        if any(w.get("is_viewer") for w in windows):
+            return True
+
+        # Si hay pestañas legibles en Firefox y NINGUNA coincide con viewer.html,
+        # cualquier reporte de activeViewers del servidor es un socket huérfano/fantasma
+        if ff_tabs and not any(t.get("is_viewer") for t in ff_tabs):
+            return False
+
+        # En caso de otros navegadores donde no se puedan leer pestañas directamente:
         try:
             import urllib.request
             req = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/state", timeout=0.3)
             state = json.loads(req.read().decode())
             if state.get("activeViewers", 0) > 0:
                 return True
-        except Exception:
-            pass
-
-        # 2. Comprobar en ventanas nativas del sistema si coincide explícitamente con el viewer
-        try:
-            windows = self.enumerate_system_windows()
-            for w in windows:
-                if w.get("is_viewer"):
-                    return True
         except Exception:
             pass
 
