@@ -115,6 +115,11 @@ def serve_manifest():
 def serve_sw():
     return send_from_directory('.', 'sw.js', mimetype='application/javascript')
 
+@app.route('/app.apk')
+@app.route('/download/apk')
+def serve_apk():
+    return send_from_directory('release', 'youtube-stream-controller.apk', mimetype='application/vnd.android.package-archive', as_attachment=True)
+
 @app.route('/<path:path>')
 def serve_static(path):
     return send_from_directory('.', path)

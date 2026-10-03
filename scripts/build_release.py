@@ -330,6 +330,9 @@ def build_apk():
         apk_dest = RELEASE_DIR / f"{PACKAGE_NAME}.apk"
         subprocess.run([
             apksigner_bin, "sign",
+            "--v1-signing-enabled", "true",
+            "--v2-signing-enabled", "true",
+            "--v3-signing-enabled", "true",
             "--ks", str(keystore),
             "--ks-pass", "pass:android",
             "--key-pass", "pass:android",
