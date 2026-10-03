@@ -27,12 +27,8 @@ install:
 	@if [ ! -d "venv" ]; then \
 		python3 -m venv --system-site-packages venv; \
 	fi
-	@ln -sf /usr/bin/python3 venv/bin/python || true
-	@ln -sf /usr/bin/python3 venv/bin/python3 || true
-	@if [ -d "venv/lib/python3.12" ]; then \
-		ln -sf python3.12 venv/lib/python3.14 2>/dev/null || true; \
-	fi
-	@sed -i 's/include-system-site-packages = false/include-system-site-packages = true/' venv/pyvenv.cfg 2>/dev/null || true
+	@echo "[install] Verificando e instalando dependencias en venv..."
+	@venv/bin/pip install -r requirements.txt 2>/dev/null || true
 	@echo "[install] Instalando lanzador de escritorio nativo de Ubuntu..."
 	@mkdir -p $(PREFIX)/share/applications
 	@mkdir -p $(PREFIX)/bin
@@ -56,12 +52,14 @@ install:
 		gtk-update-icon-cache -q -t -f $(PREFIX)/share/icons/hicolor || true; \
 	fi
 	@echo "✓ Instalación completada con éxito."
+	@echo "✓ Para asegurar que el sistema tenga todos los paquetes, ejecuta en la terminal:"
+	@echo "    sudo apt install -y python3-flask yt-dlp python3-requests"
 	@echo "✓ Ahora puedes abrir la aplicación buscando 'YouTube Stream Controller' en el buscador de Ubuntu (tecla Super/Windows)!"
 
 # Instalación del paquete Debian para todo el sistema
 install-deb: release
-	@echo "[install-deb] Instalando paquete .deb en Ubuntu..."
-	sudo dpkg -i release/$(APP_NAME)_$(VERSION)_all.deb || sudo apt-get install -f -y
+	@echo "[install-deb] Instalando paquete .deb en Ubuntu con resolución automática de dependencias..."
+	sudo apt install -y ./release/$(APP_NAME)_$(VERSION)_all.deb || (sudo dpkg -i release/$(APP_NAME)_$(VERSION)_all.deb && sudo apt-get install -f -y)
 
 # Desinstalación limpia
 uninstall:

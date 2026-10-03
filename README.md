@@ -34,12 +34,19 @@ Al abrir la aplicación en tu celular Android o en tu computadora, la pantalla p
   - **Modo Navegador Web** (disponible pulsando el botón **"🌐 Web"** en la barra superior).
   - Barra superior con pestañas directas para saltar entre `Menú`, `Fondos`, `OBS`, `Spotify` y `Directo`.
 - **En Celular Android**:
-  - **APK Instalable**: Archivo compilado listo para instalar en `release/youtube-stream-controller.apk`.
-  - **PWA sin instalación**: Pulsa el botón **`📱`** en la PC, escanea el código **QR** con la cámara de tu teléfono en la misma red Wi-Fi y agrégalo a la pantalla de inicio.
+  - **PWA sin instalación (Recomendada y directa)**: Pulsa el botón **`📱`** en la PC, escanea el código **QR** con la cámara de tu teléfono en la misma red Wi-Fi (o entra a `http://<IP_PC>:8000/controller.html`), toca el menú de 3 puntos (⋮) en Chrome/Brave/Edge y selecciona **"Instalar aplicación"** (o "Agregar a pantalla principal"). Se instalará como una app nativa a pantalla completa con su propio icono.
+  - **Proyecto Android Nativo**: La carpeta `android/` contiene el proyecto Gradle/Android Studio listo para abrir y compilar en caso de desear un binario `.apk`.
 
 ---
 
 ## 🚀 Instalación en Ubuntu
+
+### Dependencias del Sistema (Recomendado)
+Antes de instalar, asegúrate de tener las dependencias de Python y GTK en Ubuntu:
+
+```bash
+sudo apt update && sudo apt install -y python3-flask yt-dlp python3-requests gir1.2-gtk-3.0 gir1.2-webkit2-4.1
+```
 
 ### Opción 1: Con Makefile (Para usuario local y buscador del OS)
 
@@ -59,8 +66,9 @@ make uninstall
 ### Opción 2: Paquete `.deb` del Sistema
 
 ```bash
-sudo dpkg -i release/youtube-stream-controller_1.0.0_all.deb
+sudo apt install -y ./release/youtube-stream-controller_1.0.0_all.deb
 ```
+*(O alternativamente: `sudo dpkg -i release/youtube-stream-controller_1.0.0_all.deb && sudo apt-get install -f -y`)*
 
 ---
 
@@ -93,7 +101,7 @@ En el panel de configuración puedes definir y recordar:
 En la carpeta `release/` encontrarás:
 
 - 🐧 **Ubuntu / Debian**: `release/youtube-stream-controller_1.0.0_all.deb`
-- 🤖 **Android**: `release/youtube-stream-controller.apk`
+- 📱 **Android**: Acceso PWA instantáneo con QR o proyecto nativo en carpeta `android/`
 - 🔒 **Sumas SHA256**: `release/checksums.sha256`
 
 Para recompilar los paquetes en cualquier momento:

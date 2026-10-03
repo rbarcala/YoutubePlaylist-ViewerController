@@ -4,18 +4,24 @@
 
 set -e
 
-# Detectar ruta del proyecto o instalación en /usr/share
-if [ -d "/usr/share/youtube-stream-controller" ]; then
+# Obtener ruta absoluta real de este script resolviendo enlaces simbólicos
+TARGET="${BASH_SOURCE[0]}"
+while [ -h "$TARGET" ]; do
+    DIR="$(cd -P "$(dirname "$TARGET")" >/dev/null 2>&1 && pwd)"
+    TARGET="$(readlink "$TARGET")"
+    [[ $TARGET != /* ]] && TARGET="$DIR/$TARGET"
+done
+SELF_DIR="$(cd -P "$(dirname "$TARGET")" >/dev/null 2>&1 && pwd)"
+
+# Detectar directorio base de la aplicación
+if [ -f "$SELF_DIR/app.py" ]; then
+    APP_DIR="$SELF_DIR"
+elif [ -f "$SELF_DIR/../app.py" ]; then
+    APP_DIR="$(cd -P "$SELF_DIR/.." >/dev/null 2>&1 && pwd)"
+elif [ -d "/usr/share/youtube-stream-controller" ] && [ -f "/usr/share/youtube-stream-controller/app.py" ]; then
     APP_DIR="/usr/share/youtube-stream-controller"
 else
-    # Si se ejecuta desde el repo o ~/.local/share
-    TARGET="${BASH_SOURCE[0]}"
-    while [ -h "$TARGET" ]; do
-        DIR="$(cd -P "$(dirname "$TARGET")" >/dev/null 2>&1 && pwd)"
-        TARGET="$(readlink "$TARGET")"
-        [[ $TARGET != /* ]] && TARGET="$DIR/$TARGET"
-    done
-    APP_DIR="$(cd -P "$(dirname "$TARGET")/.." >/dev/null 2>&1 && pwd)"
+    APP_DIR="$(cd -P "$SELF_DIR/.." >/dev/null 2>&1 && pwd)"
 fi
 
 cd "$APP_DIR"
@@ -25,6 +31,8 @@ if [ -x "$APP_DIR/venv/bin/python" ]; then
     PYTHON_EXEC="$APP_DIR/venv/bin/python"
 elif [ -x "$APP_DIR/.venv/bin/python" ]; then
     PYTHON_EXEC="$APP_DIR/.venv/bin/python"
+elif [ -x "$HOME/.local/share/youtube-stream-controller/venv/bin/python" ]; then
+    PYTHON_EXEC="$HOME/.local/share/youtube-stream-controller/venv/bin/python"
 else
     PYTHON_EXEC="python3"
 fi

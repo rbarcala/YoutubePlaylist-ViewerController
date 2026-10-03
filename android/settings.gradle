@@ -1,0 +1,2 @@
+rootProject.name = "YouTubeStreamController"
+include ':app'

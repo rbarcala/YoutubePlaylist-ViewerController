@@ -19,6 +19,57 @@ sys.path.insert(0, str(BASE_DIR))
 
 from config_manager import load_config, save_config
 
+def check_dependencies() -> bool:
+    """Verifica que las librerías necesarias de Python estén instaladas."""
+    missing = []
+    try:
+        import flask
+    except ImportError:
+        missing.append("flask (paquete: python3-flask)")
+    try:
+        import yt_dlp
+    except ImportError:
+        missing.append("yt-dlp (paquete: yt-dlp)")
+
+    if not missing:
+        return True
+
+    err_text = (
+        "No se encontraron las siguientes dependencias de Python requeridas:\n\n"
+        + "\n".join(f"  • {m}" for m in missing)
+        + "\n\nPara solucionarlo, abre una terminal y ejecuta:\n"
+        "  sudo apt update && sudo apt install -y python3-flask yt-dlp python3-requests\n"
+        "\nO si utilizas pip / entorno virtual:\n"
+        "  pip install -r requirements.txt"
+    )
+
+    print(f"\n{'='*70}\n[ERROR] YouTube Stream Controller:\n{err_text}\n{'='*70}\n", file=sys.stderr)
+
+    if os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"):
+        try:
+            import gi
+            gi.require_version('Gtk', '3.0')
+            from gi.repository import Gtk
+            dialog = Gtk.MessageDialog(
+                transient_for=None,
+                flags=0,
+                message_type=Gtk.MessageType.ERROR,
+                buttons=Gtk.ButtonsType.OK,
+                text="Faltan dependencias de Python"
+            )
+            dialog.format_secondary_text(
+                "No se encontraron módulos necesarios:\n\n"
+                + "\n".join(f"• {m}" for m in missing)
+                + "\n\nEjecuta en tu terminal:\nsudo apt install -y python3-flask yt-dlp"
+            )
+            dialog.run()
+            dialog.destroy()
+        except Exception:
+            pass
+
+    return False
+
+
 def is_server_running(port: int = 8000) -> bool:
     """Comprueba si el servidor local ya está respondiendo."""
     try:
@@ -146,6 +197,9 @@ def launch_native_window(url: str, title: str = "YouTube Stream Controller"):
     Gtk.main()
 
 def main():
+    if not check_dependencies():
+        sys.exit(1)
+
     parser = argparse.ArgumentParser(description="YouTube Stream Controller")
     parser.add_argument("--mode", choices=["desktop", "web"], help="Modo de ejecución del controlador")
     parser.add_argument("--viewer", action="store_true", help="Abrir directamente el Viewer")
