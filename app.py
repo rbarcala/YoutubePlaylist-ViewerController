@@ -81,8 +81,48 @@ def launch_obs_if_needed():
             stderr=subprocess.DEVNULL,
             start_new_session=True
         )
+        # OBS must be running before the Browser Source can be synchronized via WebSocket.
+        def _sync_obs_overlay():
+            time.sleep(3)
+            setup_script = BASE_DIR / "scripts" / "setup_obs.py"
+            if setup_script.exists():
+                for attempt in range(3):
+                    result = subprocess.run(
+                        [sys.executable, str(setup_script)],
+                        cwd=str(BASE_DIR),
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        timeout=15,
+                        check=False,
+                    )
+                    if result.returncode == 0 and "conectada vía WebSocket" in result.stdout:
+                        print("[app] Overlay sincronizado con OBS.")
+                        return
+                    if result.stdout:
+                        print(f"[app] Intento {attempt + 1} de sincronización OBS:\n{result.stdout.strip()}")
+                    time.sleep(2)
+                print("[app] No se pudo sincronizar automáticamente el overlay con OBS.")
+        threading.Thread(target=_sync_obs_overlay, daemon=True).start()
     except Exception as e:
         print(f"[app] Error al abrir OBS Studio: {e}")
+
+def normalize_runtime_ports(cfg: dict) -> dict:
+    """Normaliza los puertos persistidos antes de iniciar el servidor y OBS."""
+    updates = {}
+    for key, default in (("port", 8000), ("obs_port", 4455)):
+        try:
+            value = int(cfg.get(key, default))
+            if not 1 <= value <= 65535:
+                raise ValueError
+        except (TypeError, ValueError):
+            value = default
+            updates[key] = value
+        cfg[key] = value
+    if updates:
+        save_config(updates)
+        print(f"[app] Puertos normalizados: {updates}")
+    return cfg
 
 def check_dependencies() -> bool:
     """Verifica que las librerías necesarias de Python estén instaladas."""
@@ -272,7 +312,7 @@ def open_myinstants_login_window():
         webbrowser.open("https://www.myinstants.com/en/favorites/")
         return False
 
-def launch_native_window(url: str, title: str = "YouTube Stream Controller"):
+def launch_native_window(url: str, title: str = "YouTube Stream Controller", port: int = 8000):
     """Lanza la ventana nativa de escritorio usando PyGObject GTK3 + WebKit2."""
     try:
         import gi
@@ -405,7 +445,7 @@ def main():
     parser.add_argument("--port", type=int, default=None, help="Puerto del servidor local")
     args = parser.parse_args()
 
-    cfg = load_config()
+    cfg = normalize_runtime_ports(load_config())
     port = args.port or int(cfg.get("port", 8000))
     mode = args.mode or cfg.get("default_controller_mode", "desktop")
 
@@ -449,7 +489,7 @@ def main():
             threading.Thread(target=_smart_open_viewer, daemon=True).start()
 
         print(f"[app] Abriendo Controller nativo de escritorio: {controller_url}")
-        launch_native_window(controller_url, title="YouTube Stream Controller")
+        launch_native_window(controller_url, title="YouTube Stream Controller", port=port)
 
 if __name__ == "__main__":
     main()

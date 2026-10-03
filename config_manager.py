@@ -15,7 +15,8 @@ DEFAULT_CONFIG = {
     "default_controller_mode": "desktop",  # "desktop" o "web"
     "default_playback_rate": 1.7,
     "default_muted": True,
-    "auto_open_viewer": False,
+    "video_playback_mode": "original",
+    "auto_open_viewer": True,
     "auto_focus_viewer": True,
     "youtube_channel_id": "",
     "youtube_live_video_id": "",
@@ -41,6 +42,7 @@ DEFAULT_CONFIG = {
     "overlay_enabled": True,
     "overlay_timer_enabled": True,
     "overlay_now_playing_enabled": True,
+    "overlay_show_idle": True,
     "overlay_source_mode": "both",
     "overlay_now_playing": True,
     "overlay_now_playing_pos": "bottom-left",

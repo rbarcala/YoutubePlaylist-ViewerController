@@ -339,6 +339,7 @@
   .video-card-info p {
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     line-height: 1.4;
@@ -363,6 +364,22 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 14px;
+  }
+  .obs-dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.85fr) minmax(420px, 1.5fr);
+    gap: 18px;
+    align-items: start;
+  }
+  .obs-scenes-panel,
+  .obs-live-panel {
+    min-width: 0;
+  }
+  .obs-live-panel .live-monitor-container {
+    max-width: none;
+  }
+  @media (max-width: 900px) {
+    .obs-dashboard-grid { grid-template-columns: 1fr; }
   }
   .obs-scene-card {
     background: var(--surface);
@@ -743,6 +760,7 @@
     overflow: hidden;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     word-break: break-word;
     width: 100%;
@@ -1147,6 +1165,8 @@
     .hub-card-icon { font-size: 20px; }
     .hub-card-title { font-size: 11px; }
     .hub-card-desc { font-size: 9px; }
+  }
+
   /* ─── ESTUDIO VISUAL PANORÁMICO DE OVERLAYS ─── */
   #view-overlays {
     display: none;
@@ -1182,13 +1202,15 @@
   }
   .overlay-stage-wrapper {
     flex: 1;
-    background: radial-gradient(circle at center, #10141d 0%, #06080c 100%);
-    padding: 14px 18px;
+    min-width: 0;
+    min-height: 0;
+    background: #06080d;
+    padding: 18px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    overflow: auto;
     position: relative;
     gap: 10px;
   }
@@ -1203,33 +1225,38 @@
   }
   .overlay-stage-canvas {
     position: relative;
+    flex: 0 0 auto;
     width: 100%;
     max-width: 960px;
+    height: auto;
     aspect-ratio: 16 / 9;
     background: #020305;
     background-image: 
       radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-      linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
     background-size: 20px 20px, 80px 80px, 80px 80px;
-    border: 2px solid #e8ff47;
-    border-radius: 0;
+    border: 3px solid #e8ff47;
+    border-radius: 4px;
+    outline: 4px solid #141824;
+    outline-offset: 2px;
     box-shadow: 
       0 0 0 1px #000,
-      0 0 24px rgba(232, 255, 71, 0.28),
-      0 24px 70px rgba(0, 0, 0, 0.95);
+      0 0 35px rgba(232, 255, 71, 0.3),
+      0 30px 80px rgba(0, 0, 0, 0.98);
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
+    touch-action: none !important;
   }
   .overlay-stage-canvas.bg-checkerboard {
-    background-color: #0d0f14 !important;
+    background-color: #0b0d12 !important;
     background-image: 
-      linear-gradient(45deg, #181b24 25%, transparent 25%),
-      linear-gradient(-45deg, #181b24 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, #181b24 75%),
-      linear-gradient(-45deg, transparent 75%, #181b24 75%) !important;
+      linear-gradient(45deg, #161a24 25%, transparent 25%),
+      linear-gradient(-45deg, #161a24 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #161a24 75%),
+      linear-gradient(-45deg, transparent 75%, #161a24 75%) !important;
     background-size: 24px 24px !important;
     background-position: 0 0, 0 12px, 12px -12px, -12px 0px !important;
   }
@@ -1237,8 +1264,8 @@
     background: #020305 !important;
     background-image: 
       radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-      linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px) !important;
+      linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px) !important;
     background-size: 20px 20px, 80px 80px, 80px 80px !important;
   }
   .stage-corner {
@@ -1334,8 +1361,9 @@
     -webkit-user-select: none;
     -moz-user-select: none;
     box-sizing: border-box;
-    transition: outline 0.15s, box-shadow 0.15s;
-    touch-action: none;
+    transition: outline 0.12s, box-shadow 0.12s;
+    touch-action: none !important;
+    pointer-events: auto !important;
     z-index: 10;
   }
   .stage-item:active {
@@ -1351,7 +1379,7 @@
   .stage-item.selected {
     outline: 2px solid var(--accent);
     outline-offset: 3px;
-    box-shadow: 0 0 24px rgba(232, 255, 71, 0.35);
+    box-shadow: 0 0 24px rgba(232, 255, 71, 0.45);
   }
   .stage-item .stage-tag {
     position: absolute;
@@ -1378,13 +1406,13 @@
   }
   .stage-item .resize-handle {
     position: absolute;
-    right: -10px;
-    bottom: -10px;
-    width: 24px;
-    height: 24px;
+    right: -12px;
+    bottom: -12px;
+    width: 26px;
+    height: 26px;
     background: var(--accent);
     color: #000;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 900;
     display: none;
     align-items: center;
@@ -1392,13 +1420,41 @@
     border: 2px solid #000;
     border-radius: 6px;
     cursor: nwse-resize;
-    z-index: 90;
-    touch-action: none;
+    z-index: 9999;
+    touch-action: none !important;
     pointer-events: auto !important;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.7);
   }
   .stage-item.selected .resize-handle {
     display: flex;
+  }
+  #stageCustomTextsContainer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 15;
+  }
+  #stageCustomTextsContainer .stage-item {
+    pointer-events: auto !important;
+  }
+  #stageTooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.94);
+    border: 1px solid var(--accent);
+    color: #fff;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 6px;
+    z-index: 99999;
+    display: none;
+    white-space: nowrap;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.85);
+  }
+  #stageTooltip.visible {
+    display: block;
   }
   .overlay-inspector-panel {
     width: 440px;
@@ -1479,7 +1535,6 @@
     <button class="nav-pill" id="pill-fondos" onclick="navigateTo('fondos')">🎬 Fondos</button>
     <button class="nav-pill" id="pill-obs" onclick="navigateTo('obs')">🎥 OBS</button>
     <button class="nav-pill" id="pill-spotify" onclick="navigateTo('spotify')">🎵 Spotify</button>
-    <button class="nav-pill" id="pill-live" onclick="navigateTo('live')">🔴 Directo</button>
     <button class="nav-pill" id="pill-soundboard" onclick="navigateTo('soundboard')">🔊 Botonera</button>
     <button class="nav-pill" id="pill-overlays" onclick="navigateTo('overlays')">📺 Overlays</button>
   </div>
@@ -1512,12 +1567,12 @@
       <span class="hub-card-badge">Función Controller</span>
     </div>
 
-    <!-- Opción 2: OBS Studio -->
+    <!-- Opción 2: OBS Studio y monitor de directo -->
     <div class="hub-card" onclick="navigateTo('obs')">
       <div class="hub-card-icon">🎥</div>
-      <div class="hub-card-title">Control de OBS Studio</div>
-      <div class="hub-card-desc">Cambio instantáneo de escenas, transmisión y grabación en vivo.</div>
-      <span class="hub-card-badge" id="hubObsBadge">WebSocket v5</span>
+      <div class="hub-card-title">OBS + Monitor de Directo</div>
+      <div class="hub-card-desc">Cambia escenas, controla la transmisión y monitorea el directo de YouTube.</div>
+      <span class="hub-card-badge" id="hubObsBadge">OBS Studio + YouTube Live</span>
     </div>
 
     <!-- Opción 3: Spotify Remote -->
@@ -1528,15 +1583,7 @@
       <span class="hub-card-badge" id="hubSpotifyBadge">Spotify Connect</span>
     </div>
 
-    <!-- Opción 4: Visualizador de Directo -->
-    <div class="hub-card" onclick="navigateTo('live')">
-      <div class="hub-card-icon">🔴</div>
-      <div class="hub-card-title">Visualizador de Directo</div>
-      <div class="hub-card-desc">Monitorea tu transmisión en vivo de YouTube en tiempo real.</div>
-      <span class="hub-card-badge">YouTube Live</span>
-    </div>
-
-    <!-- Opción 5: Botonera / Soundboard (MyInstants) -->
+    <!-- Opción 4: Botonera / Soundboard (MyInstants) -->
     <div class="hub-card" onclick="navigateTo('soundboard')">
       <div class="hub-card-icon">🔊</div>
       <div class="hub-card-title">Botonera (MyInstants)</div>
@@ -1571,7 +1618,7 @@
     <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; font-size:11px;">
       <div style="display:flex; align-items:center; gap:8px;">
         <span style="color:var(--muted);">VELOCIDAD:</span>
-        <input type="range" id="speedSlider" min="1.0" max="3.0" step="0.1" value="1.7" style="accent-color:var(--accent); width:110px;">
+        <input type="range" id="speedSlider" min="1.0" max="5.0" step="0.1" value="1.7" style="accent-color:var(--accent); width:190px;">
         <span id="speedValue" style="color:var(--accent); font-weight:700;">1.7x</span>
       </div>
       <button class="btn" id="muteBtn" onclick="toggleMute()">Muted</button>
@@ -1596,9 +1643,33 @@
     </div>
   </div>
 
-  <h3 style="margin-bottom:12px; font-size:14px; text-transform:uppercase; color:var(--muted);">Escenas Disponibles:</h3>
-  <div class="obs-scenes-grid" id="obsScenesGrid">
-    <p style="color:var(--muted);">Cargando escenas de OBS…</p>
+  <div class="obs-dashboard-grid">
+    <div class="obs-scenes-panel">
+      <h3 style="margin-bottom:12px; font-size:14px; text-transform:uppercase; color:var(--muted);">Escenas Disponibles:</h3>
+      <div class="obs-scenes-grid" id="obsScenesGrid">
+        <p style="color:var(--muted);">Cargando escenas de OBS…</p>
+      </div>
+    </div>
+    <div class="obs-live-panel">
+      <div class="live-monitor-container">
+        <div class="live-controls-bar">
+          <div style="display:flex; align-items:center; gap:10px; overflow:hidden; flex:1;">
+            <span style="font-size:12px; font-weight:700; color:var(--accent2); flex-shrink:0;" id="liveBadgeStatus">🔴 DIRECTO</span>
+            <span style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="liveTitleText">Monitoreando transmisión…</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn" id="btnLiveToggleMute" onclick="toggleLiveMute()" title="Activar/desactivar audio del directo">🔇 Muteado</button>
+            <button class="btn" onclick="refreshLiveStream()">🔄 Recargar</button>
+          </div>
+        </div>
+        <div class="live-video-frame" id="liveVideoContainer">
+          <div style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted); flex-direction:column; gap:10px;">
+            <p>Buscando transmisión activa de tu canal…</p>
+            <button class="btn btn-accent" onclick="openSettingsModal()">⚙️ Configurar Canal de YouTube</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1669,29 +1740,6 @@
             Selecciona una playlist a la izquierda o escribe en el buscador de arriba para explorar canciones.
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ─── 5. VISTA MONITOR DIRECTO (YOUTUBE LIVE) ─── -->
-<div class="view-container" id="view-live">
-  <div class="live-monitor-container">
-    <div class="live-controls-bar">
-      <div style="display:flex; align-items:center; gap:10px; overflow:hidden; flex:1;">
-        <span style="font-size:12px; font-weight:700; color:var(--accent2); flex-shrink:0;" id="liveBadgeStatus">🔴 DIRECTO</span>
-        <span style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="liveTitleText">Monitoreando transmisión…</span>
-      </div>
-      <div style="display:flex; align-items:center; gap:8px;">
-        <button class="btn" id="btnLiveToggleMute" onclick="toggleLiveMute()" title="Activar/desactivar audio del directo" style="display:none;">🔇 Muteado</button>
-        <button class="btn" onclick="refreshLiveStream()">🔄 Recargar</button>
-      </div>
-    </div>
-
-    <div class="live-video-frame" id="liveVideoContainer">
-      <div style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted); flex-direction:column; gap:10px;">
-        <p>Buscando transmisión activa de tu canal…</p>
-        <button class="btn btn-accent" onclick="openSettingsModal()">⚙️ Configurar Canal de YouTube</button>
       </div>
     </div>
   </div>
@@ -1792,6 +1840,7 @@
 
     <div style="display:flex; align-items:center; gap:8px;">
       <button class="btn btn-sm" onclick="addCustomText()" style="font-weight:700; background:#222;">➕ Agregar Texto</button>
+      <button class="btn btn-sm" onclick="resetOverlayPositions()" title="Restaurar las posiciones iniciales de todos los carteles">↺ Resetear posiciones</button>
       <button class="btn btn-sm" onclick="copyObsOverlayUrl()" title="Copiar enlace para la fuente de OBS">📋 URL OBS</button>
       <button class="btn btn-sm btn-accent" onclick="saveAllModularOverlay(true)" style="font-weight:800;">💾 Guardar Todo</button>
     </div>
@@ -1830,7 +1879,7 @@
           <div id="stageLayersList" style="display:flex; flex-direction:column; gap:4px; max-height:220px; overflow-y:auto;"></div>
         </div>
 
-        <div class="overlay-stage-canvas bg-dark" id="stageCanvas">
+        <div class="overlay-stage-canvas bg-dark" id="stageCanvas" ondragstart="return false;" style="touch-action:none;">
           <!-- BADGE LÍMITE TOTAL OBS -->
           <div class="stage-screen-badge">🖥️ PANTALLA OBS 1920 × 1080 (LÍMITE TOTAL)</div>
 
@@ -1848,7 +1897,7 @@
           </div>
 
           <!-- MODULO 1: NOW PLAYING MOCKUP INTERACTIVO -->
-          <div class="stage-item" id="stageNowPlaying" data-module="now_playing" onpointerdown="onStagePointerDown(event, 'now_playing')">
+          <div class="stage-item" id="stageNowPlaying" data-module="now_playing" ondragstart="return false;" onpointerdown="onStagePointerDown(event, 'now_playing')">
             <span class="stage-tag">🎵 Now Playing</span>
             <div id="stageNpCard" style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:12px; background:rgba(10,10,10,0.8); border:1px solid rgba(255,255,255,0.1); width:360px;">
               <img id="stageNpCover" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='42' height='42' viewBox='0 0 42 42'><rect width='42' height='42' fill='%23222'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='18' fill='%23666'>🎵</text></svg>" style="width:38px; height:38px; border-radius:6px; object-fit:cover; flex-shrink:0;">
@@ -1861,11 +1910,11 @@
                 <div id="stageNpArtist" style="font-size:10px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Eagles</div>
               </div>
             </div>
-            <div class="resize-handle" onpointerdown="onResizePointerDown(event, 'now_playing')" title="Arrastra para escalar">⤡</div>
+            <div class="resize-handle" ondragstart="return false;" onpointerdown="onResizePointerDown(event, 'now_playing')" title="Arrastra para escalar">⤡</div>
           </div>
 
           <!-- MODULO 2: TEMPORIZADOR MOCKUP INTERACTIVO -->
-          <div class="stage-item" id="stageTimer" data-module="timer" onpointerdown="onStagePointerDown(event, 'timer')">
+          <div class="stage-item" id="stageTimer" data-module="timer" ondragstart="return false;" onpointerdown="onStagePointerDown(event, 'timer')">
             <span class="stage-tag">⏱️ Temporizador</span>
             <div id="stageTimerCard" style="display:flex; flex-direction:column; align-items:center; gap:10px; padding:20px 28px; border-radius:18px; background:rgba(10,10,10,0.85); border:2px solid rgba(232,255,71,0.3); width:460px; text-align:center;">
               <div id="stageTimerBadge" style="display:inline-flex; align-items:center; gap:6px; padding:3px 12px; border-radius:12px; background:rgba(232,255,71,0.12); border:1px solid #e8ff47; color:#e8ff47; font-size:10px; font-weight:800; font-family:'Space Mono',monospace;">⏱️ PAUSA DE STREAM &amp; CLASE</div>
@@ -1876,18 +1925,18 @@
               </div>
               <div id="stageTimerPhrase" style="font-size:11px; font-style:italic; color:#bbb; font-family:'Space Mono',monospace;">“Compilando cerebro... (42 warnings, 0 errors)”</div>
             </div>
-            <div class="resize-handle" onpointerdown="onResizePointerDown(event, 'timer')" title="Arrastra para escalar">⤡</div>
+            <div class="resize-handle" ondragstart="return false;" onpointerdown="onResizePointerDown(event, 'timer')" title="Arrastra para escalar">⤡</div>
           </div>
 
           <!-- MODULO 3: LYRICS MOCKUP INTERACTIVO -->
-          <div class="stage-item" id="stageLyrics" data-module="lyrics" onpointerdown="onStagePointerDown(event, 'lyrics')">
+          <div class="stage-item" id="stageLyrics" data-module="lyrics" ondragstart="return false;" onpointerdown="onStagePointerDown(event, 'lyrics')">
             <span class="stage-tag">📜 Letras</span>
             <div id="stageLyricsCard" style="padding:10px 14px; border-radius:10px; background:rgba(10,10,10,0.8); border:1px solid rgba(255,255,255,0.1); width:380px; max-height:110px; overflow:hidden;">
               <div style="font-size:9px; font-weight:800; color:var(--accent); text-transform:uppercase; margin-bottom:4px;">LETRA EN VIVO</div>
               <div id="stageLyricsText" style="font-size:11px; line-height:1.4; color:#e0e0e0; font-weight:600; white-space:pre-wrap;">On a dark desert highway, cool wind in my hair...
 Warm smell of colitas, rising up through the air...</div>
             </div>
-            <div class="resize-handle" onpointerdown="onResizePointerDown(event, 'lyrics')" title="Arrastra para escalar">⤡</div>
+            <div class="resize-handle" ondragstart="return false;" onpointerdown="onResizePointerDown(event, 'lyrics')" title="Arrastra para escalar">⤡</div>
           </div>
 
           <!-- CONTENEDOR DE TEXTOS PERSONALIZADOS INTERACTIVOS -->
@@ -1905,6 +1954,7 @@ Warm smell of colitas, rising up through the air...</div>
       <!-- PANEL INSPECTOR DE PROPIEDADES MODULAR (DERECHA) -->
       <div class="overlay-inspector-panel">
         <div class="inspector-tabs">
+          <div class="inspector-tab" id="tabInspLayers" onclick="switchInspectorTab('layers')">📑 Capas</div>
           <div class="inspector-tab active" id="tabInspNp" onclick="switchInspectorTab('now_playing')">🎵 Now Playing</div>
           <div class="inspector-tab" id="tabInspTimer" onclick="switchInspectorTab('timer')">⏱️ Temporizador</div>
           <div class="inspector-tab" id="tabInspLyrics" onclick="switchInspectorTab('lyrics')">📜 Letras</div>
@@ -1912,6 +1962,20 @@ Warm smell of colitas, rising up through the air...</div>
         </div>
 
         <div class="inspector-content">
+          <!-- ─── PANE 0: GESTIÓN GENERAL DE CAPAS (Z-INDEX) ─── -->
+          <div id="paneInspLayers" class="inspector-pane" style="display:none; flex-direction:column; gap:12px;">
+            <div class="inspector-section">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span class="inspector-section-title" style="margin:0;">📑 Nivel y Orden de Capas</span>
+                <span style="font-size:10px; color:var(--accent); font-family:'Space Mono',monospace; font-weight:700;">Z-INDEX OBS</span>
+              </div>
+              <p style="font-size:11px; color:var(--muted); line-height:1.4; margin-bottom:12px;">
+                Organiza qué elementos se muestran encima o debajo en la pantalla de OBS. Las capas de arriba se superponen a las de abajo.
+              </p>
+              <div id="inspectorLayersFullList" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+          </div>
+
           <!-- ─── PANE 1: INSPECTOR NOW PLAYING ─── -->
           <div id="paneInspNowPlaying" class="inspector-pane" style="display:flex; flex-direction:column; gap:12px;">
             <div class="inspector-section">
@@ -2344,6 +2408,16 @@ Warm smell of colitas, rising up through the air...</div>
     </div>
 
     <div class="form-group">
+      <label class="form-label">Modo de reproducción de fondos</label>
+      <select id="cfgVideoPlaybackMode" class="form-input">
+        <option value="original">Original: reproducir directamente</option>
+        <option value="cache">Cache: descargar en paralelo y reutilizar</option>
+        <option value="adaptive">Adaptativo: usar cache para evitar trabas</option>
+      </select>
+      <div class="form-help">Original mantiene el comportamiento anterior. Cache y Adaptativo descargan los videos seleccionados en segundo plano.</div>
+    </div>
+
+    <div class="form-group">
       <label class="form-label" style="display:flex; align-items:center; gap:8px;">
         <input type="checkbox" id="cfgOverlayEnabled" checked> Habilitar Overlay (barra de música y temporizador) en el Viewer / OBS
       </label>
@@ -2595,6 +2669,7 @@ function navigateTo(viewName) {
 }
 
 function showView(viewName, push = false) {
+  if (viewName === 'live') viewName = 'obs';
   currentView = viewName;
   document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
@@ -2614,14 +2689,16 @@ function showView(viewName, push = false) {
 
   // Cargar datos según la vista
   if (viewName === 'fondos' && (!videoList || videoList.length === 0)) loadPlaylist();
-  if (viewName === 'obs') loadObsData();
+  if (viewName === 'obs') {
+    loadObsData();
+    loadLiveData();
+  }
   if (viewName === 'spotify') loadSpotifyData();
-  if (viewName === 'live') loadLiveData();
   if (viewName === 'soundboard') loadSoundboardView();
   if (viewName === 'overlays') loadOverlaysView();
 
   // Si salimos de la vista de directo, silenciar para evitar audio en segundo plano
-  if (viewName !== 'live') {
+  if (viewName !== 'obs') {
     const iframe = document.getElementById('livePlayerIframe') || document.querySelector('#liveVideoContainer iframe');
     if (iframe && iframe.contentWindow) {
       iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
@@ -2652,8 +2729,8 @@ async function initApp() {
 
   // Verificar hash inicial en URL
   const hash = window.location.hash.replace('#', '');
-  if (['fondos', 'obs', 'spotify', 'live', 'soundboard', 'overlays'].includes(hash)) {
-    showView(hash, false);
+  if (['fondos', 'obs', 'live', 'soundboard', 'overlays', 'spotify'].includes(hash)) {
+    showView(hash === 'live' ? 'obs' : hash, false);
   } else {
     showView('menu', false);
   }
@@ -3670,6 +3747,20 @@ async function spotifyAddQueue(uri) {
   });
 }
 
+async function loginSpotifyOAuth() {
+  try {
+    const res = await fetch('/api/spotify/auth_url');
+    const data = await res.json();
+    if (!data.auth_url) {
+      showToast('Configura Client ID y Client Secret de Spotify primero');
+      return;
+    }
+    window.location.href = data.auth_url;
+  } catch(e) {
+    showToast('No se pudo iniciar la vinculación con Spotify');
+  }
+}
+
 // ─── 4. YOUTUBE LIVE MONITOR LOGIC ───
 let liveIsMuted = true;
 let currentLiveVideoId = '';
@@ -4427,6 +4518,7 @@ function openSettingsModal() {
   document.getElementById('cfgChannelId').value = config.youtube_channel_id || '';
   document.getElementById('cfgAutoFocusViewer').checked = config.auto_focus_viewer !== false;
   document.getElementById('cfgAutoOpenViewer').checked = config.auto_open_viewer === true;
+  document.getElementById('cfgVideoPlaybackMode').value = config.video_playback_mode || 'original';
   document.getElementById('cfgOverlayEnabled').checked = config.overlay_enabled !== false;
   document.getElementById('cfgShowLyrics').checked = config.overlay_show_lyrics !== false;
   document.getElementById('cfgSpotifyClientId').value = config.spotify_client_id || '';
@@ -4462,6 +4554,7 @@ async function saveSettings() {
     youtube_channel_id: document.getElementById('cfgChannelId').value.trim(),
     auto_focus_viewer: document.getElementById('cfgAutoFocusViewer').checked,
     auto_open_viewer: document.getElementById('cfgAutoOpenViewer').checked,
+    video_playback_mode: document.getElementById('cfgVideoPlaybackMode').value,
     overlay_enabled: document.getElementById('cfgOverlayEnabled').checked,
     overlay_show_lyrics: document.getElementById('cfgShowLyrics').checked,
     spotify_client_id: document.getElementById('cfgSpotifyClientId').value.trim(),
@@ -4819,6 +4912,9 @@ let stageDragStartY = 0;
 let stageOrigX = 0;
 let stageOrigY = 0;
 let stageOrigScale = 1.0;
+let stageCapturedEl = null;
+let stageActivePointerId = null;
+let stageMoveRaf = null;
 let modularSaveTimeout = null;
 let stageGuidesVisible = true;
 
@@ -4905,35 +5001,73 @@ function toggleLayersPanel() {
 
 function renderLayersList() {
   const listEl = document.getElementById('stageLayersList');
-  if (!listEl) return;
+  const fullListEl = document.getElementById('inspectorLayersFullList');
+
   const items = [
-    { id: 'now_playing', name: '🎵 Now Playing', z: config.overlay_now_playing_z_index !== undefined ? config.overlay_now_playing_z_index : 30 },
-    { id: 'timer', name: '⏱️ Temporizador', z: config.overlay_timer_z_index !== undefined ? config.overlay_timer_z_index : 20 },
-    { id: 'lyrics', name: '📜 Letras', z: config.overlay_lyrics_z_index !== undefined ? config.overlay_lyrics_z_index : 15 }
+    { id: 'now_playing', name: 'Now Playing', icon: '🎵', type: 'now_playing', z: config.overlay_now_playing_z_index !== undefined ? Number(config.overlay_now_playing_z_index) : 30, enabled: config.overlay_now_playing_enabled !== false },
+    { id: 'timer', name: 'Temporizador', icon: '⏱️', type: 'timer', z: config.overlay_timer_z_index !== undefined ? Number(config.overlay_timer_z_index) : 20, enabled: config.overlay_timer_enabled !== false },
+    { id: 'lyrics', name: 'Letras en Vivo', icon: '📜', type: 'lyrics', z: config.overlay_lyrics_z_index !== undefined ? Number(config.overlay_lyrics_z_index) : 15, enabled: config.overlay_show_lyrics === true }
   ];
   (config.overlay_custom_texts || []).forEach((t, i) => {
     items.push({
       id: 'custom_text_' + t.id,
-      name: `🔤 Texto #${i+1}: ${t.text ? t.text.substring(0, 14) : 'Texto'}`,
-      z: t.z_index !== undefined ? t.z_index : 25
+      name: t.text ? (t.text.length > 22 ? t.text.substring(0, 22) + '...' : t.text) : `Texto #${i+1}`,
+      icon: '🔤',
+      type: 'custom_text',
+      txtId: t.id,
+      z: t.z_index !== undefined ? Number(t.z_index) : 25,
+      enabled: true
     });
   });
 
   items.sort((a, b) => b.z - a.z);
 
-  listEl.innerHTML = items.map((it, idx) => `
-    <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 8px; border-radius:6px; background:${currentSelectedModule === it.id ? 'rgba(232,255,71,0.18)' : 'rgba(255,255,255,0.04)'}; border:1px solid ${currentSelectedModule === it.id ? 'var(--accent)' : 'rgba(255,255,255,0.08)'}; font-size:11px; cursor:pointer;" onclick="selectStageElement('${it.id}')">
-      <div style="display:flex; align-items:center; gap:6px;">
-        <span style="font-family:'Space Mono',monospace; font-weight:700; color:var(--muted); font-size:10px;">#${items.length - idx}</span>
-        <span style="font-weight:700; color:${currentSelectedModule === it.id ? 'var(--accent)' : '#fff'};">${escapeHtml(it.name)}</span>
+  const maxZ = items.length ? Math.max(...items.map(it => it.z)) : 30;
+  const minZ = items.length ? Math.min(...items.map(it => it.z)) : 10;
+
+  if (listEl) {
+    listEl.innerHTML = items.map((it, idx) => `
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 8px; border-radius:6px; background:${currentSelectedModule === it.id ? 'rgba(232,255,71,0.18)' : 'rgba(255,255,255,0.04)'}; border:1px solid ${currentSelectedModule === it.id ? 'var(--accent)' : 'rgba(255,255,255,0.08)'}; font-size:11px; cursor:pointer;" onclick="selectStageElement('${it.id}')">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-family:'Space Mono',monospace; font-weight:700; color:var(--muted); font-size:10px;">#${idx + 1}</span>
+          <span style="font-weight:700; color:${currentSelectedModule === it.id ? 'var(--accent)' : '#fff'};">${it.icon} ${escapeHtml(it.name)}</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:4px;" onclick="event.stopPropagation()">
+          <span style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); font-weight:700; min-width:24px; text-align:right;">${it.z}</span>
+          <button class="btn btn-sm" style="padding:1px 5px; font-size:10px;" onclick="changeModuleLayer('${it.id}', 5)" title="Subir nivel">▲</button>
+          <button class="btn btn-sm" style="padding:1px 5px; font-size:10px;" onclick="changeModuleLayer('${it.id}', -5)" title="Bajar nivel">▼</button>
+        </div>
       </div>
-      <div style="display:flex; align-items:center; gap:4px;" onclick="event.stopPropagation()">
-        <span style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); font-weight:700; min-width:24px; text-align:right;">${it.z}</span>
-        <button class="btn btn-sm" style="padding:1px 5px; font-size:10px;" onclick="changeModuleLayer('${it.id}', 5)" title="Subir nivel">▲</button>
-        <button class="btn btn-sm" style="padding:1px 5px; font-size:10px;" onclick="changeModuleLayer('${it.id}', -5)" title="Bajar nivel">▼</button>
+    `).join('');
+  }
+
+  if (fullListEl) {
+    fullListEl.innerHTML = items.map((it, idx) => `
+      <div style="display:flex; flex-direction:column; gap:8px; padding:10px 12px; border-radius:8px; background:${currentSelectedModule === it.id ? 'rgba(232,255,71,0.12)' : 'rgba(255,255,255,0.03)'}; border:1px solid ${currentSelectedModule === it.id ? 'var(--accent)' : 'rgba(255,255,255,0.08)'};">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="selectStageElement('${it.id}')">
+            <span style="font-family:'Space Mono',monospace; font-size:11px; font-weight:800; color:var(--muted);">#${idx + 1}</span>
+            <span style="font-size:16px;">${it.icon}</span>
+            <div style="display:flex; flex-direction:column;">
+              <span style="font-weight:800; font-size:13px; color:${currentSelectedModule === it.id ? 'var(--accent)' : '#fff'};">${escapeHtml(it.name)}</span>
+              <span style="font-size:10px; color:var(--muted);">${idx === 0 ? '🔝 Capa superior (al frente de la pantalla)' : (idx === items.length - 1 ? '🔻 Capa inferior (al fondo)' : 'Nivel intermedio')}</span>
+            </div>
+          </div>
+          <span style="font-family:'Space Mono',monospace; font-size:12px; font-weight:800; color:var(--accent); background:rgba(232,255,71,0.12); padding:3px 8px; border-radius:4px; border:1px solid rgba(232,255,71,0.3);">Z: ${it.z}</span>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; border-top:1px solid rgba(255,255,255,0.06); padding-top:8px;">
+          <div style="display:flex; gap:4px;">
+            <button class="btn btn-sm btn-accent" style="padding:3px 9px; font-size:11px;" onclick="changeModuleLayer('${it.id}', 5)" title="Subir capa (traer adelante)">⬆️ Subir</button>
+            <button class="btn btn-sm" style="padding:3px 9px; font-size:11px;" onclick="changeModuleLayer('${it.id}', -5)" title="Bajar capa (enviar atrás)">⬇️ Bajar</button>
+            <button class="btn btn-sm" style="padding:3px 7px; font-size:10px;" onclick="setModuleLayer('${it.id}', ${maxZ + 5})" title="Poner al frente de todo">🔝 Al Frente</button>
+            <button class="btn btn-sm" style="padding:3px 7px; font-size:10px;" onclick="setModuleLayer('${it.id}', ${Math.max(1, minZ - 5)})" title="Poner al fondo de todo">🔻 Al Fondo</button>
+          </div>
+          <button class="btn btn-sm" style="padding:3px 8px; font-size:11px;" onclick="selectStageElement('${it.id}')" title="Configurar elemento">🎯 Configurar</button>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `).join('');
+  }
 }
 
 function setModuleLayer(modId, val) {
@@ -5073,6 +5207,25 @@ function alignActiveModule(alignment) {
   scheduleModularConfigSave();
 }
 
+function resetOverlayPositions() {
+  config.overlay_now_playing_x = 40;
+  config.overlay_now_playing_y = 40;
+  config.overlay_timer_x = 680;
+  config.overlay_timer_y = 320;
+  config.overlay_lyrics_x = 40;
+  config.overlay_lyrics_y = 130;
+
+  (config.overlay_custom_texts || []).forEach((text, index) => {
+    text.x = 400 + (index % 3) * 180;
+    text.y = 180 + Math.floor(index / 3) * 90;
+  });
+
+  initOverlayStudio();
+  updateStageMockups();
+  scheduleModularConfigSave(true);
+  showToast('Posiciones de overlays restauradas');
+}
+
 function setStudioMode(mode) {
   const visualBtn = document.getElementById('btnStudioModeVisual');
   const timerBtn = document.getElementById('btnStudioModeTimer');
@@ -5111,6 +5264,7 @@ function toggleSimModule(mod, visible) {
 
 function switchInspectorTab(tabKey, updateSelection = true) {
   const tabs = {
+    'layers': { tab: 'tabInspLayers', pane: 'paneInspLayers', stageId: null },
     'now_playing': { tab: 'tabInspNp', pane: 'paneInspNowPlaying', stageId: 'stageNowPlaying' },
     'timer': { tab: 'tabInspTimer', pane: 'paneInspTimer', stageId: 'stageTimer' },
     'lyrics': { tab: 'tabInspLyrics', pane: 'paneInspLyrics', stageId: 'stageLyrics' },
@@ -5123,6 +5277,10 @@ function switchInspectorTab(tabKey, updateSelection = true) {
     if (t) t.classList.toggle('active', k === tabKey);
     if (p) p.style.display = (k === tabKey) ? 'flex' : 'none';
   });
+
+  if (tabKey === 'layers') {
+    renderLayersList();
+  }
 
   if (updateSelection && tabs[tabKey] && tabs[tabKey].stageId) {
     selectStageElement(tabKey);
@@ -5158,7 +5316,7 @@ function selectStageElement(modId) {
   if (targetEl) targetEl.classList.add('selected');
   const badge = document.getElementById('stageActiveElementName');
   if (badge) badge.textContent = label;
-  if (layersPanelVisible) renderLayersList();
+  renderLayersList();
 }
 
 function showStageTooltip(x, y, text) {
@@ -5312,16 +5470,33 @@ function updateModularProp(mod, prop, val) {
 }
 
 function onStagePointerDown(e, modId) {
-  if (e.target.classList.contains('resize-handle')) return;
-  e.preventDefault();
+  if (e.target && e.target.classList.contains('resize-handle')) return;
+  if (e.button !== undefined && e.button !== 0) return;
+
+  try { e.preventDefault(); } catch(err){}
+  try { e.stopPropagation(); } catch(err){}
 
   isDraggingStage = true;
   isResizingStage = false;
   activeStageTarget = modId;
+  currentSelectedModule = modId;
   stageDragStartX = e.clientX;
   stageDragStartY = e.clientY;
 
+  // Pointer capture para no perder nunca el seguimiento si el puntero se mueve rápido
+  if (e.pointerId !== undefined && e.currentTarget && e.currentTarget.setPointerCapture) {
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      stageCapturedEl = e.currentTarget;
+      stageActivePointerId = e.pointerId;
+    } catch(err){}
+  }
+
+  // Prevenir que WebKitGTK inicie un Drag-and-Drop nativo del sistema operativo
+  document.ondragstart = () => false;
+
   selectStageElement(modId);
+  updateStageMockups();
 
   if (modId === 'now_playing') {
     stageOrigX = Number(config.overlay_now_playing_x !== undefined ? config.overlay_now_playing_x : (config.overlay_pos_x !== undefined ? config.overlay_pos_x : 40));
@@ -5343,16 +5518,29 @@ function onStagePointerDown(e, modId) {
 }
 
 function onResizePointerDown(e, modId) {
-  e.stopPropagation();
-  e.preventDefault();
+  if (e.button !== undefined && e.button !== 0) return;
+  try { e.preventDefault(); } catch(err){}
+  try { e.stopPropagation(); } catch(err){}
 
   isResizingStage = true;
   isDraggingStage = false;
   activeStageTarget = modId;
+  currentSelectedModule = modId;
   stageDragStartX = e.clientX;
   stageDragStartY = e.clientY;
 
+  if (e.pointerId !== undefined && e.currentTarget && e.currentTarget.setPointerCapture) {
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      stageCapturedEl = e.currentTarget;
+      stageActivePointerId = e.pointerId;
+    } catch(err){}
+  }
+
+  document.ondragstart = () => false;
+
   selectStageElement(modId);
+  updateStageMockups();
 
   if (modId === 'now_playing') {
     stageOrigScale = parseFloat(config.overlay_now_playing_scale !== undefined ? config.overlay_now_playing_scale : (config.overlay_scale || 1.0));
@@ -5367,7 +5555,7 @@ function onResizePointerDown(e, modId) {
   }
 }
 
-function onGlobalStagePointerMove(e) {
+function handleGlobalStageMove(clientX, clientY) {
   if (!isDraggingStage && !isResizingStage) return;
   if (!activeStageTarget) return;
 
@@ -5377,8 +5565,8 @@ function onGlobalStagePointerMove(e) {
   const stageScale = Math.max(0.1, canvasW / 1920);
 
   if (isDraggingStage) {
-    const dx = (e.clientX - stageDragStartX) / stageScale;
-    const dy = (e.clientY - stageDragStartY) / stageScale;
+    const dx = (clientX - stageDragStartX) / stageScale;
+    const dy = (clientY - stageDragStartY) / stageScale;
 
     if (activeStageTarget === 'now_playing') {
       const newX = Math.round(Math.max(0, Math.min(1820, stageOrigX + dx)));
@@ -5395,7 +5583,7 @@ function onGlobalStagePointerMove(e) {
         el.style.bottom = (newY * stageScale) + 'px';
         el.style.top = '';
       }
-      showStageTooltip(e.clientX, e.clientY, `Now Playing: X: ${newX}px, Y: ${newY}px`);
+      showStageTooltip(clientX, clientY, `🎵 Now Playing: X: ${newX}px, Y: ${newY}px`);
     } else if (activeStageTarget === 'lyrics') {
       const newX = Math.round(Math.max(0, Math.min(1820, stageOrigX + dx)));
       const newY = Math.round(Math.max(0, Math.min(1020, stageOrigY - dy)));
@@ -5411,7 +5599,7 @@ function onGlobalStagePointerMove(e) {
         el.style.bottom = (newY * stageScale) + 'px';
         el.style.top = '';
       }
-      showStageTooltip(e.clientX, e.clientY, `Letras: X: ${newX}px, Y: ${newY}px`);
+      showStageTooltip(clientX, clientY, `📜 Letras: X: ${newX}px, Y: ${newY}px`);
     } else if (activeStageTarget === 'timer') {
       const newX = Math.round(Math.max(0, Math.min(1720, stageOrigX + dx)));
       const newY = Math.round(Math.max(0, Math.min(980, stageOrigY + dy)));
@@ -5430,7 +5618,7 @@ function onGlobalStagePointerMove(e) {
         el.style.transform = `scale(${stageScale * sc})`;
         el.style.transformOrigin = 'top left';
       }
-      showStageTooltip(e.clientX, e.clientY, `Temporizador: X: ${newX}px, Y: ${newY}px`);
+      showStageTooltip(clientX, clientY, `⏱️ Temporizador: X: ${newX}px, Y: ${newY}px`);
     } else if (activeStageTarget.startsWith('custom_text_')) {
       const txtId = activeStageTarget.replace('custom_text_', '');
       const item = (config.overlay_custom_texts || []).find(t => t.id === txtId);
@@ -5445,11 +5633,11 @@ function onGlobalStagePointerMove(e) {
           el.style.top = (newY * stageScale) + 'px';
           el.style.bottom = '';
         }
-        showStageTooltip(e.clientX, e.clientY, `Texto: X: ${newX}px, Y: ${newY}px`);
+        showStageTooltip(clientX, clientY, `🔤 Texto: X: ${newX}px, Y: ${newY}px`);
       }
     }
   } else if (isResizingStage) {
-    const dx = e.clientX - stageDragStartX;
+    const dx = clientX - stageDragStartX;
     const ds = dx / 160;
     const newScale = Math.max(0.4, Math.min(2.5, +(stageOrigScale + ds).toFixed(2)));
 
@@ -5461,7 +5649,7 @@ function onGlobalStagePointerMove(e) {
       if (lb) lb.textContent = newScale.toFixed(2) + 'x';
       const el = document.getElementById('stageNowPlaying');
       if (el) el.style.transform = `scale(${stageScale * newScale})`;
-      showStageTooltip(e.clientX, e.clientY, `Escala Now Playing: ${newScale}x`);
+      showStageTooltip(clientX, clientY, `Escala Now Playing: ${newScale}x`);
     } else if (activeStageTarget === 'timer') {
       config.overlay_timer_scale = newScale;
       const sl = document.getElementById('modTmScale');
@@ -5470,7 +5658,7 @@ function onGlobalStagePointerMove(e) {
       if (lb) lb.textContent = newScale.toFixed(2) + 'x';
       const el = document.getElementById('stageTimer');
       if (el) el.style.transform = `scale(${stageScale * newScale})`;
-      showStageTooltip(e.clientX, e.clientY, `Escala Temporizador: ${newScale}x`);
+      showStageTooltip(clientX, clientY, `Escala Temporizador: ${newScale}x`);
     } else if (activeStageTarget === 'lyrics') {
       config.overlay_lyrics_scale = newScale;
       const sl = document.getElementById('modLyScale');
@@ -5479,7 +5667,7 @@ function onGlobalStagePointerMove(e) {
       if (lb) lb.textContent = newScale.toFixed(2) + 'x';
       const el = document.getElementById('stageLyrics');
       if (el) el.style.transform = `scale(${stageScale * newScale})`;
-      showStageTooltip(e.clientX, e.clientY, `Escala Letras: ${newScale}x`);
+      showStageTooltip(clientX, clientY, `Escala Letras: ${newScale}x`);
     } else if (activeStageTarget.startsWith('custom_text_')) {
       const txtId = activeStageTarget.replace('custom_text_', '');
       const item = (config.overlay_custom_texts || []).find(t => t.id === txtId);
@@ -5487,26 +5675,46 @@ function onGlobalStagePointerMove(e) {
         item.scale = newScale;
         const el = document.getElementById(`stageCustomText_${txtId}`);
         if (el) el.style.transform = `scale(${stageScale * newScale})`;
-        showStageTooltip(e.clientX, e.clientY, `Escala Texto: ${newScale}x`);
+        showStageTooltip(clientX, clientY, `Escala Texto: ${newScale}x`);
       }
     }
   }
 }
 
-function onGlobalStagePointerUp() {
+function onGlobalStagePointerMove(e) {
+  if (!isDraggingStage && !isResizingStage) return;
+  try { e.preventDefault(); } catch(err){}
+  const cx = e.clientX;
+  const cy = e.clientY;
+  if (stageMoveRaf) cancelAnimationFrame(stageMoveRaf);
+  stageMoveRaf = requestAnimationFrame(() => handleGlobalStageMove(cx, cy));
+}
+
+function onGlobalStagePointerUp(e) {
   if (isDraggingStage || isResizingStage) {
     isDraggingStage = false;
     isResizingStage = false;
     activeStageTarget = null;
     hideStageTooltip();
+    document.ondragstart = null;
+    if (stageCapturedEl && stageActivePointerId !== null) {
+      try {
+        if (stageCapturedEl.releasePointerCapture) {
+          stageCapturedEl.releasePointerCapture(stageActivePointerId);
+        }
+      } catch(err){}
+    }
+    stageCapturedEl = null;
+    stageActivePointerId = null;
     scheduleModularConfigSave();
+    renderLayersList();
   }
 }
 
-// Escuchadores globales persistentes para que no se pierdan eventos
-window.addEventListener('pointermove', onGlobalStagePointerMove);
-window.addEventListener('pointerup', onGlobalStagePointerUp);
-window.addEventListener('pointercancel', onGlobalStagePointerUp);
+// Escuchadores globales persistentes duales (Pointer + Mouse) para compatibilidad total con WebKitGTK y Firefox
+window.addEventListener('pointermove', onGlobalStagePointerMove, { passive: false });
+window.addEventListener('pointerup', onGlobalStagePointerUp, { passive: false });
+window.addEventListener('pointercancel', onGlobalStagePointerUp, { passive: false });
 
 function addCustomText() {
   if (!config.overlay_custom_texts) config.overlay_custom_texts = [];
@@ -5559,6 +5767,7 @@ function updateStageMockups() {
   const canvas = document.getElementById('stageCanvas');
   if (!canvas) return;
   const canvasW = canvas.offsetWidth || canvas.getBoundingClientRect().width || 960;
+  canvas.style.height = Math.round(canvasW * 9 / 16) + 'px';
   const scale = Math.max(0.1, canvasW / 1920);
 
   // 1. NOW PLAYING
@@ -5738,13 +5947,14 @@ function renderStageCustomTexts(scale) {
 
       return `
         <div class="stage-item${isSel ? ' selected' : ''}" id="stageCustomText_${t.id}" data-module="custom_text_${t.id}"
+             ondragstart="return false;"
              onpointerdown="onStagePointerDown(event, 'custom_text_${t.id}')"
              style="left:${posX * scale}px; top:${posY * scale}px; transform:scale(${scale * tScale}); transform-origin:top left; z-index:${isSel ? 1000 : tZ};">
           <span class="stage-tag">🔤 Texto</span>
           <div style="background:${bgColor}; border:${border}; border-radius:${radius}; padding:8px 14px; color:${color}; font-family:${font}; font-size:${size}; font-weight:700; white-space:pre-wrap; max-width:500px; box-shadow:0 4px 16px rgba(0,0,0,0.4);">
             ${escapeHtml(t.text || 'Texto')}
           </div>
-          <div class="resize-handle" onpointerdown="onResizePointerDown(event, 'custom_text_${t.id}')">⤡</div>
+          <div class="resize-handle" ondragstart="return false;" onpointerdown="onResizePointerDown(event, 'custom_text_${t.id}')">⤡</div>
         </div>
       `;
     }).join('');

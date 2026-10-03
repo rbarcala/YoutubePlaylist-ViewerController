@@ -143,35 +143,85 @@ const loadingOverlay = document.getElementById('loading-overlay');
 let currentPlaybackRate = 1.7;
 let isMuted = true;
 let currentPlayingId = '';
+let usesCombinedMedia = false;
+let playbackMode = 'original';
+let adaptiveRecoveryInProgress = false;
 
 // ─── SINCRONIZACIÓN DE VIDEO Y AUDIO HTML5 ───
-video.addEventListener('play', () => audio.play().catch(() => {}));
+video.addEventListener('play', () => {
+  if (!usesCombinedMedia) audio.play().catch(() => {});
+});
 video.addEventListener('pause', () => audio.pause());
-video.addEventListener('waiting', () => audio.pause());
+video.addEventListener('waiting', () => {
+  audio.pause();
+  handleBuffering();
+});
+video.addEventListener('stalled', handleBuffering);
 
 video.addEventListener('playing', () => {
-  if (Math.abs(video.currentTime - audio.currentTime) > 0.3) {
-    audio.currentTime = video.currentTime;
+  if (!usesCombinedMedia) {
+    if (Math.abs(video.currentTime - audio.currentTime) > 0.3) {
+      audio.currentTime = video.currentTime;
+    }
+    audio.play().catch(e => console.warn("Esperando interacción para audio", e));
   }
-  audio.play().catch(e => console.warn("Esperando interacción para audio", e));
 });
 
 video.addEventListener('seeked', () => {
-  audio.currentTime = video.currentTime;
+  if (!usesCombinedMedia) audio.currentTime = video.currentTime;
 });
 
 // Bucle continuo sin cortes
 video.addEventListener('timeupdate', () => {
   if (video.duration && (video.duration - video.currentTime) <= 0.25) {
     video.currentTime = 0;
-    audio.currentTime = 0;
+    if (!usesCombinedMedia) audio.currentTime = 0;
   }
 });
 
 function applyState() {
   video.playbackRate = currentPlaybackRate;
+  if (usesCombinedMedia) {
+    video.muted = isMuted || video.paused;
+    if (!isMuted && video.paused && video.readyState >= 2) startVideoPlayback();
+  }
   audio.playbackRate = currentPlaybackRate;
   audio.muted = isMuted;
+  if (!usesCombinedMedia && !isMuted && !video.paused && audio.src) {
+    if (Math.abs(video.currentTime - audio.currentTime) > 0.3) {
+      audio.currentTime = video.currentTime;
+    }
+    audio.play().catch(() => {});
+  }
+}
+
+function startVideoPlayback() {
+  if (!video.src) return;
+  video.muted = true;
+  video.play().then(() => {
+    if (usesCombinedMedia && !isMuted) video.muted = false;
+    applyState();
+  }).catch(() => {});
+}
+
+async function handleBuffering() {
+  if (playbackMode !== 'adaptive' || adaptiveRecoveryInProgress) return;
+  adaptiveRecoveryInProgress = true;
+  currentPlaybackRate = Math.max(1, +(currentPlaybackRate - 0.2).toFixed(1));
+  try {
+    const response = await fetch(`/api/cache/status/${encodeURIComponent(currentPlayingId)}`);
+    const data = await response.json();
+    if (data.status === 'ready' && data.url && video.currentSrc !== new URL(data.url, window.location.href).href) {
+      const position = video.currentTime || 0;
+      video.src = data.url;
+      video.onloadedmetadata = () => {
+        video.currentTime = position;
+        video.onloadedmetadata = null;
+        startVideoPlayback();
+      };
+    }
+  } catch(e) {}
+  setTimeout(() => { adaptiveRecoveryInProgress = false; }, 1500);
 }
 
 // ─── RESOLUCIÓN Y REPRODUCCIÓN ───
@@ -191,13 +241,19 @@ async function playVideo(videoId, title = "") {
 
     if (data.video_url && data.audio_url) {
       video.src = data.video_url;
-      audio.src = data.audio_url;
+      usesCombinedMedia = Boolean(data.combined_audio || data.video_url === data.audio_url);
+      if (usesCombinedMedia) {
+        audio.removeAttribute('src');
+        audio.load();
+      } else {
+        audio.src = data.audio_url;
+      }
 
       applyState();
 
       video.oncanplay = () => {
         loadingOverlay.classList.remove('active');
-        video.play().catch(e => console.error("Error autoplay video:", e));
+        startVideoPlayback();
       };
     } else {
       console.error("Error al obtener URL del video:", data.error);
@@ -212,6 +268,7 @@ let autoFocusEnabled = true;
 // Cargar preferencia de autofoco desde el backend
 fetch('/api/config').then(r => r.json()).then(cfg => {
   if (cfg.auto_focus_viewer !== undefined) autoFocusEnabled = Boolean(cfg.auto_focus_viewer);
+  playbackMode = cfg.video_playback_mode || 'original';
 }).catch(() => {});
 
 // ─── DOBLE CANAL DE SINCRONIZACIÓN: BROADCASTCHANNEL + SSE ───

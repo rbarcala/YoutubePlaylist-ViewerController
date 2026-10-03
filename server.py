@@ -24,6 +24,54 @@ from qr_svg import generate_qr_svg
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 
+VIDEO_CACHE_DIR = Path.home() / '.cache' / 'youtube-playlist-vc' / 'videos'
+VIDEO_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+video_download_queue = queue.Queue()
+video_download_status = {}
+video_download_lock = threading.Lock()
+
+def _cached_video_path(video_id):
+    candidates = [
+        path for path in VIDEO_CACHE_DIR.glob(f'{video_id}.*')
+        if not path.name.endswith(('.part', '.ytdl'))
+    ]
+    return candidates[0] if candidates else None
+
+def _queue_video_download(video_id):
+    with video_download_lock:
+        if video_download_status.get(video_id) in ('queued', 'downloading') or _cached_video_path(video_id):
+            return
+        video_download_status[video_id] = 'queued'
+    video_download_queue.put(video_id)
+
+def _video_download_worker():
+    while True:
+        video_id = video_download_queue.get()
+        try:
+            with video_download_lock:
+                video_download_status[video_id] = 'downloading'
+            output_template = str(VIDEO_CACHE_DIR / f'{video_id}.%(ext)s')
+            opts = {
+                'format': 'best[height<=1080][ext=mp4]/best[height<=1080]/best',
+                'outtmpl': output_template,
+                'merge_output_format': 'mp4',
+                'quiet': True,
+                'no_warnings': True,
+                'noplaylist': True,
+            }
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                ydl.download([f'https://www.youtube.com/watch?v={video_id}'])
+            with video_download_lock:
+                video_download_status[video_id] = 'ready' if _cached_video_path(video_id) else 'error'
+        except Exception as exc:
+            print(f'[cache] Error descargando {video_id}: {exc}')
+            with video_download_lock:
+                video_download_status[video_id] = 'error'
+        finally:
+            video_download_queue.task_done()
+
+threading.Thread(target=_video_download_worker, daemon=True, name='video-cache-worker').start()
+
 @app.after_request
 def add_cache_headers(response):
     if request.path.endswith('.html') or request.path in ['/', '/controller', '/viewer', '/sw.js']:
@@ -512,7 +560,8 @@ def spotify_lyrics():
 
     cache_key = f"{artist.lower()}|||{title.lower()}"
     if cache_key in _lyrics_cache:
-        return jsonify({"lyrics": _lyrics_cache[cache_key]})
+        cached = _lyrics_cache[cache_key]
+        return jsonify(cached if isinstance(cached, dict) else {"lyrics": cached})
 
     # 1. Candidatos de artista (artista principal o lista completa)
     artist_candidates = []
@@ -544,12 +593,17 @@ def spotify_lyrics():
                 req = urllib.request.Request(url, headers={'User-Agent': ua})
                 with urllib.request.urlopen(req, timeout=3) as r:
                     d = json.loads(r.read().decode('utf-8'))
-                    raw_lyrics = d.get('plainLyrics') or d.get('syncedLyrics') or ''
-                    if raw_lyrics.strip():
-                        clean_lyrics = re.sub(r'\[\d{2}:\d{2}(?:\.\d{2,3})?\]\s*', '', raw_lyrics).strip()
-                        if clean_lyrics:
-                            _lyrics_cache[cache_key] = clean_lyrics
-                            return jsonify({"lyrics": clean_lyrics, "source": "lrclib"})
+                    synced_lyrics = d.get('syncedLyrics') or ''
+                    if synced_lyrics.strip():
+                        plain_lyrics = d.get('plainLyrics') or re.sub(r'\[\d{2}:\d{2}(?:\.\d{2,3})?\]\s*', '', synced_lyrics).strip()
+                        result = {"lyrics": plain_lyrics, "syncedLyrics": synced_lyrics, "source": "lrclib"}
+                        _lyrics_cache[cache_key] = result
+                        return jsonify(result)
+                    plain_lyrics = d.get('plainLyrics') or ''
+                    if plain_lyrics.strip():
+                        result = {"lyrics": plain_lyrics.strip(), "source": "lrclib"}
+                        _lyrics_cache[cache_key] = result
+                        return jsonify(result)
             except Exception:
                 pass
 
@@ -971,7 +1025,16 @@ def get_video_url():
     if not video_id:
         return jsonify({'error': 'No video id provided'}), 400
 
+    cfg = load_config()
+    playback_mode = cfg.get('video_playback_mode', 'original')
     now = time.time()
+    cached_path = _cached_video_path(video_id)
+    if cached_path and playback_mode in ('cache', 'adaptive'):
+        cached_url = f'/api/cache/video/{video_id}'
+        result = {'video_url': cached_url, 'audio_url': cached_url, 'combined_audio': True, 'cached': True}
+        video_cache[video_id] = (result, now + 7200)
+        return jsonify(result)
+
     if video_id in video_cache:
         cached_data, exp_time = video_cache[video_id]
         if now < exp_time:
@@ -979,7 +1042,12 @@ def get_video_url():
 
     url = f"https://www.youtube.com/watch?v={video_id}"
     ydl_opts = {
-        'format': 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best',
+        'format': (
+            'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/'
+            'bestvideo[height<=1080]+bestaudio/best'
+            if playback_mode == 'original'
+            else 'best[height<=1080]/best'
+        ),
         'quiet': True,
         'no_warnings': True,
         'noplaylist': True,
@@ -988,18 +1056,38 @@ def get_video_url():
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            if 'requested_formats' in info:
+            if playback_mode == 'original' and 'requested_formats' in info:
                 video_url = info['requested_formats'][0]['url']
                 audio_url = info['requested_formats'][1]['url']
+                combined_audio = False
             else:
                 video_url = info['url']
-                audio_url = info['url']
+                audio_url = video_url
+                combined_audio = True
 
-            result = {'video_url': video_url, 'audio_url': audio_url}
+            result = {'video_url': video_url, 'audio_url': audio_url, 'combined_audio': combined_audio}
             video_cache[video_id] = (result, now + 7200)
+            if playback_mode in ('cache', 'adaptive'):
+                _queue_video_download(video_id)
             return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cache/video/<video_id>')
+def serve_cached_video(video_id):
+    cached_path = _cached_video_path(video_id)
+    if not cached_path:
+        return jsonify({'error': 'Video todavía no está disponible en cache'}), 404
+    return send_from_directory(VIDEO_CACHE_DIR, cached_path.name, conditional=True)
+
+@app.route('/api/cache/status/<video_id>')
+def cached_video_status(video_id):
+    cached_path = _cached_video_path(video_id)
+    if cached_path:
+        return jsonify({'status': 'ready', 'url': f'/api/cache/video/{video_id}'})
+    with video_download_lock:
+        status = video_download_status.get(video_id, 'idle')
+    return jsonify({'status': status})
 
 # ─── SERVICIO PRINCIPAL ───
 if __name__ == '__main__':

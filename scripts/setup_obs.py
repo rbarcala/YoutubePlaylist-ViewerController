@@ -203,8 +203,7 @@ def try_add_overlay_via_websocket(port: int, password: str, overlay_url: str) ->
                                 "width": OVERLAY_WIDTH,
                                 "height": OVERLAY_HEIGHT,
                                 "css": OVERLAY_CSS
-                            },
-                            "overlay": True
+                            }
                         }
                     }
                 }

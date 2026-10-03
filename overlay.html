@@ -283,10 +283,6 @@
     0%, 100% { opacity: 0.92; transform: scale(var(--scale, 1)); }
     50% { opacity: 1; transform: scale(calc(var(--scale, 1) * 1.05)); filter: brightness(1.25); }
   }
-    letter-spacing: 1.5px;
-    color: var(--accent);
-    font-family: 'Space Mono', monospace;
-  }
 
   .break-title {
     font-family: 'Syne', sans-serif;
@@ -433,9 +429,38 @@
   let lastChimePlayedFor = 0;
   let viewerFocused = true;
   let currentLyrics = "";
+  let currentSyncedLyrics = [];
   let lastLyricsQuery = "";
   let lyricsInterval = null;
   let lyricsOffset = 0;
+
+  function parseSyncedLyrics(raw) {
+    return String(raw || '').split('\n').flatMap(line => {
+      const matches = [...line.matchAll(/\[(\d+):(\d{2})(?:\.(\d{2,3}))?\]\s*(.*)/g)];
+      return matches.map(match => ({
+        time: (parseInt(match[1], 10) * 60 + parseInt(match[2], 10)) * 1000 + parseInt((match[3] || '0').padEnd(3, '0'), 10),
+        text: match[4].trim()
+      })).filter(item => item.text);
+    }).sort((a, b) => a.time - b.time);
+  }
+
+  function updateSyncedLyrics(progressMs) {
+    if (!currentSyncedLyrics.length) return false;
+    const lyricsText = document.getElementById('lyricsText');
+    if (progressMs < currentSyncedLyrics[0].time) {
+      if (lyricsText) lyricsText.textContent = '';
+      return true;
+    }
+    let active = currentSyncedLyrics[0];
+    for (const cue of currentSyncedLyrics) {
+      if (cue.time > progressMs) break;
+      active = cue;
+    }
+    if (lyricsText) lyricsText.textContent = active.text;
+    const lyricsEl = document.getElementById('lyricsContainer');
+    if (lyricsEl) lyricsEl.classList.add('visible');
+    return true;
+  }
 
   function hexToRgba(hex, alpha) {
     if (!hex) return `rgba(10, 10, 10, ${alpha})`;
@@ -833,8 +858,21 @@
       return;
     }
 
-    // 3. Ocultar si no hay nada
-    container.classList.remove('visible');
+    // Estado de espera visible por defecto para confirmar que OBS cargó la fuente.
+    if (overlayConfig.overlay_show_idle !== false) {
+      container.classList.add('visible');
+      badge.className = 'np-badge';
+      icon.textContent = '🎛️';
+      sourceText.textContent = 'STREAM HUB';
+      title.style.display = 'block';
+      title.textContent = 'Esperando reproducción';
+      sub.style.display = 'block';
+      sub.textContent = 'Listo para mostrar Now Playing';
+      cover.src = '/assets/icon.png';
+      cover.style.display = 'block';
+    } else {
+      container.classList.remove('visible');
+    }
     if (lyricsEl) lyricsEl.classList.remove('visible');
   }
 
@@ -849,7 +887,7 @@
 
     const query = (currentSpotify.artist || '') + ' - ' + (currentSpotify.title || '');
     if (query === lastLyricsQuery && currentLyrics) {
-      lyricsEl.classList.add('visible');
+      if (!updateSyncedLyrics(currentSpotify.progress_ms || 0)) lyricsEl.classList.add('visible');
       return;
     }
 
@@ -864,6 +902,7 @@
       const data = await res.json();
       if (data.lyrics && data.lyrics.trim()) {
         currentLyrics = data.lyrics.trim();
+        currentSyncedLyrics = parseSyncedLyrics(data.syncedLyrics);
         const lt = document.getElementById('lyricsText');
         lt.textContent = currentLyrics;
         lt.style.transform = 'translateY(0)';
@@ -871,11 +910,15 @@
 
         clearInterval(lyricsInterval);
         lyricsOffset = 0;
-        lyricsInterval = setInterval(() => {
-          lyricsOffset -= 14;
-          if (Math.abs(lyricsOffset) > lt.scrollHeight) lyricsOffset = 0;
-          lt.style.transform = `translateY(${lyricsOffset}px)`;
-        }, 2200);
+        if (currentSyncedLyrics.length) {
+          updateSyncedLyrics(currentSpotify.progress_ms || 0);
+        } else {
+          lyricsInterval = setInterval(() => {
+            lyricsOffset -= 14;
+            if (Math.abs(lyricsOffset) > lt.scrollHeight) lyricsOffset = 0;
+            lt.style.transform = `translateY(${lyricsOffset}px)`;
+          }, 2200);
+        }
       }
     } catch(e) {}
   }
@@ -906,6 +949,7 @@
       try {
         currentSpotify = JSON.parse(e.data).data || {};
         updateNowPlayingUI();
+        updateSyncedLyrics(currentSpotify.progress_ms || 0);
         fetchAndUpdateLyrics();
       } catch(err) {}
     });
@@ -913,7 +957,7 @@
     evtSource.addEventListener('state', (e) => {
       try {
         const d = JSON.parse(e.data).data || {};
-        currentYouTube.is_playing = (d.status === 'playing');
+        currentYouTube.is_playing = Boolean(d.isPlaying);
         if (d.title) currentYouTube.title = d.title;
         if (d.videoId) currentYouTube.video_id = d.videoId;
         updateNowPlayingUI();
@@ -966,7 +1010,7 @@
     try {
       const resS = await fetch('/api/state');
       const dataS = await resS.json();
-      currentYouTube.is_playing = (dataS.status === 'playing');
+      currentYouTube.is_playing = Boolean(dataS.isPlaying);
       currentYouTube.title = dataS.title || '';
       currentYouTube.video_id = dataS.videoId || '';
       updateNowPlayingUI();
