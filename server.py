@@ -15,11 +15,21 @@ import yt_dlp
 from config_manager import load_config, save_config
 from obs_client import OBSController
 from spotify_manager import SpotifyManager
+from soundboard_manager import SoundboardManager
 from qr_svg import generate_qr_svg
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 
+@app.after_request
+def add_cache_headers(response):
+    if request.path.endswith('.html') or request.path in ['/', '/controller', '/viewer', '/sw.js']:
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+
 spotify_mgr = SpotifyManager(load_config, save_config)
+soundboard_mgr = SoundboardManager(load_config, save_config)
 
 # ─── ESTADO CENTRALIZADO Y SINCRONIZACIÓN EN TIEMPO REAL ───
 initial_cfg = load_config()
@@ -432,6 +442,71 @@ def youtube_live():
         "is_live": False,
         "video_id": "",
         "message": "No hay transmisión activa detectada o falta configurar el ID de canal / video en Ajustes."
+    })
+
+# ─── API SOUNDBOARD / BOTONERA (MYINSTANTS & RANKINGS) ───
+@app.route('/api/soundboard/regional')
+@app.route('/api/soundboard/trending')
+def soundboard_regional():
+    """Devuelve sonidos por región: arg (Argentina), latam, usa, global."""
+    region = request.args.get('region') or request.args.get('mode') or 'arg'
+    return jsonify(soundboard_mgr.get_regional(region))
+
+@app.route('/api/soundboard/search')
+def soundboard_search():
+    """Busca sonidos en MyInstants."""
+    q = request.args.get('q', '').strip()
+    return jsonify(soundboard_mgr.search(q))
+
+@app.route('/api/soundboard/favorites', methods=['GET', 'POST'])
+def soundboard_favorites():
+    """Obtiene o agrega a la lista persistida de favoritos."""
+    if request.method == 'POST':
+        data = request.get_json(force=True, silent=True) or {}
+        return jsonify(soundboard_mgr.add_favorite(data))
+    return jsonify(soundboard_mgr.get_saved_favorites())
+
+@app.route('/api/soundboard/favorites/remove', methods=['POST'])
+def soundboard_favorites_remove():
+    """Elimina un sonido de los favoritos."""
+    data = request.get_json(force=True, silent=True) or {}
+    sound_id = data.get('id') or data.get('title') or data.get('mp3')
+    return jsonify(soundboard_mgr.remove_favorite(sound_id))
+
+@app.route('/api/soundboard/play', methods=['POST'])
+def soundboard_play():
+    """Reproduce el audio en la PC anfitriona (Linux PipeWire/ALSA)."""
+    data = request.get_json(force=True, silent=True) or {}
+    mp3_url = data.get('mp3') or data.get('url', '')
+    title = data.get('title', '')
+    cfg = load_config()
+    vol = data.get('volume', cfg.get('soundboard_volume', 80))
+    res = soundboard_mgr.play(mp3_url, title, vol)
+    return jsonify(res)
+
+@app.route('/api/soundboard/stop', methods=['POST'])
+def soundboard_stop():
+    """Detiene cualquier sonido en reproducción en la PC."""
+    return jsonify(soundboard_mgr.stop_all())
+
+@app.route('/api/soundboard/sync_account', methods=['POST'])
+def soundboard_sync_account():
+    """Sincroniza favoritos de la cuenta o perfil de MyInstants."""
+    data = request.get_json(force=True, silent=True) or {}
+    username = data.get('username', '').strip()
+    if not username:
+        cfg = load_config()
+        username = cfg.get('soundboard_username', '')
+    return jsonify(soundboard_mgr.sync_account(username))
+
+@app.route('/api/soundboard/account')
+def soundboard_account():
+    """Información de la cuenta de MyInstants guardada."""
+    cfg = load_config()
+    return jsonify({
+        "username": cfg.get("soundboard_username", ""),
+        "volume": cfg.get("soundboard_volume", 80),
+        "favorites_count": len(cfg.get("soundboard_favorites", []))
     })
 
 # ─── RESOLUCIÓN DE VIDEO Y CACHE CON YT-DLP ───

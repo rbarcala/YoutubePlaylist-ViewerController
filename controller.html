@@ -871,10 +871,12 @@
 
     <!-- Barra de pestañas -->
     <div class="soundboard-tabs">
-      <button class="sb-tab-btn active" id="sbTab-trending" onclick="switchSoundboardTab('trending')">🔥 Más Usados / Tendencias</button>
+      <button class="sb-tab-btn active" id="sbTab-arg" onclick="switchSoundboardTab('arg')">🇦🇷 Top ARG</button>
+      <button class="sb-tab-btn" id="sbTab-latam" onclick="switchSoundboardTab('latam')">🌎 Top LATAM</button>
+      <button class="sb-tab-btn" id="sbTab-usa" onclick="switchSoundboardTab('usa')">🇺🇸 Top USA</button>
+      <button class="sb-tab-btn" id="sbTab-global" onclick="switchSoundboardTab('global')">🌐 Top GLOBAL</button>
       <button class="sb-tab-btn" id="sbTab-favorites" onclick="switchSoundboardTab('favorites')">⭐ Mis Favoritos</button>
-      <button class="sb-tab-btn" id="sbTab-best" onclick="switchSoundboardTab('best')">🏆 Top Histórico</button>
-      <button class="sb-tab-btn" id="sbTab-search" onclick="switchSoundboardTab('search')">🔍 Búsqueda MyInstants</button>
+      <button class="sb-tab-btn" id="sbTab-search" onclick="switchSoundboardTab('search')">🔍 Buscador</button>
     </div>
 
     <!-- Barra de búsqueda -->
@@ -1462,7 +1464,7 @@ function refreshLiveStream() {
 }
 
 // ─── 6. BOTONERA / SOUNDBOARD (MYINSTANTS) LOGIC ───
-let currentSbTab = 'trending';
+let currentSbTab = 'arg';
 let savedFavorites = [];
 let sbVolume = 80;
 let playingResetTimer = null;
@@ -1528,11 +1530,8 @@ async function loadSoundboardTab(tab) {
 
   try {
     let sounds = [];
-    if (tab === 'trending') {
-      const res = await fetch('/api/soundboard/trending?mode=es');
-      sounds = await res.json();
-    } else if (tab === 'best') {
-      const res = await fetch('/api/soundboard/trending?mode=best');
+    if (['arg', 'latam', 'usa', 'global'].includes(tab)) {
+      const res = await fetch('/api/soundboard/regional?region=' + tab);
       sounds = await res.json();
     } else if (tab === 'favorites') {
       await loadSavedFavoritesList();
@@ -1572,7 +1571,7 @@ function executeSoundboardSearch() {
 
 function clearSoundboardSearch() {
   document.getElementById('sbSearchInput').value = '';
-  switchSoundboardTab('trending');
+  switchSoundboardTab('arg');
 }
 
 function isSoundFavorite(sound) {
