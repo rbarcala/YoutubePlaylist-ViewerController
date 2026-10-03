@@ -254,16 +254,53 @@
     border: 1px solid rgba(232, 255, 71, 0.2);
   }
 
-  /* ─── 2. VISTA FONDOS STREAM ─── */
+  /* ─── 2. VISTA FONDOS STREAM (ESTILO SPOTIFY DASHBOARD) ─── */
+  #view-fondos.active {
+    display: flex !important;
+    flex-direction: column;
+    height: calc(100vh - var(--header-h, 52px));
+    max-height: calc(100vh - var(--header-h, 52px));
+    overflow: hidden !important;
+    padding: 12px 18px 10px;
+    box-sizing: border-box;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+  }
   .now-playing-bar {
-    background: var(--surface);
+    background: #141414;
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 12px 18px;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    z-index: 10;
+  }
+  .fondos-scroll-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 6px;
+    padding-bottom: 24px;
+    overscroll-behavior: contain;
+  }
+  .fondos-scroll-content::-webkit-scrollbar {
+    width: 8px;
+  }
+  .fondos-scroll-content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .fondos-scroll-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 4px;
+  }
+  .fondos-scroll-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.32);
   }
   .now-playing-row1 {
     display: flex;
@@ -799,22 +836,40 @@
     gap: 12px;
   }
 
-  /* ─── 6. VISTA SOUNDBOARD / BOTONERA (MYINSTANTS) ─── */
-  .soundboard-container {
-    max-width: 1200px;
+  /* ─── 6. VISTA SOUNDBOARD / BOTONERA (ESTILO SPOTIFY DASHBOARD) ─── */
+  #view-soundboard.active {
+    display: flex !important;
+    flex-direction: column;
+    height: calc(100vh - var(--header-h, 52px));
+    max-height: calc(100vh - var(--header-h, 52px));
+    overflow: hidden !important;
+    padding: 12px 18px 10px;
+    box-sizing: border-box;
+    max-width: 1400px;
     margin: 0 auto;
+    width: 100%;
+  }
+  .soundboard-container {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 8px;
+    overflow: hidden;
+  }
+  .soundboard-header-deck {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 10;
+    padding-bottom: 2px;
   }
   .soundboard-topbar {
-    position: -webkit-sticky;
-    position: sticky;
-    top: calc(var(--header-h, 52px) + 8px);
-    z-index: 95;
-    background: rgba(14, 14, 14, 0.94);
-    -webkit-backdrop-filter: blur(14px);
-    backdrop-filter: blur(14px);
+    position: static;
+    background: #141414;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: var(--radius);
     padding: 10px 14px;
@@ -823,8 +878,29 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-    transition: all 0.2s ease;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  }
+  .soundboard-scroll-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 6px;
+    padding-bottom: 24px;
+    overscroll-behavior: contain;
+  }
+  .soundboard-scroll-content::-webkit-scrollbar {
+    width: 8px;
+  }
+  .soundboard-scroll-content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .soundboard-scroll-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 4px;
+  }
+  .soundboard-scroll-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.32);
   }
   .sb-floating-top-btn {
     position: fixed;
@@ -1605,8 +1681,8 @@
 <div class="view-container" id="view-fondos">
   <div class="now-playing-bar">
     <div class="now-playing-row1">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span style="color:var(--muted); font-size:11px;">REPRODUCIENDO:</span>
+      <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+        <span style="color:var(--muted); font-size:11px; flex-shrink:0;">REPRODUCIENDO:</span>
         <span class="title-text" id="nowPlayingTitle">—</span>
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
@@ -1625,8 +1701,10 @@
     </div>
   </div>
 
-  <div id="loadingVideos" style="text-align:center; padding:40px; color:var(--muted);">Cargando lista de fondos…</div>
-  <div class="grid-videos" id="gridVideos"></div>
+  <div class="fondos-scroll-content" id="fondosScrollContent">
+    <div id="loadingVideos" style="text-align:center; padding:40px; color:var(--muted);">Cargando lista de fondos…</div>
+    <div class="grid-videos" id="gridVideos"></div>
+  </div>
 </div>
 
 <!-- ─── 3. VISTA OBS STUDIO ─── -->
@@ -1748,70 +1826,75 @@
 <!-- ─── 6. VISTA SOUNDBOARD / BOTONERA (MYINSTANTS) ─── -->
 <div class="view-container" id="view-soundboard">
   <div class="soundboard-container">
-    <!-- Barra superior de controles sticky (acompaña el scroll) -->
-    <div class="soundboard-topbar">
-      <div class="soundboard-now-playing">
-        <span style="color:var(--muted); font-size:11px;">EN PC:</span>
-        <span class="soundboard-playing-pill" id="sbNowPlayingText">Listo / Silencio</span>
-      </div>
-
-      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-        <!-- Deslizador de volumen -->
-        <div style="display:flex; align-items:center; gap:6px; font-size:11px;">
-          <span style="color:var(--muted);">🔊</span>
-          <input type="range" id="sbVolumeSlider" min="0" max="100" value="80" oninput="updateSoundboardVolume(this.value)" style="accent-color:var(--accent); width:100px;">
-          <span id="sbVolumeText" style="color:var(--accent); font-weight:700; width:34px;">80%</span>
+    <div class="soundboard-header-deck">
+      <!-- Barra superior de controles fija -->
+      <div class="soundboard-topbar">
+        <div class="soundboard-now-playing">
+          <span style="color:var(--muted); font-size:11px;">EN PC:</span>
+          <span class="soundboard-playing-pill" id="sbNowPlayingText">Listo / Silencio</span>
         </div>
-        <!-- Botón de parar -->
-        <button class="btn btn-danger" onclick="stopSoundboard()" title="Detener todo el audio">⏹️ Parar</button>
-        <!-- Botón para subir -->
-        <button class="btn btn-accent" onclick="scrollToTopSoundboard()" title="Subir al inicio">⬆️ Subir</button>
+
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <!-- Deslizador de volumen -->
+          <div style="display:flex; align-items:center; gap:6px; font-size:11px;">
+            <span style="color:var(--muted);">🔊</span>
+            <input type="range" id="sbVolumeSlider" min="0" max="100" value="80" oninput="updateSoundboardVolume(this.value)" style="accent-color:var(--accent); width:100px;">
+            <span id="sbVolumeText" style="color:var(--accent); font-weight:700; width:34px;">80%</span>
+          </div>
+          <!-- Botón de parar -->
+          <button class="btn btn-danger" onclick="stopSoundboard()" title="Detener todo el audio">⏹️ Parar</button>
+          <!-- Botón para subir -->
+          <button class="btn btn-accent" onclick="scrollToTopSoundboard()" title="Subir al inicio">⬆️ Subir</button>
+        </div>
+      </div>
+
+      <!-- Barra de pestañas -->
+      <div class="soundboard-tabs">
+        <button class="sb-tab-btn active" id="sbTab-arg" onclick="switchSoundboardTab('arg')">🇦🇷 Top ARG</button>
+        <button class="sb-tab-btn" id="sbTab-latam" onclick="switchSoundboardTab('latam')">🌎 Top LATAM</button>
+        <button class="sb-tab-btn" id="sbTab-usa" onclick="switchSoundboardTab('usa')">🇺🇸 Top USA</button>
+        <button class="sb-tab-btn" id="sbTab-global" onclick="switchSoundboardTab('global')">🌐 Top GLOBAL</button>
+        <button class="sb-tab-btn" id="sbTab-favorites" onclick="switchSoundboardTab('favorites')">⭐ Mis Favoritos</button>
+        <button class="sb-tab-btn" id="sbTab-search" onclick="switchSoundboardTab('search')">🔍 Buscador</button>
+      </div>
+
+      <!-- Barra de búsqueda -->
+      <div class="soundboard-search-bar" id="sbSearchBarWrap">
+        <input type="text" id="sbSearchInput" class="form-input" style="flex:1;" placeholder="Buscar entre miles de efectos y memes en MyInstants..." onkeydown="if(event.key==='Enter') executeSoundboardSearch()">
+        <button class="btn btn-accent" onclick="executeSoundboardSearch()">Buscar</button>
+        <button class="btn" onclick="clearSoundboardSearch()">Limpiar</button>
+      </div>
+
+      <!-- Barra de cuenta vinculada y sincronización -->
+      <div class="soundboard-account-bar">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span>👤 Cuenta MyInstants:</span>
+          <strong id="sbAccountUsername" style="color:var(--accent);">Sin vincular</strong>
+          <span id="sbCloudSyncBadge" style="font-size:11px; padding:2px 8px; border-radius:10px; background:rgba(255,255,255,0.08); color:var(--muted);">Solo local</span>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-accent" onclick="openMyInstantsAuthModal()" title="Vincular cuenta con Google o sesión para guardar en la nube">🌐 Vincular con Google</button>
+          <button class="btn" onclick="syncMyInstantsAccount()" title="Descargar favoritos de tu perfil público">🔄 Sincronizar</button>
+          <button class="btn" onclick="openSettingsModal()">⚙️ Ajustes</button>
+        </div>
       </div>
     </div>
 
-    <!-- Barra de pestañas -->
-    <div class="soundboard-tabs">
-      <button class="sb-tab-btn active" id="sbTab-arg" onclick="switchSoundboardTab('arg')">🇦🇷 Top ARG</button>
-      <button class="sb-tab-btn" id="sbTab-latam" onclick="switchSoundboardTab('latam')">🌎 Top LATAM</button>
-      <button class="sb-tab-btn" id="sbTab-usa" onclick="switchSoundboardTab('usa')">🇺🇸 Top USA</button>
-      <button class="sb-tab-btn" id="sbTab-global" onclick="switchSoundboardTab('global')">🌐 Top GLOBAL</button>
-      <button class="sb-tab-btn" id="sbTab-favorites" onclick="switchSoundboardTab('favorites')">⭐ Mis Favoritos</button>
-      <button class="sb-tab-btn" id="sbTab-search" onclick="switchSoundboardTab('search')">🔍 Buscador</button>
-    </div>
+    <!-- Contenedor con scroll independiente para los sonidos -->
+    <div class="soundboard-scroll-content" id="sbScrollContainer">
+      <!-- Grid de Botones -->
+      <div id="sbLoadingIndicator" style="text-align:center; padding:30px; color:var(--muted); display:none;">Cargando sonidos de MyInstants…</div>
+      <div class="soundboard-grid" id="soundboardGrid"></div>
 
-    <!-- Barra de búsqueda -->
-    <div class="soundboard-search-bar" id="sbSearchBarWrap">
-      <input type="text" id="sbSearchInput" class="form-input" style="flex:1;" placeholder="Buscar entre miles de efectos y memes en MyInstants..." onkeydown="if(event.key==='Enter') executeSoundboardSearch()">
-      <button class="btn btn-accent" onclick="executeSoundboardSearch()">Buscar</button>
-      <button class="btn" onclick="clearSoundboardSearch()">Limpiar</button>
-    </div>
-
-    <!-- Barra de cuenta vinculada y sincronización -->
-    <div class="soundboard-account-bar">
-      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <span>👤 Cuenta MyInstants:</span>
-        <strong id="sbAccountUsername" style="color:var(--accent);">Sin vincular</strong>
-        <span id="sbCloudSyncBadge" style="font-size:11px; padding:2px 8px; border-radius:10px; background:rgba(255,255,255,0.08); color:var(--muted);">Solo local</span>
+      <!-- Indicador de carga inferior para scroll infinito -->
+      <div id="sbLoadingMore" style="text-align:center; padding:20px 0; color:var(--accent); font-size:12px; display:none;">
+        ⏳ Cargando más sonidos al deslizar…
       </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn btn-accent" onclick="openMyInstantsAuthModal()" title="Vincular cuenta con Google o sesión para guardar en la nube">🌐 Vincular con Google</button>
-        <button class="btn" onclick="syncMyInstantsAccount()" title="Descargar favoritos de tu perfil público">🔄 Sincronizar</button>
-        <button class="btn" onclick="openSettingsModal()">⚙️ Ajustes</button>
+      <div style="text-align:center; margin-top:14px; margin-bottom:10px;">
+        <button class="btn" id="sbBtnLoadMore" onclick="loadMoreSounds()" style="display:none; margin:0 auto;">⬇ Cargar más sonidos</button>
       </div>
+      <div id="sbScrollSentinel" style="height:20px; width:100%;"></div>
     </div>
-
-    <!-- Grid de Botones -->
-    <div id="sbLoadingIndicator" style="text-align:center; padding:30px; color:var(--muted); display:none;">Cargando sonidos de MyInstants…</div>
-    <div class="soundboard-grid" id="soundboardGrid"></div>
-
-    <!-- Indicador de carga inferior para scroll infinito -->
-    <div id="sbLoadingMore" style="text-align:center; padding:20px 0; color:var(--accent); font-size:12px; display:none;">
-      ⏳ Cargando más sonidos al deslizar…
-    </div>
-    <div style="text-align:center; margin-top:14px; margin-bottom:10px;">
-      <button class="btn" id="sbBtnLoadMore" onclick="loadMoreSounds()" style="display:none; margin:0 auto;">⬇ Cargar más sonidos</button>
-    </div>
-    <div id="sbScrollSentinel" style="height:20px; width:100%;"></div>
   </div>
 </div>
 
@@ -2701,12 +2784,12 @@ function showView(viewName, push = false) {
   if (viewName !== 'obs') {
     const iframe = document.getElementById('livePlayerIframe') || document.querySelector('#liveVideoContainer iframe');
     if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
+      iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: [] }), '*');
     }
   } else if (!liveIsMuted) {
     const iframe = document.getElementById('livePlayerIframe') || document.querySelector('#liveVideoContainer iframe');
     if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'unMute', args: '' }), '*');
+      iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'unMute', args: [] }), '*');
     }
   }
 }
@@ -3828,7 +3911,7 @@ function toggleLiveMute() {
   const iframe = document.getElementById('livePlayerIframe') || document.querySelector('#liveVideoContainer iframe');
   if (iframe && iframe.contentWindow) {
     const func = liveIsMuted ? 'mute' : 'unMute';
-    iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: func, args: '' }), '*');
+    iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: func, args: [] }), '*');
     if (!liveIsMuted) {
       iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [100] }), '*');
     }
@@ -4007,23 +4090,35 @@ function setupSoundboardInfiniteScroll() {
   const sentinel = document.getElementById('sbScrollSentinel');
   if (!sentinel) return;
 
+  const container = document.getElementById('sbScrollContainer');
   sbIntersectionObserver = new IntersectionObserver((entries) => {
     if (entries[0] && entries[0].isIntersecting && sbHasMore && !sbIsLoadingMore && currentView === 'soundboard') {
       loadMoreSounds();
     }
-  }, { rootMargin: '400px' });
+  }, { root: container || null, rootMargin: '400px' });
 
   sbIntersectionObserver.observe(sentinel);
+
+  if (container && !container._hasScrollListener) {
+    container._hasScrollListener = true;
+    container.addEventListener('scroll', handleSoundboardScroll, { passive: true });
+    container.addEventListener('scroll', updateFloatingTopBtn, { passive: true });
+  }
 }
 
-// Scroll throttled via IntersectionObserver to prevent lag
+// Scroll throttled to prevent lag
 let sbScrollThrottleTimeout = null;
 function handleSoundboardScroll() {
   if (currentView !== 'soundboard' || !sbHasMore || sbIsLoadingMore || currentSbTab === 'favorites') return;
   if (sbScrollThrottleTimeout) return;
   sbScrollThrottleTimeout = setTimeout(() => {
     sbScrollThrottleTimeout = null;
-    if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 400)) {
+    const container = document.getElementById('sbScrollContainer');
+    if (container) {
+      if ((container.scrollTop + container.clientHeight) >= (container.scrollHeight - 400)) {
+        loadMoreSounds();
+      }
+    } else if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 400)) {
       loadMoreSounds();
     }
   }, 300);
@@ -4157,18 +4252,25 @@ async function stopSoundboard() {
 }
 
 function scrollToTopSoundboard() {
+  const container = document.getElementById('sbScrollContainer');
+  if (container) {
+    container.scrollTo({ top: 0, behavior: 'smooth' });
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-window.addEventListener('scroll', () => {
+function updateFloatingTopBtn() {
   const floatBtn = document.getElementById('sbFloatingTopBtn');
   if (!floatBtn) return;
-  if (currentView === 'soundboard' && window.scrollY > 160) {
+  const container = document.getElementById('sbScrollContainer');
+  const scrollPos = (container && container.scrollTop > 0) ? container.scrollTop : window.scrollY;
+  if (currentView === 'soundboard' && scrollPos > 160) {
     floatBtn.classList.add('visible');
   } else {
     floatBtn.classList.remove('visible');
   }
-});
+}
+window.addEventListener('scroll', updateFloatingTopBtn, { passive: true });
 
 let lastVolSentTime = 0;
 

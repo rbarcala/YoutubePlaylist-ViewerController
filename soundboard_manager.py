@@ -154,12 +154,15 @@ class SoundboardManager:
             vol = self.current_volume
 
         self.current_volume = vol
+        vol_ratio = f"{vol / 100.0:.2f}"
 
         cmd = [
             "ffplay",
             "-nodisp",
             "-autoexit",
             "-loglevel", "error",
+            "-volume", str(vol),
+            "-af", f"volume={vol_ratio}",
             str(target_file)
         ]
 

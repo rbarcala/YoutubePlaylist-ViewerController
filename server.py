@@ -55,6 +55,11 @@ def _video_download_worker():
                 'format': 'best[height<=1080][ext=mp4]/best[height<=1080]/best',
                 'outtmpl': output_template,
                 'merge_output_format': 'mp4',
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['android', 'web']
+                    }
+                },
                 'quiet': True,
                 'no_warnings': True,
                 'noplaylist': True,
@@ -1027,6 +1032,7 @@ def get_video_url():
 
     cfg = load_config()
     force_combined = request.args.get('fallback') == 'combined'
+    force_fresh = request.args.get('fresh') == '1' or force_combined
     playback_mode = 'combined' if force_combined else cfg.get('video_playback_mode', 'original')
     now = time.time()
     cached_path = _cached_video_path(video_id)
@@ -1036,7 +1042,7 @@ def get_video_url():
         video_cache[video_id] = (result, now + 7200)
         return jsonify(result)
 
-    if not force_combined and video_id in video_cache:
+    if not force_fresh and video_id in video_cache:
         cached_data, exp_time = video_cache[video_id]
         if now < exp_time:
             return jsonify(cached_data)
@@ -1047,8 +1053,13 @@ def get_video_url():
             'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/'
             'bestvideo[height<=1080]+bestaudio/best'
             if playback_mode == 'original'
-            else 'best[height<=1080]/best'
+            else '18/best[height<=1080]/best'
         ),
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web']
+            }
+        },
         'quiet': True,
         'no_warnings': True,
         'noplaylist': True,

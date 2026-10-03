@@ -187,46 +187,79 @@ video.addEventListener('timeupdate', () => {
 
 function applyState() {
   video.playbackRate = currentPlaybackRate;
-  if (usesCombinedMedia) {
-    video.muted = isMuted || video.paused;
-    if (!isMuted && video.paused && video.readyState >= 2) startVideoPlayback();
-  }
   audio.playbackRate = currentPlaybackRate;
-  audio.muted = isMuted;
-  if (!usesCombinedMedia && !isMuted && !video.paused && audio.src) {
-    if (Math.abs(video.currentTime - audio.currentTime) > 0.3) {
-      audio.currentTime = video.currentTime;
+
+  if (usesCombinedMedia) {
+    // 1. Audio integrado en la misma pista del video (fallback / cache / stream único)
+    video.muted = isMuted;
+    audio.muted = true;
+    try { audio.pause(); } catch(e) {}
+  } else {
+    // 2. Audio separado en elemento <audio> (stream original 1080p sin sonido)
+    video.muted = true;
+    audio.muted = isMuted;
+    if (!isMuted && !video.paused && audio.src && audio.paused) {
+      audio.play().catch(() => {});
     }
-    audio.play().catch(() => {});
   }
 }
 
 function startVideoPlayback() {
   if (!video.src) return;
-  video.muted = true;
+  // Si está muteado, arrancamos muteado para garantizar compatibilidad con autoplay en navegadores
+  if (isMuted) {
+    video.muted = true;
+    audio.muted = true;
+  } else if (usesCombinedMedia) {
+    video.muted = false;
+  }
+
   video.play().then(() => {
-    if (usesCombinedMedia && !isMuted) video.muted = false;
     applyState();
-  }).catch(() => {});
+    if (!usesCombinedMedia && !isMuted && audio.src && audio.paused) {
+      audio.play().catch(() => {});
+    }
+  }).catch(() => {
+    // Si el navegador bloqueó la reproducción automática con sonido, arrancar en mute y luego sincronizar
+    video.muted = true;
+    video.play().then(() => {
+      applyState();
+    }).catch(() => {});
+  });
 }
 
 async function switchToCombinedMedia() {
+  if (audioFallbackRequested) return;
   audioFallbackRequested = true;
   try {
-    const response = await fetch(`/api/get_video_url?v=${encodeURIComponent(currentPlayingId)}&fallback=combined&ts=${Date.now()}`);
+    const response = await fetch(`/api/get_video_url?v=${encodeURIComponent(currentPlayingId)}&fallback=combined&fresh=1&ts=${Date.now()}`);
     const data = await response.json();
-    if (!data.video_url || !data.combined_audio) return;
+    if (!data.video_url) {
+      loadingOverlay.classList.remove('active');
+      return;
+    }
     const position = video.currentTime || 0;
     usesCombinedMedia = true;
     audio.removeAttribute('src');
     audio.load();
     video.src = data.video_url;
-    video.onloadedmetadata = () => {
-      video.currentTime = position;
-      video.onloadedmetadata = null;
+    applyState();
+
+    let fallbackStarted = false;
+    const onFallbackReady = () => {
+      if (fallbackStarted) return;
+      fallbackStarted = true;
+      if (position > 0) video.currentTime = position;
+      loadingOverlay.classList.remove('active');
       startVideoPlayback();
     };
-  } catch(e) {}
+
+    video.onloadeddata = onFallbackReady;
+    video.oncanplay = onFallbackReady;
+    if (video.readyState >= 2) onFallbackReady();
+  } catch(e) {
+    loadingOverlay.classList.remove('active');
+  }
 }
 
 async function handleBuffering() {
@@ -239,6 +272,9 @@ async function handleBuffering() {
     if (data.status === 'ready' && data.url && video.currentSrc !== new URL(data.url, window.location.href).href) {
       const position = video.currentTime || 0;
       video.src = data.url;
+      usesCombinedMedia = true;
+      audio.removeAttribute('src');
+      audio.load();
       video.onloadedmetadata = () => {
         video.currentTime = position;
         video.onloadedmetadata = null;
@@ -266,8 +302,8 @@ async function playVideo(videoId, title = "") {
     const data = await response.json();
 
     if (data.video_url && data.audio_url) {
-      video.src = data.video_url;
       usesCombinedMedia = Boolean(data.combined_audio || data.video_url === data.audio_url);
+      video.src = data.video_url;
       if (usesCombinedMedia) {
         audio.removeAttribute('src');
         audio.load();
@@ -277,15 +313,52 @@ async function playVideo(videoId, title = "") {
 
       applyState();
 
-      video.oncanplay = () => {
+      let playbackStarted = false;
+      const onReadyToPlay = () => {
+        if (playbackStarted) return;
+        playbackStarted = true;
         loadingOverlay.classList.remove('active');
         startVideoPlayback();
       };
+
+      video.onloadeddata = onReadyToPlay;
+      video.oncanplay = onReadyToPlay;
+      if (video.readyState >= 2) {
+        onReadyToPlay();
+      }
+
+      video.onerror = () => {
+        if (!audioFallbackRequested) {
+          switchToCombinedMedia();
+        } else {
+          loadingOverlay.classList.remove('active');
+        }
+      };
+
+      audio.onerror = () => {
+        if (!usesCombinedMedia && !audioFallbackRequested) {
+          switchToCombinedMedia();
+        }
+      };
+
+      // Watchdog de seguridad si la red tarda
+      setTimeout(() => {
+        if (loadingOverlay.classList.contains('active') && currentPlayingId === videoId) {
+          if (!usesCombinedMedia) {
+            switchToCombinedMedia();
+          } else {
+            loadingOverlay.classList.remove('active');
+            startVideoPlayback();
+          }
+        }
+      }, 5000);
     } else {
       console.error("Error al obtener URL del video:", data.error);
+      loadingOverlay.classList.remove('active');
     }
   } catch (err) {
     console.error("Fallo de conexión con backend:", err);
+    loadingOverlay.classList.remove('active');
   }
 }
 
@@ -401,6 +474,14 @@ window.addEventListener('beforeunload', () => {
     keepalive: true
   }).catch(() => {});
 });
+
+// Si el usuario hace click en cualquier parte del visor, aplicar estado y asegurar audio
+document.addEventListener('pointerdown', () => {
+  applyState();
+  if (!usesCombinedMedia && !isMuted && audio.src && audio.paused) {
+    audio.play().catch(() => {});
+  }
+}, { passive: true });
 
 // ─── PANTALLA COMPLETA Y PICTURE-IN-PICTURE ───
 function toggleFullScreen() {
