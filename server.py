@@ -433,6 +433,33 @@ def obs_toggle_stream():
     broadcast_event("obs_status_changed", res)
     return jsonify(res)
 
+@app.route('/api/obs/credentials')
+def get_obs_credentials():
+    cfg = load_config()
+    return jsonify({
+        "host": cfg.get("obs_host", "localhost"),
+        "port": cfg.get("obs_port", 4455),
+        "password": cfg.get("obs_password", "")
+    })
+
+@app.route('/api/obs/auth', methods=['POST'])
+def generate_obs_auth():
+    cfg = load_config()
+    password = cfg.get("obs_password", "")
+    data = request.json or {}
+    salt = data.get("salt", "")
+    challenge = data.get("challenge", "")
+    if not password:
+        return jsonify({"auth": ""})
+        
+    import hashlib, base64
+    h1 = hashlib.sha256((password + salt).encode('utf-8')).digest()
+    h1_b64 = base64.b64encode(h1).decode('utf-8')
+    h2 = hashlib.sha256((h1_b64 + challenge).encode('utf-8')).digest()
+    auth_response = base64.b64encode(h2).decode('utf-8')
+    
+    return jsonify({"auth": auth_response})
+
 @app.route('/api/obs/preview')
 def get_obs_preview():
     cfg = load_config()
@@ -442,6 +469,12 @@ def get_obs_preview():
         return jsonify({"success": False, "error": "No scene provided"})
     res = obs.get_screenshot(scene)
     return jsonify(res)
+
+@app.route('/api/obs/start_virtual_cam', methods=['POST'])
+def start_obs_virtual_cam():
+    cfg = load_config()
+    obs = OBSController(cfg.get("obs_host", "localhost"), cfg.get("obs_port", 4455), cfg.get("obs_password", ""))
+    return jsonify(obs.start_virtual_cam())
 
 @app.route('/api/obs/toggle_record', methods=['POST'])
 def obs_toggle_record():

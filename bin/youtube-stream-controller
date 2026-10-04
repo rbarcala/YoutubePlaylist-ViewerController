@@ -26,6 +26,18 @@ fi
 
 cd "$APP_DIR"
 
+# Verificar configuración inicial de cámara virtual para no pedir contraseña luego
+if [ ! -f /etc/modules-load.d/obs-v4l2loopback.conf ]; then
+    echo "Configurando entorno de cámara virtual por primera vez..."
+    if [ -f "$APP_DIR/scripts/setup_v4l2.sh" ]; then
+        if command -v pkexec >/dev/null 2>&1; then
+            pkexec bash "$APP_DIR/scripts/setup_v4l2.sh" || echo "Aviso: Se canceló la configuración automática de la cámara."
+        else
+            sudo bash "$APP_DIR/scripts/setup_v4l2.sh" || echo "Aviso: Se canceló la configuración automática de la cámara."
+        fi
+    fi
+fi
+
 # Priorizar python del venv si existe, con fallback a python3 del sistema
 if [ -x "$APP_DIR/venv/bin/python" ]; then
     PYTHON_EXEC="$APP_DIR/venv/bin/python"

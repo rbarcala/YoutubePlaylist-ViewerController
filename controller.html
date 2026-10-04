@@ -1773,8 +1773,14 @@
           </div>
         </div>
         <div class="obs-preview-frame" id="obsPreviewContainer" style="background:#000; aspect-ratio:16/9; position:relative; overflow:hidden; border-bottom:1px solid var(--border);">
-          <img id="obsPreviewImg" src="" style="width:100%; height:100%; object-fit:contain; display:none;">
-          <div id="obsPreviewFallback" style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted); font-size:12px;">Vista previa de OBS...</div>
+          <div style="position:absolute; top:5px; right:5px; z-index:10;">
+            <select id="obsCamSelect" style="display:none; background:rgba(0,0,0,0.6); color:white; border:1px solid var(--border); border-radius:4px; font-size:10px; padding:2px;" onchange="connectSelectedCamera(this.value)"></select>
+          </div>
+          <video id="obsVideoCam" autoplay playsinline muted style="width:100%; height:100%; object-fit:contain; display:none;"></video>
+          <div id="obsPreviewFallback" style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted); font-size:12px; flex-direction:column; gap:10px;">
+            <span id="obsPreviewMsg">Previsualización a 60 FPS (Zero Latency)</span>
+            <button class="btn btn-accent" id="btnStartVirtualCam" onclick="startVirtualCameraPreview()">📷 Activar Cámara Virtual</button>
+          </div>
         </div>
         <div class="live-video-frame" id="liveVideoContainer">
           <div style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted); flex-direction:column; gap:10px;">
@@ -3500,52 +3506,109 @@ function toggleMute() {
 }
 
 // ─── 2. OBS STUDIO LOGIC ───
-let obsPreviewTimeout = null;
-let isPreviewRunning = false;
-let currentObsScene = '';
+let currentCamStream = null;
 
-async function fetchObsPreview() {
-  if (!isPreviewRunning || !currentObsScene) return;
+async function startVirtualCameraPreview() {
+  const fallback = document.getElementById('obsPreviewFallback');
+  const msg = document.getElementById('obsPreviewMsg');
+  const btn = document.getElementById('btnStartVirtualCam');
+  let camSelect = document.getElementById('obsCamSelect');
+
   try {
-    const res = await fetch('/api/obs/preview?scene=' + encodeURIComponent(currentObsScene));
-    const data = await res.json();
-    const img = document.getElementById('obsPreviewImg');
-    const fallback = document.getElementById('obsPreviewFallback');
-    if (data.success && data.imageData) {
-      img.src = data.imageData;
-      img.style.display = 'block';
-      fallback.style.display = 'none';
-    } else {
-      img.style.display = 'none';
-      fallback.style.display = 'flex';
-      fallback.textContent = 'Previsualización no disponible';
+    if (!camSelect.options || camSelect.options.length === 0) {
+      msg.textContent = "Solicitando permisos de cámara...";
+      await navigator.mediaDevices.getUserMedia({ video: true })
+        .then(s => s.getTracks().forEach(t => t.stop()))
+        .catch(e => { if(e.name !== "NotReadableError") throw e; });
     }
-  } catch (e) {
-    // ignorar para no saturar consola
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoInputs = devices.filter(d => d.kind === 'videoinput');
+
+    if (videoInputs.length === 0) {
+      throw new Error("No se detectaron cámaras en el sistema.");
+    }
+
+    camSelect.innerHTML = '';
+    videoInputs.forEach(device => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.text = device.label || `Cámara ${camSelect.length + 1}`;
+        camSelect.appendChild(option);
+    });
+    
+    const obsDev = videoInputs.find(d => 
+        d.label.toLowerCase().includes('obs') || 
+        d.label.toLowerCase().includes('dummy') || 
+        d.label.toLowerCase().includes('v4l2')
+    );
+    if (obsDev) camSelect.value = obsDev.deviceId;
+    
+    camSelect.style.display = 'block';
+    btn.style.display = 'none';
+    
+    if (videoInputs.length > 0) {
+        connectSelectedCamera(camSelect.value);
+    }
+  } catch (err) {
+    msg.textContent = "Error: " + err.message;
+    btn.style.display = "inline-flex";
+    btn.textContent = "Dar permisos e intentar de nuevo";
   }
-  
-  if (isPreviewRunning) {
-    obsPreviewTimeout = setTimeout(fetchObsPreview, 250);
-  }
 }
 
-function startObsPreviewLoop() {
-  if (isPreviewRunning) return;
-  isPreviewRunning = true;
-  if (obsPreviewTimeout) clearTimeout(obsPreviewTimeout);
-  fetchObsPreview();
+async function connectSelectedCamera(deviceId) {
+    const video = document.getElementById('obsVideoCam');
+    const fallback = document.getElementById('obsPreviewFallback');
+    const msg = document.getElementById('obsPreviewMsg');
+    
+    if (currentCamStream) {
+        currentCamStream.getTracks().forEach(t => t.stop());
+    }
+    
+    try {
+        msg.textContent = "Conectando cámara...";
+        const constraints = { 
+            video: {
+                width: { ideal: 640, max: 1280 },
+                height: { ideal: 360, max: 720 },
+                frameRate: { ideal: 30, max: 60 }
+            }
+        };
+        if (deviceId && deviceId !== "") {
+            constraints.video.deviceId = deviceId; // Preferred, not exact, evitas OverconstrainedError
+        }
+        currentCamStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = currentCamStream;
+        video.style.display = 'block';
+        fallback.style.display = 'none';
+        video.play().catch(e => console.log('Auto-play prevent: ', e));
+        
+        currentCamStream.getVideoTracks()[0].onended = () => {
+            video.style.display = 'none';
+            fallback.style.display = 'flex';
+            msg.textContent = "La cámara virtual se desconectó. ¿Está iniciada en OBS?";
+            if (document.getElementById('btnStartVirtualCam')) {
+                document.getElementById('btnStartVirtualCam').style.display = 'inline-flex';
+            }
+        };
+        
+    } catch (err) {
+        console.error(err);
+        msg.textContent = "Error al conectar cámara: " + err.message;
+        if (document.getElementById('btnStartVirtualCam')) {
+            document.getElementById('btnStartVirtualCam').style.display = "inline-flex";
+            document.getElementById('btnStartVirtualCam').textContent = "Reintentar conexión";
+        }
+    }
 }
 
-function stopObsPreviewLoop() {
-  isPreviewRunning = false;
-  if (obsPreviewTimeout) clearTimeout(obsPreviewTimeout);
-  obsPreviewTimeout = null;
-}
-
-// Intercept navigateTo to start/stop preview loop
+function stopObsPreviewLoop() {}
+window.startObsPreviewLoop = startVirtualCameraPreview;
 
 async function loadObsData() {
   try {
+    fetch('/api/obs/start_virtual_cam', { method: 'POST' }).catch(() => {});
     const res = await fetch('/api/obs/scenes');
     const data = await res.json();
     const grid = document.getElementById('obsScenesGrid');

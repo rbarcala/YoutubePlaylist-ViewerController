@@ -313,7 +313,68 @@ def open_myinstants_login_window():
         return False
 
 def launch_native_window(url: str, title: str = "YouTube Stream Controller", port: int = 8000):
-    """Lanza la ventana nativa de escritorio usando PyGObject GTK3 + WebKit2."""
+    """Lanza la ventana nativa intentando usar PyQt5 (Chromium) primero, y WebKit2 como respaldo."""
+    try:
+        from PyQt5.QtCore import QUrl
+        from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QToolBar
+        from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineProfile
+        from PyQt5.QtGui import QIcon
+        import sys
+        
+        # El GPU de Linux está fallando (EGL_BAD_CONTEXT). Deshabilitarlo evita el tartamudeo constante.
+        sys.argv.extend([
+            "--disable-gpu",
+            "--disable-software-rasterizer",
+            "--disable-gpu-compositing"
+        ])
+        
+        print("[app] Iniciando con motor PyQt5 (Chromium) en modo CPU (Evitando crash de EGL)...")
+        app = QApplication(sys.argv)
+        
+        class CustomPage(QWebEnginePage):
+            def __init__(self, profile, parent=None):
+                super().__init__(profile, parent)
+                self.featurePermissionRequested.connect(self.on_feature_permission_requested)
+            def on_feature_permission_requested(self, sec_url, feature):
+                # Auto-allow camera/mic for virtual camera WebRTC
+                if feature in (QWebEnginePage.MediaAudioCapture, QWebEnginePage.MediaVideoCapture, QWebEnginePage.MediaAudioVideoCapture):
+                    self.setFeaturePermission(sec_url, feature, QWebEnginePage.PermissionGrantedByUser)
+                else:
+                    self.setFeaturePermission(sec_url, feature, QWebEnginePage.PermissionDeniedByUser)
+
+        window = QMainWindow()
+        window.setWindowTitle(title)
+        window.resize(1220, 840)
+        
+        toolbar = QToolBar("Opciones")
+        window.addToolBar(toolbar)
+        
+        btn_web = QAction("🌐 Modo Web", window)
+        btn_web.triggered.connect(lambda: webbrowser.open(url))
+        toolbar.addAction(btn_web)
+        
+        btn_viewer = QAction("📺 Abrir Viewer", window)
+        def on_viewer():
+            v_url = url.replace("controller.html", "viewer.html")
+            threading.Thread(target=browser_mgr.open_smart_viewer, args=(v_url, port), daemon=True).start()
+        btn_viewer.triggered.connect(on_viewer)
+        toolbar.addAction(btn_viewer)
+        
+        view = QWebEngineView()
+        profile = QWebEngineProfile.defaultProfile()
+        page = CustomPage(profile, view)
+        view.setPage(page)
+        window.setCentralWidget(view)
+        
+        view.load(QUrl(url))
+        window.show()
+        sys.exit(app.exec_())
+        
+    except ImportError:
+        print("[app] PyQt5 no detectado. Intentando fallback a GTK3/WebKit2...")
+        _launch_webkit_window(url, title, port)
+
+def _launch_webkit_window(url: str, title: str, port: int):
     try:
         import gi
         gi.require_version('Gtk', '3.0')
@@ -329,44 +390,31 @@ def launch_native_window(url: str, title: str = "YouTube Stream Controller", por
         webbrowser.open(url)
         return
 
-    # Configurar nombre de programa para que coincida con .desktop y cargue el icono
     GLib.set_prgname("youtube-stream-controller")
-
-    # Crear ventana GTK
     window = Gtk.Window(title=title)
     window.set_default_size(1220, 840)
     window.set_position(Gtk.WindowPosition.CENTER)
 
-    # Cargar icono
-    icon_paths = [
-        BASE_DIR / "assets" / "icon.png",
-        BASE_DIR / "assets" / "icon.svg",
-        Path("/usr/share/icons/hicolor/scalable/apps/youtube-stream-controller.svg")
-    ]
-    for p in icon_paths:
-        if p.exists():
-            try:
-                window.set_icon_from_file(str(p))
-                break
-            except Exception:
-                pass
-
-    # HeaderBar moderna de GNOME / Ubuntu
     header = Gtk.HeaderBar()
     header.set_show_close_button(True)
     header.props.title = "YouTube Stream Controller"
-    header.props.subtitle = "Fondos & Stream Player"
     window.set_titlebar(header)
 
-    # WebView con aceleración de hardware
     webview = WebKit2.WebView()
     settings = webview.get_settings()
     settings.set_enable_developer_extras(True)
     settings.set_enable_webgl(True)
     settings.set_enable_media_stream(True)
-    settings.set_enable_smooth_scrolling(True)
+    
+    def on_permission_request(view, request):
+        try:
+            request.allow()
+            return True
+        except Exception:
+            return False
+            
+    webview.connect("permission-request", on_permission_request)
 
-    # Manejar enlaces externos y window.open para abrirlos en el navegador real
     def on_decide_policy(view, decision, decision_type):
         if decision_type == WebKit2.PolicyDecisionType.NAVIGATION_ACTION:
             action = decision.get_navigation_action()
@@ -377,62 +425,18 @@ def launch_native_window(url: str, title: str = "YouTube Stream Controller", por
                 decision.ignore()
                 return True
         return False
-
     webview.connect("decide-policy", on_decide_policy)
 
-    def on_create_window(view, action):
-        req = action.get_request()
-        uri = req.get_uri() if req else ""
-        if uri:
-            webbrowser.open(uri)
-        return None
-
-    webview.connect("create", on_create_window)
-
-    # Botón: Abrir en Navegador Web
     btn_browser = Gtk.Button.new_with_label("🌐 Modo Web")
-    btn_browser.set_tooltip_text("Abrir este controlador en una pestaña del navegador web")
-    def on_open_browser_clicked(widget):
-        webbrowser.open(url)
-    btn_browser.connect("clicked", on_open_browser_clicked)
+    btn_browser.connect("clicked", lambda w: webbrowser.open(url))
     header.pack_start(btn_browser)
 
-    # Botón: Abrir Viewer en Navegador
-    btn_viewer = Gtk.Button.new_with_label("📺 Abrir Viewer")
-    btn_viewer.set_tooltip_text("Abrir pantalla completa del Viewer para compartir en Meet / OBS")
-    def on_open_viewer_clicked(widget):
-        viewer_url = url.replace("controller.html", "viewer.html")
-        threading.Thread(target=browser_mgr.open_smart_viewer, args=(viewer_url, port), daemon=True).start()
-    btn_viewer.connect("clicked", on_open_viewer_clicked)
-    header.pack_start(btn_viewer)
-
-    # Botón: Recargar
-    btn_reload = Gtk.Button.new_from_icon_name("view-refresh-symbolic", Gtk.IconSize.BUTTON)
-    btn_reload.set_tooltip_text("Recargar controlador")
-    btn_reload.connect("clicked", lambda w: webview.reload())
-    header.pack_end(btn_reload)
-
-    # Botón: Configuración
-    btn_settings = Gtk.Button.new_from_icon_name("preferences-system-symbolic", Gtk.IconSize.BUTTON)
-    btn_settings.set_tooltip_text("Configuración y Setup de Playlist / API Key / OBS")
-    def on_settings_clicked(w):
-        webview.run_javascript("if(window.openSettingsModal) window.openSettingsModal();", None, None, None)
-    btn_settings.connect("clicked", on_settings_clicked)
-    header.pack_end(btn_settings)
-
-    # Contenedor Scrolled
     scrolled = Gtk.ScrolledWindow()
     scrolled.add(webview)
     window.add(scrolled)
-
-    # Manejador de cierre
     window.connect("destroy", Gtk.main_quit)
-
-    # Cargar URL
     webview.load_uri(url)
     window.show_all()
-
-    # Loop GTK
     Gtk.main()
 
 def main():

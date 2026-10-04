@@ -235,6 +235,23 @@ class OBSController:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def start_virtual_cam(self) -> dict:
+        try:
+            sock = self._connect_and_identify()
+            if not sock: return {"success": False}
+            self._send_ws_frame(sock, json.dumps({
+                "op": 6,
+                "d": {
+                    "requestType": "StartVirtualCam",
+                    "requestId": "start-vcam"
+                }
+            }))
+            resp = json.loads(self._recv_ws_frame(sock) or "{}")
+            sock.close()
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def toggle_record(self) -> dict:
         try:
             sock = self._connect_and_identify()
