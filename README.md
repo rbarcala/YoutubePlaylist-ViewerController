@@ -51,7 +51,7 @@ Al abrir la aplicación en tu celular Android o en tu computadora, la pantalla p
 Antes de instalar, asegúrate de tener las dependencias de Python y GTK en Ubuntu:
 
 ```bash
-sudo apt update && sudo apt install -y python3-flask yt-dlp python3-requests gir1.2-gtk-3.0 gir1.2-webkit2-4.1
+sudo apt update && sudo apt install -y python3-flask yt-dlp python3-requests python3-pyqt5 python3-pyqt5.qtwebengine
 ```
 
 ### Opción 1: Con Makefile (Para usuario local y buscador del OS)

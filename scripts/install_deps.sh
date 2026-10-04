@@ -17,8 +17,8 @@ dpkg -s python3-flask >/dev/null 2>&1 || REQUIRED_PKGS+=("python3-flask")
 dpkg -s yt-dlp >/dev/null 2>&1 || REQUIRED_PKGS+=("yt-dlp")
 dpkg -s python3-requests >/dev/null 2>&1 || REQUIRED_PKGS+=("python3-requests")
 dpkg -s python3-qrcode >/dev/null 2>&1 || REQUIRED_PKGS+=("python3-qrcode")
-dpkg -s gir1.2-gtk-3.0 >/dev/null 2>&1 || REQUIRED_PKGS+=("gir1.2-gtk-3.0")
-dpkg -s gir1.2-webkit2-4.1 >/dev/null 2>&1 || REQUIRED_PKGS+=("gir1.2-webkit2-4.1")
+dpkg -s python3-pyqt5 >/dev/null 2>&1 || REQUIRED_PKGS+=("python3-pyqt5")
+dpkg -s python3-pyqt5.qtwebengine >/dev/null 2>&1 || REQUIRED_PKGS+=("python3-pyqt5.qtwebengine")
 dpkg -s dpkg-dev >/dev/null 2>&1 || REQUIRED_PKGS+=("dpkg-dev")
 
 # 2. Herramientas oficiales para compilar APK Android nativo sin Android Studio

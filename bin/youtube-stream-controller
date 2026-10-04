@@ -49,4 +49,28 @@ else
     PYTHON_EXEC="python3"
 fi
 
+# Auto-instalar dependencias de sistema si faltan
+echo "Comprobando dependencias del sistema (PyQt5, Flask, etc)..."
+MISSING_APT=""
+for pkg in python3-pyqt5 python3-pyqt5.qtwebengine python3-flask python3-requests yt-dlp; do
+    if ! dpkg -s $pkg >/dev/null 2>&1; then
+        MISSING_APT="$MISSING_APT $pkg"
+    fi
+done
+
+if [ -n "$MISSING_APT" ]; then
+    echo "Instalando paquetes faltantes en Ubuntu:$MISSING_APT"
+    if command -v pkexec >/dev/null 2>&1; then
+        pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY apt-get install -y $MISSING_APT || sudo apt-get install -y $MISSING_APT
+    else
+        sudo apt-get install -y $MISSING_APT
+    fi
+fi
+
+# Auto-instalar dependencias de pip en el venv (rápido, silencioso)
+if [ -f "$APP_DIR/requirements.txt" ]; then
+    "$PYTHON_EXEC" -m pip install -q -r "$APP_DIR/requirements.txt" 2>/dev/null || true
+fi
+
+# Wrapper exec
 exec "$PYTHON_EXEC" "$APP_DIR/app.py" "$@"

@@ -22,6 +22,50 @@ from browser_manager import BrowserManager
 
 browser_mgr = BrowserManager()
 
+def is_spotify_running() -> bool:
+    """Verifica si Spotify ya se encuentra en ejecución."""
+    try:
+        res = subprocess.run(['pgrep', '-x', 'spotify'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        res2 = subprocess.run(['pgrep', '-f', 'spotify'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        return bool(res.stdout.strip() or res2.stdout.strip())
+    except Exception:
+        return False
+
+def find_spotify_command() -> list[str] | None:
+    """Encuentra el comando adecuado para iniciar Spotify (Nativo, Flatpak o Snap)."""
+    # Nativo / Snap en el PATH
+    if shutil.which("spotify"):
+        return ["spotify"]
+    # Flatpak
+    if shutil.which("flatpak"):
+        try:
+            r = subprocess.run(["flatpak", "info", "com.spotify.Client"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if r.returncode == 0:
+                return ["flatpak", "run", "com.spotify.Client"]
+        except Exception:
+            pass
+    # Snap hardcoded fallback
+    if os.path.isfile("/snap/bin/spotify"):
+        return ["/snap/bin/spotify"]
+    return None
+
+def launch_spotify_if_needed():
+    """Inicia Spotify en segundo plano si no está en ejecución."""
+    if is_spotify_running():
+        print("[app] Spotify ya se encuentra en ejecución.")
+        return
+        
+    cmd = find_spotify_command()
+    if not cmd:
+        print("[app] Spotify no encontrado en el sistema.")
+        return
+        
+    print(f"[app] Abriendo Spotify automáticamente ({' '.join(cmd)})...")
+    try:
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e:
+        print(f"[app] Error al abrir Spotify: {e}")
+
 def is_obs_running() -> bool:
     """Verifica si OBS Studio ya se encuentra en ejecución."""
     try:
@@ -315,21 +359,55 @@ def open_myinstants_login_window():
 def launch_native_window(url: str, title: str = "YouTube Stream Controller", port: int = 8000):
     """Lanza la ventana nativa intentando usar PyQt5 (Chromium) primero, y WebKit2 como respaldo."""
     try:
-        from PyQt5.QtCore import QUrl
-        from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QToolBar
-        from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineProfile
-        from PyQt5.QtGui import QIcon
+        import os
         import sys
         
-        # El GPU de Linux está fallando (EGL_BAD_CONTEXT). Deshabilitarlo evita el tartamudeo constante.
+        # OBLIGA a usar X11 (XWayland) para evitar crasheos de NVIDIA en Wayland
+        # (Desactivado XCB para probar Vulkan nativo)
+        
+        from PyQt5.QtCore import QUrl, Qt
+        from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QToolBar, QStyle
+        from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineProfile
+        from PyQt5.QtGui import QIcon, QPalette, QColor
+        import signal
+        
+        # Permitir matar la app con Ctrl+C en la terminal
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        
         sys.argv.extend([
-            "--disable-gpu",
-            "--disable-software-rasterizer",
-            "--disable-gpu-compositing"
+            "--ignore-gpu-blocklist",
+            "--enable-gpu-rasterization",
+            "--use-gl=angle", 
+            "--enable-features=Vulkan", 
+            "--use-vulkan=native"
         ])
         
-        print("[app] Iniciando con motor PyQt5 (Chromium) en modo CPU (Evitando crash de EGL)...")
+        print("[app] Iniciando con motor PyQt5 (Chromium) forzando Vulkan...")
         app = QApplication(sys.argv)
+        
+        # Agrupar en la barra lateral de Ubuntu y usar icono
+        app.setApplicationName("youtube-stream-controller")
+        app.setDesktopFileName("youtube-stream-controller.desktop")
+        
+        # Forzar tema oscuro nativo para bordes blancos
+        app.setStyle("Fusion")
+        dark_palette = QPalette()
+        dark_palette.setColor(QPalette.Window, QColor(25, 25, 25))
+        dark_palette.setColor(QPalette.WindowText, Qt.white)
+        dark_palette.setColor(QPalette.Base, QColor(15, 15, 15))
+        dark_palette.setColor(QPalette.AlternateBase, QColor(25, 25, 25))
+        dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
+        dark_palette.setColor(QPalette.ToolTipText, Qt.white)
+        dark_palette.setColor(QPalette.Text, Qt.white)
+        dark_palette.setColor(QPalette.Button, QColor(45, 45, 45))
+        dark_palette.setColor(QPalette.ButtonText, Qt.white)
+        dark_palette.setColor(QPalette.BrightText, Qt.red)
+        dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
+        dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+        dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+        app.setPalette(dark_palette)
+        app.setStyleSheet("QToolTip { color: #ffffff; background-color: #2a82da; border: 1px solid white; }")
+
         
         class CustomPage(QWebEnginePage):
             def __init__(self, profile, parent=None):
@@ -346,19 +424,41 @@ def launch_native_window(url: str, title: str = "YouTube Stream Controller", por
         window.setWindowTitle(title)
         window.resize(1220, 840)
         
+        # Icono de la ventana
+        icon_path = str(BASE_DIR / "assets" / "icon.png")
+        if os.path.exists(icon_path):
+            app.setWindowIcon(QIcon(icon_path))
+            window.setWindowIcon(QIcon(icon_path))
+        
+        # Barra superior con estilos oscuros
         toolbar = QToolBar("Opciones")
+        toolbar.setMovable(False)
+        toolbar.setStyleSheet("QToolBar { background-color: #111; border-bottom: 1px solid #333; padding: 5px; } QToolButton { color: white; font-weight: bold; padding: 5px 10px; border-radius: 4px; } QToolButton:hover { background-color: #333; }")
         window.addToolBar(toolbar)
         
-        btn_web = QAction("🌐 Modo Web", window)
+        # Botones con iconos del sistema
+        icon_web = window.style().standardIcon(QStyle.SP_ComputerIcon)
+        btn_web = QAction(icon_web, " Modo Web", window)
         btn_web.triggered.connect(lambda: webbrowser.open(url))
         toolbar.addAction(btn_web)
         
-        btn_viewer = QAction("📺 Abrir Viewer", window)
+        icon_viewer = window.style().standardIcon(QStyle.SP_DesktopIcon)
+        btn_viewer = QAction(icon_viewer, " Abrir Viewer", window)
         def on_viewer():
             v_url = url.replace("controller.html", "viewer.html")
             threading.Thread(target=browser_mgr.open_smart_viewer, args=(v_url, port), daemon=True).start()
         btn_viewer.triggered.connect(on_viewer)
         toolbar.addAction(btn_viewer)
+        
+        # Spacer para empujar cosas a la derecha
+        spacer = QAction("", window)
+        spacer.setEnabled(False)
+        toolbar.addAction(spacer)
+        
+        icon_reload = window.style().standardIcon(QStyle.SP_BrowserReload)
+        btn_reload = QAction(icon_reload, " Recargar", window)
+        btn_reload.triggered.connect(lambda: view.reload())
+        toolbar.addAction(btn_reload)
         
         view = QWebEngineView()
         profile = QWebEngineProfile.defaultProfile()
@@ -471,6 +571,8 @@ def main():
 
     # Apertura automática de OBS Studio si no está en ejecución
     threading.Thread(target=launch_obs_if_needed, daemon=True).start()
+    threading.Thread(target=launch_spotify_if_needed, daemon=True).start()
+
 
     if mode == "web":
         print(f"[app] Abriendo Controller en navegador web: {controller_url}")
