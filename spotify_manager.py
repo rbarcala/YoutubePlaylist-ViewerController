@@ -149,6 +149,10 @@ class SpotifyManager:
     # ─── CONTROLES DE REPRODUCCIÓN ───
     def get_playback_state(self) -> dict:
         """Obtiene el estado actual de reproducción."""
+        import time
+        if self._state_cache and time.time() - self._state_cache_time < 3.0:
+            return self._state_cache
+            
         res = self._api_request("me/player")
         if "error" in res or not res:
             # Intentar leer desde MPRIS en Ubuntu
@@ -361,13 +365,29 @@ class SpotifyManager:
                 art_url = ""
                 for line in res_meta.stdout.splitlines():
                     if "xesam:title" in line:
-                        title = line.split("<'")[-1].split("'>")[0] if "<'" in line else title
+                        parts = line.split("<'")
+                        title = parts[-1].split("'>")[0] if len(parts) > 1 else (line.split("<\"")[-1].split("\">")[0] if "<\"" in line else "Spotify Track")
                     elif "xesam:artist" in line:
-                        artist = line.split("['")[-1].split("']")[0] if "['" in line else artist
+                        parts = line.split("['")
+                        artist = parts[-1].split("']")[0] if len(parts) > 1 else "Unknown Artist"
                     elif "mpris:artUrl" in line:
-                        art_url = line.split("<'")[-1].split("'>")[0] if "<'" in line else ""
+                        parts = line.split("<'")
+                        art_url = parts[-1].split("'>")[0] if len(parts) > 1 else ""
 
-                return {
+                if title.startswith("http"):
+                    title = "Reproduciendo (Sin título MPRIS)"
+
+                m_state = {
+                    "available": True,
+                    "is_playing": is_playing,
+                    "title": title,
+                    "artist": artist,
+                    "album_art": art_url,
+                    "device_name": "Spotify en esta PC (Ubuntu MPRIS)"
+                }
+                self._state_cache = m_state
+                self._state_cache_time = time.time()
+                return m_state
                     "available": True,
                     "is_playing": is_playing,
                     "title": title,

@@ -84,8 +84,8 @@
   #waiting svg { opacity: 0.25; }
   #waiting p { font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; }
 
-  /* Controles flotantes mínimos (Pantalla completa / PiP) */
-  #pipControls {
+  /* Controles flotantes mínimos (Pantalla completa / Fullscreen) */
+  #fullscreenControls {
     position: fixed;
     bottom: 14px; right: 14px;
     z-index: 30;
@@ -94,19 +94,9 @@
     opacity: 0;
     transition: opacity 0.3s;
   }
-  #pipControls:hover { opacity: 1; }
-  .btn-pip {
-    background: rgba(20, 20, 20, 0.75);
-    border: 1px solid #333;
-    color: #aaa;
-    font-size: 11px;
-    padding: 6px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: inherit;
-    backdrop-filter: blur(8px);
-  }
-  .btn-pip:hover { color: #fff; border-color: #e8ff47; }
+  #fullscreenControls:hover { opacity: 1; }
+  
+  .btn-fullscreen:hover { color: #fff; border-color: #e8ff47; }
 </style>
 </head>
 <body>
@@ -129,9 +119,9 @@
   <audio id="audio-player"></audio>
 </div>
 
-<div id="pipControls">
-  <button class="btn-pip" onclick="toggleFullScreen()">⛶ Pantalla Completa</button>
-  <button class="btn-pip" onclick="togglePiP()">🗖 Picture-in-Picture</button>
+<div id="fullscreenControls">
+  <button class="btn-fullscreen" onclick="toggleFullScreen()">⛶ Pantalla Completa</button>
+
 </div>
 
 <script>
@@ -481,24 +471,12 @@ document.addEventListener('pointerdown', () => {
   }
 }, { passive: true });
 
-// ─── PANTALLA COMPLETA Y PICTURE-IN-PICTURE ───
+// ─── PANTALLA COMPLETA ───
 function toggleFullScreen() {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(() => {});
   } else {
     document.exitFullscreen().catch(() => {});
-  }
-}
-
-async function togglePiP() {
-  try {
-    if (document.pictureInPictureElement) {
-      await document.exitPictureInPicture();
-    } else if (document.pictureInPictureEnabled && video) {
-      await video.requestPictureInPicture();
-    }
-  } catch (err) {
-    console.warn("PiP no soportado o denegado:", err);
   }
 }
 </script>

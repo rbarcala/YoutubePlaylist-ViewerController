@@ -2531,7 +2531,7 @@ Warm smell of colitas, rising up through the air...</div>
                 </div>
                 <div>
                   <label class="form-label" style="font-size:11px;">Tamaño Letra (px)</label>
-                  <input type="number" id="modLyFontSize" class="form-input" min="10" max="24" value="13" oninput="updateModularProp('lyrics', 'font_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                  <input type="number" id="modLyFontSize" class="form-input" min="10" max="300" value="13" oninput="updateModularProp('lyrics', 'font_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
                 </div>
               </div>
             </div>
@@ -6527,7 +6527,7 @@ function renderStageCustomTexts(scale) {
             </div>
             <div>
               <label class="form-label" style="font-size:10px;">Tamaño (px)</label>
-              <input type="number" class="form-input" style="font-size:11px;" min="10" max="64" value="${t.font_size || 16}" oninput="updateCustomTextProp('${t.id}', 'font_size', parseInt(this.value, 10))">
+              <input type="number" class="form-input" style="font-size:11px;" min="10" max="300" value="${t.font_size || 16}" oninput="updateCustomTextProp('${t.id}', 'font_size', parseInt(this.value, 10))">
             </div>
           </div>
           <div style="margin-top:6px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
