@@ -374,6 +374,7 @@
 <!-- ─── 2. OVERLAY TEMPORIZADOR "YA VUELVO / RECREO" ─── -->
 <div class="break-overlay" id="breakOverlay">
   <div class="break-card" id="breakCard">
+    <img id="breakTimerImage" src="" style="position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); display:none; pointer-events:none; z-index:-1; object-fit:contain;">
     <div class="break-header-pill" id="breakHeaderPill">
       <span>⏱️</span> <span id="breakBadgeText">PAUSA DE STREAM &amp; CLASE</span>
     </div>
@@ -651,12 +652,30 @@
       const tmTitleSize = (cfg.overlay_timer_title_size !== undefined ? cfg.overlay_timer_title_size : (overlayConfig.overlay_timer_title_size || 30)) + 'px';
       const tmBadgeSize = (cfg.overlay_timer_badge_size !== undefined ? cfg.overlay_timer_badge_size : (overlayConfig.overlay_timer_badge_size || 12)) + 'px';
       const tmPhraseSize = (cfg.overlay_timer_phrase_size !== undefined ? cfg.overlay_timer_phrase_size : (overlayConfig.overlay_timer_phrase_size || 14)) + 'px';
+      const tmImgEl = document.getElementById('breakTimerImage');
+      if (tmImgEl) {
+        if (cfg.overlay_timer_image_enabled && cfg.overlay_timer_image_url) {
+          tmImgEl.style.display = 'block';
+          tmImgEl.src = cfg.overlay_timer_image_url;
+          const ix = cfg.overlay_timer_image_x !== undefined ? cfg.overlay_timer_image_x : 0;
+          const iy = cfg.overlay_timer_image_y !== undefined ? cfg.overlay_timer_image_y : -100;
+          const iscale = cfg.overlay_timer_image_scale || 1.0;
+          tmImgEl.style.left = `calc(50% + ${ix}px)`;
+          tmImgEl.style.top = `calc(50% + ${iy}px)`;
+          tmImgEl.style.transform = `translate(-50%, -50%) scale(${iscale})`;
+          tmImgEl.style.borderRadius = (cfg.overlay_timer_image_radius !== undefined ? cfg.overlay_timer_image_radius : 10) + 'px';
+        } else {
+          tmImgEl.style.display = 'none';
+          tmImgEl.src = '';
+        }
+      }
 
       const badgePill = document.getElementById('breakHeaderPill');
       const badgeText = document.getElementById('breakBadgeText');
       if (badgePill) {
         badgePill.style.display = (cfg.overlay_timer_show_badge !== false) ? 'inline-flex' : 'none';
         badgePill.style.fontSize = tmBadgeSize;
+        if (cfg.overlay_timer_badge_font) badgePill.style.fontFamily = cfg.overlay_timer_badge_font;
         if (cfg.overlay_timer_badge_text && badgeText) badgeText.textContent = cfg.overlay_timer_badge_text;
         if (cfg.overlay_timer_badge_color) {
           badgePill.style.color = cfg.overlay_timer_badge_color;
@@ -668,6 +687,7 @@
       if (titleEl) {
         titleEl.style.display = (cfg.overlay_timer_show_title !== false) ? 'block' : 'none';
         titleEl.style.fontSize = tmTitleSize;
+        if (cfg.overlay_timer_title_font) titleEl.style.fontFamily = cfg.overlay_timer_title_font;
         if (cfg.overlay_timer_title_text && (!currentTimerState || !currentTimerState.title)) {
           titleEl.textContent = cfg.overlay_timer_title_text;
         }
@@ -678,6 +698,7 @@
       if (clockEl) {
         clockEl.style.display = (cfg.overlay_timer_show_clock !== false) ? 'block' : 'none';
         clockEl.style.fontSize = tmClockSize;
+        if (cfg.overlay_timer_clock_font) clockEl.style.fontFamily = cfg.overlay_timer_clock_font;
         if (cfg.overlay_timer_clock_color) {
           clockEl.style.color = cfg.overlay_timer_clock_color;
           clockEl.style.textShadow = `0 0 24px ${hexToRgba(cfg.overlay_timer_clock_color, 0.5)}`;
@@ -695,7 +716,10 @@
         phraseBox.style.display = (cfg.overlay_timer_show_phrase !== false) ? 'block' : 'none';
         phraseBox.style.fontSize = tmPhraseSize;
       }
-      if (phraseText && cfg.overlay_timer_phrase_color) phraseText.style.color = cfg.overlay_timer_phrase_color;
+      if (phraseText) {
+        if (cfg.overlay_timer_phrase_color) phraseText.style.color = cfg.overlay_timer_phrase_color;
+        if (cfg.overlay_timer_phrase_font) phraseText.style.fontFamily = cfg.overlay_timer_phrase_font;
+      }
     }
 
     // ─── 3. MODULO LYRICS (LETRAS) ───

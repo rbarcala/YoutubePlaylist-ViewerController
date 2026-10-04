@@ -2003,7 +2003,8 @@
           <!-- MODULO 2: TEMPORIZADOR MOCKUP INTERACTIVO -->
           <div class="stage-item" id="stageTimer" data-module="timer" ondragstart="return false;" onpointerdown="onStagePointerDown(event, 'timer')">
             <span class="stage-tag">⏱️ Temporizador</span>
-            <div id="stageTimerCard" style="display:flex; flex-direction:column; align-items:center; gap:10px; padding:20px 28px; border-radius:18px; background:rgba(10,10,10,0.85); border:2px solid rgba(232,255,71,0.3); width:460px; text-align:center;">
+            <div id="stageTimerCard" style="position:relative; display:flex; flex-direction:column; align-items:center; gap:10px; padding:20px 28px; border-radius:18px; background:rgba(10,10,10,0.85); border:2px solid rgba(232,255,71,0.3); width:460px; text-align:center;">
+              <img id="stageTimerImage" src="" style="position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); display:none; pointer-events:none; z-index:-1; object-fit:contain;">
               <div id="stageTimerBadge" style="display:inline-flex; align-items:center; gap:6px; padding:3px 12px; border-radius:12px; background:rgba(232,255,71,0.12); border:1px solid #e8ff47; color:#e8ff47; font-size:10px; font-weight:800; font-family:'Space Mono',monospace;">⏱️ PAUSA DE STREAM &amp; CLASE</div>
               <div id="stageTimerTitle" style="font-size:20px; font-weight:800; color:#fff; font-family:'Syne',sans-serif;">Ya vuelvo</div>
               <div id="stageTimerClock" style="font-size:48px; font-weight:700; color:#e8ff47; font-family:'Space Mono',monospace; text-shadow:0 0 16px rgba(232,255,71,0.4);">04:42</div>
@@ -2324,6 +2325,87 @@ Warm smell of colitas, rising up through the air...</div>
             </div>
 
             <div class="inspector-section">
+              <span class="inspector-section-title">🔡 Fuentes por Elemento</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Reloj Grande</label>
+                  <select id="modTmClockFont" class="form-input" style="font-size:11px;" onchange="updateModularProp('timer', 'clock_font', this.value)">
+                    <option value="">— Heredar —</option>
+                    <option value="system-ui">System UI</option>
+                    <option value="'Space Mono', monospace">Space Mono</option>
+                    <option value="'Syne', sans-serif">Syne</option>
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Título</label>
+                  <select id="modTmTitleFont" class="form-input" style="font-size:11px;" onchange="updateModularProp('timer', 'title_font', this.value)">
+                    <option value="">— Heredar —</option>
+                    <option value="system-ui">System UI</option>
+                    <option value="'Space Mono', monospace">Space Mono</option>
+                    <option value="'Syne', sans-serif">Syne</option>
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Badge / Píldora</label>
+                  <select id="modTmBadgeFont" class="form-input" style="font-size:11px;" onchange="updateModularProp('timer', 'badge_font', this.value)">
+                    <option value="">— Heredar —</option>
+                    <option value="system-ui">System UI</option>
+                    <option value="'Space Mono', monospace">Space Mono</option>
+                    <option value="'Syne', sans-serif">Syne</option>
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Frase / Meme</label>
+                  <select id="modTmPhraseFont" class="form-input" style="font-size:11px;" onchange="updateModularProp('timer', 'phrase_font', this.value)">
+                    <option value="">— Heredar —</option>
+                    <option value="system-ui">System UI</option>
+                    <option value="'Space Mono', monospace">Space Mono</option>
+                    <option value="'Syne', sans-serif">Syne</option>
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="inspector-section-title">🖼️ Imagen Decorativa</span>
+                <label style="display:inline-flex; align-items:center; gap:6px; font-size:11px; cursor:pointer;">
+                  <input type="checkbox" id="modTmImgEnabled" onchange="updateModularProp('timer', 'img_enabled', this.checked)"> Habilitar
+                </label>
+              </div>
+              <div style="margin-top:6px;">
+                <label class="form-label" style="font-size:11px;">URL de la Imagen</label>
+                <input type="text" id="modTmImgUrl" class="form-input" placeholder="https://ejemplo.com/foto.png" oninput="updateModularProp('timer', 'img_url', this.value)">
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Posición X (px)</label>
+                  <input type="number" id="modTmImgX" class="form-input" value="0" oninput="updateModularProp('timer', 'img_x', parseInt(this.value, 10))" title="Usa la ruedita del mouse">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Posición Y (px)</label>
+                  <input type="number" id="modTmImgY" class="form-input" value="-100" oninput="updateModularProp('timer', 'img_y', parseInt(this.value, 10))" title="Usa la ruedita del mouse">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Escala: <span id="modTmImgScaleVal" style="color:var(--accent);">1.0x</span></label>
+                  <input type="range" id="modTmImgScale" min="0.1" max="3.0" step="0.05" value="1.0" oninput="updateModularProp('timer', 'img_scale', parseFloat(this.value))" style="width:100%; accent-color:var(--accent);">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Redondeo (px)</label>
+                  <input type="number" id="modTmImgRadius" class="form-input" min="0" max="200" value="10" oninput="updateModularProp('timer', 'img_radius', parseInt(this.value, 10))" title="Usa la ruedita del mouse">
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-section">
               <span class="inspector-section-title">👁️ Elementos Visibles</span>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px;">
                 <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modTmShowBadge" checked onchange="updateModularProp('timer', 'show_badge', this.checked)"> Badge</label>
@@ -2407,7 +2489,7 @@ Warm smell of colitas, rising up through the air...</div>
                 </div>
                 <div>
                   <label class="form-label" style="font-size:11px;">Tamaño Letra (px)</label>
-                  <input type="number" id="modLyFontSize" class="form-input" min="10" max="24" value="13" oninput="updateModularProp('lyrics', 'font_size', parseInt(this.value, 10))">
+                  <input type="number" id="modLyFontSize" class="form-input" min="10" max="24" value="13" oninput="updateModularProp('lyrics', 'font_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
                 </div>
               </div>
             </div>
@@ -3078,8 +3160,22 @@ function initSSE() {
     } catch(err) {}
   });
 
-  evtSource.addEventListener('timer_finished', () => {
+  evtSource.addEventListener('timer_finished', (e) => {
+    try {
+      const d = JSON.parse(e.data).data;
+      updateTimerUI(d);
+      updateStageOverlayView(currentStageScale);
+    } catch(err) {}
     showToast('⏰ ¡El temporizador de recreo ha finalizado!');
+    
+    // A los 4 segundos, desactivar el módulo del temporizador en el HTML
+    setTimeout(() => {
+      const toggle = document.getElementById('modTmEnabled');
+      if (toggle && toggle.checked) {
+        toggle.checked = false;
+        updateModularProp('timer', 'enabled', false);
+      }
+    }, 4000);
   });
 }
 
@@ -3696,12 +3792,12 @@ function formatDurationMs(ms) {
 // Analizador de input: detecta si es playlist y extrae filtros después del espacio
 function parseSearchInput(val) {
   const trimmed = (val || '').trim();
-  const urlMatch = trimmed.match(/(?:https?:\/\/open\.spotify\.com\/playlist\/|spotify:playlist:)([a-zA-Z0-9]+)(?:\s+(.*))?/i);
-  if (urlMatch && urlMatch[1] && urlMatch[1] !== 'undefined' && urlMatch[1].length >= 10) {
+  const match = trimmed.match(/(?:https?:\/\/open\.spotify\.com\/playlist\/|spotify:playlist:)?([a-zA-Z0-9]{22})(?:\?[^\s]*)?(?:\s+(.*))?/i);
+  if (match && match[1]) {
     return {
       isPlaylist: true,
-      playlistId: urlMatch[1],
-      filterQuery: (urlMatch[2] || '').trim()
+      playlistId: match[1],
+      filterQuery: (match[2] || '').trim()
     };
   }
   return {
@@ -4753,8 +4849,9 @@ function closeSettingsModal() {
 
 async function saveSettings() {
   let pl = document.getElementById('cfgPlaylistId').value.trim();
-  if (pl.includes('list=')) {
-    try { pl = new URL(pl).searchParams.get('list') || pl; } catch(e) {}
+  const listMatch = pl.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+  if (listMatch) {
+    pl = listMatch[1];
   }
 
   const payload = {
@@ -5647,6 +5744,28 @@ function updateModularProp(mod, prop, val) {
       config.overlay_timer_badge_size = parseInt(val, 10) || 12;
     } else if (prop === 'phrase_size') {
       config.overlay_timer_phrase_size = parseInt(val, 10) || 14;
+    } else if (prop === 'clock_font') {
+      config.overlay_timer_clock_font = val;
+    } else if (prop === 'title_font') {
+      config.overlay_timer_title_font = val;
+    } else if (prop === 'badge_font') {
+      config.overlay_timer_badge_font = val;
+    } else if (prop === 'phrase_font') {
+      config.overlay_timer_phrase_font = val;
+    } else if (prop === 'img_enabled') {
+      config.overlay_timer_image_enabled = Boolean(val);
+    } else if (prop === 'img_url') {
+      config.overlay_timer_image_url = val;
+    } else if (prop === 'img_x') {
+      config.overlay_timer_image_x = parseInt(val, 10) || 0;
+    } else if (prop === 'img_y') {
+      config.overlay_timer_image_y = parseInt(val, 10) || 0;
+    } else if (prop === 'img_scale') {
+      config.overlay_timer_image_scale = parseFloat(val) || 1.0;
+      const lb = document.getElementById('modTmImgScaleVal');
+      if (lb) lb.textContent = config.overlay_timer_image_scale.toFixed(2) + 'x';
+    } else if (prop === 'img_radius') {
+      config.overlay_timer_image_radius = parseInt(val, 10) || 0;
     } else if (prop === 'show_badge') {
       config.overlay_timer_show_badge = Boolean(val);
     } else if (prop === 'show_title') {
@@ -6021,17 +6140,28 @@ function updateStageMockups() {
     npCard.style.borderRadius = npRadius;
     npCard.style.fontFamily = npFont;
 
+    const npTitleSize = (config.overlay_now_playing_title_size !== undefined ? config.overlay_now_playing_title_size : 13) + 'px';
+    const npArtistSize = (config.overlay_now_playing_artist_size !== undefined ? config.overlay_now_playing_artist_size : 11) + 'px';
+    const npBadgeSize = (config.overlay_now_playing_badge_size !== undefined ? config.overlay_now_playing_badge_size : 9) + 'px';
+
     const titleEl = document.getElementById('stageNpTitle');
     if (titleEl) {
       titleEl.style.color = npTextCol;
+      titleEl.style.fontSize = npTitleSize;
       titleEl.style.display = (config.overlay_show_song_title !== false && config.overlay_show_title !== false) ? 'block' : 'none';
     }
     const artistEl = document.getElementById('stageNpArtist');
-    if (artistEl) artistEl.style.display = (config.overlay_show_artist !== false) ? 'block' : 'none';
+    if (artistEl) {
+      artistEl.style.fontSize = npArtistSize;
+      artistEl.style.display = (config.overlay_show_artist !== false) ? 'block' : 'none';
+    }
     const coverEl = document.getElementById('stageNpCover');
     if (coverEl) coverEl.style.display = (config.overlay_show_cover !== false) ? 'block' : 'none';
     const badgeEl = document.getElementById('stageNpBadge');
-    if (badgeEl) badgeEl.style.display = (config.overlay_show_badge !== false) ? 'flex' : 'none';
+    if (badgeEl) {
+      badgeEl.style.fontSize = npBadgeSize;
+      badgeEl.style.display = (config.overlay_show_badge !== false) ? 'flex' : 'none';
+    }
   }
 
   // 2. TEMPORIZADOR
@@ -6063,9 +6193,33 @@ function updateStageMockups() {
     tmCard.style.borderRadius = tmRadius;
     tmCard.style.fontFamily = tmFont;
 
+    const tmClockSize = (config.overlay_timer_clock_size !== undefined ? config.overlay_timer_clock_size : 72) + 'px';
+    const tmTitleSize = (config.overlay_timer_title_size !== undefined ? config.overlay_timer_title_size : 30) + 'px';
+    const tmBadgeSize = (config.overlay_timer_badge_size !== undefined ? config.overlay_timer_badge_size : 12) + 'px';
+    const tmPhraseSize = (config.overlay_timer_phrase_size !== undefined ? config.overlay_timer_phrase_size : 14) + 'px';
+    const tmImgEl = document.getElementById('stageTimerImage');
+    if (tmImgEl) {
+      if (config.overlay_timer_image_enabled && config.overlay_timer_image_url) {
+        tmImgEl.style.display = 'block';
+        tmImgEl.src = config.overlay_timer_image_url;
+        const ix = config.overlay_timer_image_x !== undefined ? config.overlay_timer_image_x : 0;
+        const iy = config.overlay_timer_image_y !== undefined ? config.overlay_timer_image_y : -100;
+        const iscale = config.overlay_timer_image_scale || 1.0;
+        tmImgEl.style.left = `calc(50% + ${ix}px)`;
+        tmImgEl.style.top = `calc(50% + ${iy}px)`;
+        tmImgEl.style.transform = `translate(-50%, -50%) scale(${iscale})`;
+        tmImgEl.style.borderRadius = (config.overlay_timer_image_radius !== undefined ? config.overlay_timer_image_radius : 10) + 'px';
+      } else {
+        tmImgEl.style.display = 'none';
+        tmImgEl.src = '';
+      }
+    }
+
     const bBadge = document.getElementById('stageTimerBadge');
     if (bBadge) {
       bBadge.style.display = (config.overlay_timer_show_badge !== false) ? 'inline-flex' : 'none';
+      bBadge.style.fontSize = tmBadgeSize;
+      if (config.overlay_timer_badge_font) bBadge.style.fontFamily = config.overlay_timer_badge_font;
       if (config.overlay_timer_badge_text) bBadge.textContent = config.overlay_timer_badge_text;
       if (config.overlay_timer_badge_color) {
         bBadge.style.color = config.overlay_timer_badge_color;
@@ -6076,6 +6230,8 @@ function updateStageMockups() {
     const bTitle = document.getElementById('stageTimerTitle');
     if (bTitle) {
       bTitle.style.display = (config.overlay_timer_show_title !== false) ? 'block' : 'none';
+      bTitle.style.fontSize = tmTitleSize;
+      if (config.overlay_timer_title_font) bTitle.style.fontFamily = config.overlay_timer_title_font;
       if (config.overlay_timer_title_text) bTitle.textContent = config.overlay_timer_title_text;
       if (config.overlay_timer_title_color) bTitle.style.color = config.overlay_timer_title_color;
     }
@@ -6083,6 +6239,8 @@ function updateStageMockups() {
     const bClock = document.getElementById('stageTimerClock');
     if (bClock) {
       bClock.style.display = (config.overlay_timer_show_clock !== false) ? 'block' : 'none';
+      bClock.style.fontSize = tmClockSize;
+      if (config.overlay_timer_clock_font) bClock.style.fontFamily = config.overlay_timer_clock_font;
       if (config.overlay_timer_clock_color) {
         bClock.style.color = config.overlay_timer_clock_color;
         bClock.style.textShadow = `0 0 16px ${hexToRgba(config.overlay_timer_clock_color, 0.45)}`;
@@ -6097,7 +6255,9 @@ function updateStageMockups() {
     const bPhrase = document.getElementById('stageTimerPhrase');
     if (bPhrase) {
       bPhrase.style.display = (config.overlay_timer_show_phrase !== false) ? 'block' : 'none';
+      bPhrase.style.fontSize = tmPhraseSize;
       if (config.overlay_timer_phrase_color) bPhrase.style.color = config.overlay_timer_phrase_color;
+      if (config.overlay_timer_phrase_font) bPhrase.style.fontFamily = config.overlay_timer_phrase_font;
     }
   }
 
@@ -6322,6 +6482,18 @@ function initOverlayStudio() {
   setVal('modTmTitleSize', config.overlay_timer_title_size, 30);
   setVal('modTmBadgeSize', config.overlay_timer_badge_size, 12);
   setVal('modTmPhraseSize', config.overlay_timer_phrase_size, 14);
+  setVal('modTmClockFont', config.overlay_timer_clock_font || '');
+  setVal('modTmTitleFont', config.overlay_timer_title_font || '');
+  setVal('modTmBadgeFont', config.overlay_timer_badge_font || '');
+  setVal('modTmPhraseFont', config.overlay_timer_phrase_font || '');
+  setCheck('modTmImgEnabled', config.overlay_timer_image_enabled, false);
+  setVal('modTmImgUrl', config.overlay_timer_image_url || '');
+  setVal('modTmImgX', config.overlay_timer_image_x !== undefined ? config.overlay_timer_image_x : 0);
+  setVal('modTmImgY', config.overlay_timer_image_y !== undefined ? config.overlay_timer_image_y : -100);
+  const tmImgScale = parseFloat(config.overlay_timer_image_scale || 1.0);
+  setVal('modTmImgScale', tmImgScale);
+  setText('modTmImgScaleVal', tmImgScale.toFixed(2) + 'x');
+  setVal('modTmImgRadius', config.overlay_timer_image_radius !== undefined ? config.overlay_timer_image_radius : 10);
   setCheck('modTmShowBadge', config.overlay_timer_show_badge, true);
   setCheck('modTmShowTitle', config.overlay_timer_show_title, true);
   setCheck('modTmShowClock', config.overlay_timer_show_clock, true);
@@ -6413,6 +6585,16 @@ async function saveModularOverlayConfig() {
       overlay_timer_title_size: parseInt(config.overlay_timer_title_size || 30, 10),
       overlay_timer_badge_size: parseInt(config.overlay_timer_badge_size || 12, 10),
       overlay_timer_phrase_size: parseInt(config.overlay_timer_phrase_size || 14, 10),
+      overlay_timer_clock_font: config.overlay_timer_clock_font || '',
+      overlay_timer_title_font: config.overlay_timer_title_font || '',
+      overlay_timer_badge_font: config.overlay_timer_badge_font || '',
+      overlay_timer_phrase_font: config.overlay_timer_phrase_font || '',
+      overlay_timer_image_enabled: config.overlay_timer_image_enabled || false,
+      overlay_timer_image_url: config.overlay_timer_image_url || '',
+      overlay_timer_image_x: parseInt(config.overlay_timer_image_x || 0, 10),
+      overlay_timer_image_y: parseInt(config.overlay_timer_image_y || 0, 10),
+      overlay_timer_image_scale: parseFloat(config.overlay_timer_image_scale || 1.0),
+      overlay_timer_image_radius: parseInt(config.overlay_timer_image_radius || 0, 10),
       overlay_timer_show_badge: config.overlay_timer_show_badge !== false,
       overlay_timer_show_title: config.overlay_timer_show_title !== false,
       overlay_timer_show_clock: config.overlay_timer_show_clock !== false,

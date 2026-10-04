@@ -986,6 +986,12 @@ def timer_start():
     title = data.get('title', 'Ya Vuelvo')
     phrase = data.get('phrase', '')
     state = overlay_mgr.start_timer(duration=duration, title=title, phrase=phrase)
+    
+    cfg = load_config()
+    cfg["timer_default_title"] = title.strip()
+    cfg["timer_default_phrase"] = phrase.strip()
+    save_config(cfg)
+
     return jsonify({"success": True, "state": state})
 
 @app.route('/api/timer/pause', methods=['POST'])
@@ -998,11 +1004,21 @@ def timer_stop():
     state = overlay_mgr.stop_timer()
     return jsonify({"success": True, "state": state})
 
-@app.route('/api/timer/phrase', methods=['POST'])
-def timer_set_phrase():
+@app.route('/api/timer/live_text', methods=['POST'])
+def timer_set_live_text():
     data = request.json or {}
-    phrase = data.get('phrase', '')
-    state = overlay_mgr.set_phrase(phrase)
+    title = data.get('title')
+    phrase = data.get('phrase')
+    state = overlay_mgr.set_live_text(title=title, phrase=phrase)
+    
+    # Save to config to remember as defaults
+    cfg = load_config()
+    if title is not None:
+        cfg["timer_default_title"] = title.strip()
+    if phrase is not None:
+        cfg["timer_default_phrase"] = phrase.strip()
+    save_config(cfg)
+    
     return jsonify({"success": True, "state": state})
 
 @app.route('/api/timer/phrases', methods=['GET'])

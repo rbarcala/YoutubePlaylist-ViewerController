@@ -12,9 +12,9 @@ class OverlayManager:
         self.broadcast = broadcast_fn
         self.load_config = config_loader
         self.save_config = config_saver
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         
-        # Estado del Temporizador
+        cfg = self.load_config()
         self.timer_state = {
             "active": False,
             "running": False,
@@ -23,8 +23,8 @@ class OverlayManager:
             "remaining_seconds": 300,
             "remaining": 300,
             "start_epoch": 0,
-            "title": "Ya vuelvo",
-            "phrase": "Compilando cerebro... (42 warnings, 0 errors)",
+            "title": cfg.get("timer_default_title", "Ya vuelvo"),
+            "phrase": cfg.get("timer_default_phrase", "Compilando cerebro... (42 warnings, 0 errors)"),
             "play_sound": True
         }
         self._thread = None
@@ -92,9 +92,12 @@ class OverlayManager:
         self._emit_update()
         return self.get_state()
 
-    def set_phrase(self, phrase: str) -> dict:
+    def set_live_text(self, title: str = None, phrase: str = None) -> dict:
         with self.lock:
-            self.timer_state["phrase"] = phrase.strip()
+            if phrase is not None:
+                self.timer_state["phrase"] = phrase.strip()
+            if title is not None:
+                self.timer_state["title"] = title.strip()
         self._emit_update()
         return self.get_state()
 
@@ -116,10 +119,19 @@ class OverlayManager:
                     self.timer_state["running"] = False
                     self.timer_state["remaining_seconds"] = 0
                     self.timer_state["remaining"] = 0
+                    self._emit_update("timer_update")
                     self._emit_update("timer_finished")
+                    threading.Thread(target=self._auto_deactivate_timer, daemon=True).start()
                     break
 
             self._emit_update()
+
+    def _auto_deactivate_timer(self):
+        time.sleep(4)
+        with self.lock:
+            if not self.timer_state["running"] and self.timer_state["active"] and self.timer_state["remaining_seconds"] <= 0:
+                self.timer_state["active"] = False
+        self._emit_update("timer_update")
 
     def _emit_update(self, event_name: str = "timer_update"):
         st = self.get_state()
