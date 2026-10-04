@@ -188,13 +188,46 @@
   }
   .lyrics-text {
     font-size: 13px;
-    line-height: 1.5;
-    color: #e0e0e0;
     font-weight: 700;
+    line-height: 1.4;
+    color: #e0e0e0;
+    transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    position: relative;
+    width: 100%;
     white-space: pre-wrap;
-    text-align: left;
-    transform: translateY(0);
-    transition: transform 1s ease;
+  }
+  .lyric-line {
+    padding: 6px 0;
+    transition: all 0.3s ease;
+    opacity: 0.4;
+  }
+  .lyric-line.active {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+  .lyrics-text.mode-marquee {
+    display: flex;
+    flex-direction: row;
+    gap: 60px;
+    align-items: center;
+    white-space: nowrap;
+    width: max-content;
+  }
+  .lyric-line-h {
+    transition: all 0.3s ease;
+    opacity: 0.4;
+  }
+  .lyric-line-h.active {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  @keyframes scroll-left {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+  }
+  @keyframes ticker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
   }
 
   /* ─── 3. TEMPORIZADOR "YA VUELVO / RECREO" ─── */
@@ -430,6 +463,16 @@
   let lastLyricsQuery = "";
   let lyricsInterval = null;
   let lyricsOffset = 0;
+  
+  // Interpolacion local para que las letras sincronizadas se actualicen suavemente cada segundo
+  setInterval(() => {
+    if (currentSpotify && currentSpotify.is_playing && currentSpotify.progress_ms !== undefined) {
+      currentSpotify.progress_ms += 200; // 5 FPS
+      if (currentSyncedLyrics && currentSyncedLyrics.length) {
+        updateSyncedLyrics(currentSpotify.progress_ms);
+      }
+    }
+  }, 200);
 
   function parseSyncedLyrics(raw) {
     return String(raw || '').split('\n').flatMap(line => {
@@ -442,19 +485,164 @@
   }
 
   function updateSyncedLyrics(progressMs) {
-    if (!currentSyncedLyrics.length) return false;
+    if (!currentSyncedLyrics.length || progressMs === undefined) return false;
+    
     const lyricsText = document.getElementById('lyricsText');
-    if (progressMs < currentSyncedLyrics[0].time) {
-      if (lyricsText) lyricsText.textContent = '';
+    const lyricsEl = document.getElementById('lyricsContainer');
+    const mode = overlayConfig.overlay_lyrics_mode || 'single';
+    const hlColor = overlayConfig.overlay_lyrics_highlight_color || '#e8ff47';
+
+    let activeIdx = -1;
+    for (let i = 0; i < currentSyncedLyrics.length; i++) {
+      if (currentSyncedLyrics[i].time > progressMs) break;
+      activeIdx = i;
+    }
+
+    if (activeIdx === -1) {
+      if (mode === 'single') {
+        if (lyricsText) {
+          lyricsText.className = 'lyrics-text';
+          lyricsText.textContent = '';
+          lyricsText.style.transform = 'translateY(0px)';
+        }
+      } else if (mode === 'marquee') {
+        if (lyricsText) {
+          lyricsText.className = 'lyrics-text mode-marquee';
+          lyricsText.style.transform = 'translateX(0px)';
+          Array.from(lyricsText.children).forEach(c => {
+             c.classList.remove('active');
+             c.style.color = '';
+             c.style.opacity = '0.4';
+          });
+        }
+      } else {
+        if (lyricsText) {
+          lyricsText.className = 'lyrics-text';
+          lyricsText.style.transform = `translateY(0px)`;
+          Array.from(lyricsText.children).forEach(c => {
+             c.classList.remove('active');
+             c.style.color = '';
+             c.style.opacity = '0.4';
+          });
+        }
+      }
       return true;
     }
-    let active = currentSyncedLyrics[0];
-    for (const cue of currentSyncedLyrics) {
-      if (cue.time > progressMs) break;
-      active = cue;
+
+    const activeCue = currentSyncedLyrics[activeIdx];
+
+    if (mode === 'single') {
+      if (lyricsText) {
+        lyricsText.className = 'lyrics-text';
+        lyricsText.textContent = activeCue.text;
+        lyricsText.style.transform = 'translateY(0px)';
+        lyricsText.style.overflow = 'visible';
+        lyricsText.style.whiteSpace = 'normal';
+      }
+    } else if (mode === 'marquee') {
+      if (lyricsText) {
+        if (lyricsText.children.length !== currentSyncedLyrics.length || !lyricsText.classList.contains('mode-marquee')) {
+          lyricsText.innerHTML = currentSyncedLyrics.map((c, i) => `<div class="lyric-line-h" id="lyr-${i}">${c.text}</div>`).join('');
+          lyricsText.className = 'lyrics-text mode-marquee';
+          lyricsText.style.transform = 'translateX(0px)';
+          lyricsText.style.overflow = 'visible';
+        }
+        
+        const lines = Array.from(lyricsText.children);
+        let activeEl = null;
+        lines.forEach((line, i) => {
+          if (i === activeIdx) {
+            line.classList.add('active');
+            line.style.color = hlColor;
+            line.style.opacity = '1';
+            activeEl = line;
+          } else {
+            line.classList.remove('active');
+            line.style.color = '';
+            line.style.opacity = '0.4';
+          }
+        });
+
+        if (activeEl && lyricsEl) {
+          const containerWidth = lyricsEl.offsetWidth;
+          let currentPos = activeEl.offsetLeft + activeEl.offsetWidth / 2;
+          let nextPos = currentPos;
+          let timeDiff = 0;
+          let timeElapsed = 0;
+          
+          if (activeIdx < lines.length - 1) {
+             const nextEl = lines[activeIdx + 1];
+             nextPos = nextEl.offsetLeft + nextEl.offsetWidth / 2;
+             timeDiff = currentSyncedLyrics[activeIdx + 1].time - activeCue.time;
+             timeElapsed = progressMs - activeCue.time;
+          }
+          
+          let interpolatedPos = currentPos;
+          if (timeDiff > 0 && timeElapsed >= 0) {
+             let ratio = timeElapsed / timeDiff;
+             if (ratio > 1) ratio = 1;
+             interpolatedPos = currentPos + (nextPos - currentPos) * ratio;
+          }
+          
+          const offset = (containerWidth / 2) - interpolatedPos;
+          lyricsText.style.transition = 'transform 0.2s linear';
+          lyricsText.style.transform = `translateX(${offset}px)`;
+        }
+      }
+    } else {
+      if (lyricsText) {
+        lyricsText.className = 'lyrics-text';
+        lyricsText.style.overflow = 'visible';
+        lyricsText.style.whiteSpace = 'normal';
+        if (lyricsText.children.length !== currentSyncedLyrics.length || !lyricsText.children[0].classList.contains('lyric-line')) {
+          lyricsText.innerHTML = currentSyncedLyrics.map((c, i) => `<div class="lyric-line" id="lyr-${i}">${c.text}</div>`).join('');
+        }
+        
+        const lines = Array.from(lyricsText.children);
+        let activeEl = null;
+        lines.forEach((line, i) => {
+          if (i === activeIdx) {
+            line.classList.add('active');
+            line.style.color = hlColor;
+            line.style.opacity = '1';
+            activeEl = line;
+          } else {
+            line.classList.remove('active');
+            line.style.color = '';
+            line.style.opacity = '0.4';
+          }
+        });
+
+        if (activeEl && lyricsEl) {
+          const containerHeight = lyricsEl.offsetHeight;
+          let currentPos = activeEl.offsetTop + activeEl.offsetHeight / 2;
+          let nextPos = currentPos;
+          let timeDiff = 0;
+          let timeElapsed = 0;
+          
+          if (activeIdx < lines.length - 1) {
+             const nextEl = lines[activeIdx + 1];
+             nextPos = nextEl.offsetTop + nextEl.offsetHeight / 2;
+             timeDiff = currentSyncedLyrics[activeIdx + 1].time - activeCue.time;
+             timeElapsed = progressMs - activeCue.time;
+          }
+          
+          let interpolatedPos = currentPos;
+          if (timeDiff > 0 && timeElapsed >= 0) {
+             // Instead of constant scroll, let's ease it so it rests on the line, then scrolls
+             // But the user complained about "de un saque". Let's do linear continuous scroll for both!
+             let ratio = timeElapsed / timeDiff;
+             if (ratio > 1) ratio = 1;
+             interpolatedPos = currentPos + (nextPos - currentPos) * ratio;
+          }
+          
+          const offset = (containerHeight / 2) - interpolatedPos;
+          lyricsText.style.transition = 'transform 0.2s linear';
+          lyricsText.style.transform = `translateY(${offset}px)`;
+        }
+      }
     }
-    if (lyricsText) lyricsText.textContent = active.text;
-    const lyricsEl = document.getElementById('lyricsContainer');
+
     if (lyricsEl) lyricsEl.classList.add('visible');
     return true;
   }
@@ -856,7 +1044,29 @@
       sourceText.textContent = 'SPOTIFY';
 
       title.style.display = (overlayConfig.overlay_show_song_title !== false && overlayConfig.overlay_show_title !== false) ? 'block' : 'none';
-      title.textContent = currentSpotify.title;
+      
+      if (overlayConfig.overlay_now_playing_marquee === true) {
+        if (!title.querySelector('.ticker-wrap')) {
+          title.innerHTML = `<div class="ticker-wrap" style="width:100%; overflow:hidden; white-space:nowrap; mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%); -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);"><div class="ticker-move" style="display:inline-block; animation:ticker 10s linear infinite;"><span class="ticker-item" style="display:inline-block; padding-right:50px;"></span><span class="ticker-item" style="display:inline-block; padding-right:50px;"></span></div></div>`;
+        }
+        const items = title.querySelectorAll('.ticker-item');
+        if (items[0] && items[0].textContent !== currentSpotify.title) {
+          items[0].textContent = currentSpotify.title;
+          items[1].textContent = currentSpotify.title;
+          const move = title.querySelector('.ticker-move');
+          if (move) {
+            move.style.animation = 'none';
+            void move.offsetWidth;
+            move.style.animation = 'ticker 10s linear infinite';
+          }
+        }
+      } else {
+        if (title.querySelector('.ticker-wrap')) {
+          title.textContent = currentSpotify.title; // remove wrap
+        } else if (title.textContent !== currentSpotify.title) {
+          title.textContent = currentSpotify.title;
+        }
+      }
 
       sub.style.display = (overlayConfig.overlay_show_artist !== false) ? 'block' : 'none';
       sub.textContent = currentSpotify.artist || 'Música en PC';
@@ -893,7 +1103,7 @@
 
     const query = (currentSpotify.artist || '') + ' - ' + (currentSpotify.title || '');
     if (query === lastLyricsQuery && currentLyrics) {
-      if (!updateSyncedLyrics(currentSpotify.progress_ms || 0)) lyricsEl.classList.add('visible');
+      if (!updateSyncedLyrics(currentSpotify.progress_ms)) lyricsEl.classList.add('visible');
       return;
     }
 
@@ -916,8 +1126,8 @@
 
         clearInterval(lyricsInterval);
         lyricsOffset = 0;
-        if (currentSyncedLyrics.length) {
-          updateSyncedLyrics(currentSpotify.progress_ms || 0);
+        if (currentSyncedLyrics.length && currentSpotify.progress_ms !== undefined) {
+          updateSyncedLyrics(currentSpotify.progress_ms);
         } else {
           lyricsInterval = setInterval(() => {
             lyricsOffset -= 14;
@@ -953,9 +1163,9 @@
 
     evtSource.addEventListener('spotify_state', (e) => {
       try {
-        currentSpotify = JSON.parse(e.data).data || {};
+        const d = JSON.parse(e.data); currentSpotify = d.data || d;
         updateNowPlayingUI();
-        updateSyncedLyrics(currentSpotify.progress_ms || 0);
+        updateSyncedLyrics(currentSpotify.progress_ms);
         fetchAndUpdateLyrics();
       } catch(err) {}
     });
@@ -984,7 +1194,7 @@
       if (dataSp && dataSp.available) {
         currentSpotify = dataSp;
         updateNowPlayingUI();
-        updateSyncedLyrics(currentSpotify.progress_ms || 0);
+        updateSyncedLyrics(currentSpotify.progress_ms);
         fetchAndUpdateLyrics();
       } else {
         updateNowPlayingUI();

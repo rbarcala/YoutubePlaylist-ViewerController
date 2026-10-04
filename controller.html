@@ -2140,7 +2140,7 @@ Warm smell of colitas, rising up through the air...</div>
                 </div>
                 <div>
                   <label class="form-label" style="font-size:11px;">Ancho (px)</label>
-                  <input type="number" id="modNpWidth" class="form-input" min="260" max="900" step="10" oninput="updateModularProp('now_playing', 'width', parseInt(this.value, 10))">
+                  <input type="number" id="modNpWidth" class="form-input" min="260" max="3840" step="10" oninput="updateModularProp('now_playing', 'width', parseInt(this.value, 10))">
                 </div>
               </div>
             </div>
@@ -2204,6 +2204,12 @@ Warm smell of colitas, rising up through the air...</div>
                 <label class="form-label" style="font-size:11px;">Ondulación de Texto (Wave): <span id="modNpWaveVal" style="color:var(--accent);">0</span></label>
                 <input type="range" id="modNpWave" min="0" max="10" value="0" oninput="updateModularProp('now_playing', 'wave', parseInt(this.value, 10))" style="width:100%; accent-color:var(--accent);">
               </div>
+              <div style="margin-top:8px;">
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+                  <input type="checkbox" id="modNpMarquee" onchange="updateModularProp('now_playing', 'marquee', this.checked)">
+                  Desplazar título (Marquesina Der a Izq)
+                </label>
+              </div>
             </div>
 
             <div class="inspector-section">
@@ -2266,7 +2272,7 @@ Warm smell of colitas, rising up through the air...</div>
                 </div>
                 <div>
                   <label class="form-label" style="font-size:11px;">Ancho (px)</label>
-                  <input type="number" id="modTmWidth" class="form-input" min="320" max="900" step="20" oninput="updateModularProp('timer', 'width', parseInt(this.value, 10))">
+                  <input type="number" id="modTmWidth" class="form-input" min="320" max="3840" step="20" oninput="updateModularProp('timer', 'width', parseInt(this.value, 10))">
                 </div>
               </div>
               <button class="btn btn-sm" onclick="centerTimerModule()" style="margin-top:4px;">🎯 Centrar Temporizador</button>
@@ -2489,7 +2495,7 @@ Warm smell of colitas, rising up through the air...</div>
                 </div>
                 <div>
                   <label class="form-label" style="font-size:11px;">Ancho (px)</label>
-                  <input type="number" id="modLyWidth" class="form-input" min="260" max="800" step="10" oninput="updateModularProp('lyrics', 'width', parseInt(this.value, 10))">
+                  <input type="number" id="modLyWidth" class="form-input" min="260" max="3840" step="10" oninput="updateModularProp('lyrics', 'width', parseInt(this.value, 10))">
                 </div>
               </div>
               <div>
@@ -2509,6 +2515,24 @@ Warm smell of colitas, rising up through the air...</div>
                 <button class="btn btn-sm btn-accent" onclick="changeModuleLayer('lyrics', 5)" title="Traer hacia adelante">🔼 Subir</button>
                 <button class="btn btn-sm" onclick="changeModuleLayer('lyrics', 100)" title="Traer al frente del todo" style="font-size:10px;">🔝 Al Frente</button>
                 <button class="btn btn-sm" onclick="changeModuleLayer('lyrics', -100)" title="Enviar al fondo" style="font-size:10px;">⬇️ Al Fondo</button>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">🔄 Modo de Visualización</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Modo de Letras</label>
+                  <select id="modLyMode" class="form-input" onchange="updateModularProp('lyrics', 'mode', this.value)">
+                    <option value="single">Línea Única</option>
+                    <option value="scroll">Lista Deslizante</option>
+                    <option value="marquee">Marquesina (Der a Izq)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Línea Actual (Scroll)</label>
+                  <input type="color" id="modLyHighlightColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('lyrics', 'highlight_color', this.value)">
+                </div>
               </div>
             </div>
 
@@ -2995,10 +3019,7 @@ async function initApp() {
   loadObsData();
   loadSpotifyData();
 
-  // Polling ligero para Spotify
-  setInterval(() => {
-    if (currentView === 'spotify') loadSpotifyData();
-  }, 2000);
+  // SSE maneja Spotify en tiempo real, no necesitamos polling agresivo
 
   // Ticker de avance suave del slider de Spotify cada segundo
   setInterval(() => {
@@ -3808,6 +3829,11 @@ async function loadSpotifyData() {
     const state = await res.json();
     if (state.available) {
       updateSpotifyPlayerUI(state);
+    } else if (state.error) {
+      document.getElementById('spTrackTitle').textContent = (state.error.includes('Too many') || state.error.includes('QUOTA')) ? 'Spotify bloqueó la API temporalmente (429)' : 'Sin conexión con Spotify';
+      document.getElementById('spTrackArtist').textContent = state.error;
+      document.getElementById('spTrackArt').src = '/assets/icon.png';
+      document.getElementById('spDeviceName').textContent = 'Bloqueado por AppArmor/API';
       if (state.volume_percent !== undefined) {
         if (!spIsAdjustingVolume && Date.now() > spVolumeCooldownUntil) {
           const vSlider = document.getElementById('spVolumeSlider');
@@ -5827,6 +5853,8 @@ function updateModularProp(mod, prop, val) {
       config.overlay_now_playing_font = val;
     } else if (prop === 'text_color') {
       config.overlay_now_playing_text_color = val;
+    } else if (prop === 'marquee') {
+      config.overlay_now_playing_marquee = Boolean(val);
     } else if (prop === 'wave') {
       config.overlay_now_playing_wave = parseInt(val, 10) || 0;
       const lb = document.getElementById('modNpWaveVal');
@@ -5954,6 +5982,10 @@ function updateModularProp(mod, prop, val) {
       config.overlay_lyrics_text_color = val;
     } else if (prop === 'font_size') {
       config.overlay_lyrics_font_size = parseInt(val, 10) || 13;
+    } else if (prop === 'mode') {
+      config.overlay_lyrics_mode = val;
+    } else if (prop === 'highlight_color') {
+      config.overlay_lyrics_highlight_color = val;
     }
   }
 
@@ -6704,6 +6736,7 @@ async function saveModularOverlayConfig() {
       overlay_now_playing_text_color: config.overlay_now_playing_text_color || config.overlay_text_color || '#ffffff',
       overlay_now_playing_font: config.overlay_now_playing_font || config.overlay_font_family || 'system-ui',
       overlay_now_playing_wave: parseInt(config.overlay_now_playing_wave !== undefined ? config.overlay_now_playing_wave : (config.overlay_text_wave || 0), 10),
+      overlay_now_playing_marquee: Boolean(config.overlay_now_playing_marquee),
       overlay_show_cover: config.overlay_show_cover !== false,
       overlay_show_badge: config.overlay_show_badge !== false,
       overlay_show_song_title: config.overlay_show_song_title !== false,
@@ -6768,6 +6801,8 @@ async function saveModularOverlayConfig() {
       overlay_lyrics_text_color: config.overlay_lyrics_text_color || '#e0e0e0',
       overlay_lyrics_font: config.overlay_lyrics_font || 'system-ui',
       overlay_lyrics_font_size: parseInt(config.overlay_lyrics_font_size || 13, 10),
+      overlay_lyrics_mode: config.overlay_lyrics_mode || 'single',
+      overlay_lyrics_highlight_color: config.overlay_lyrics_highlight_color || '#e8ff47',
 
       // Custom texts
       overlay_custom_texts: config.overlay_custom_texts || []

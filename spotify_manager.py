@@ -152,7 +152,7 @@ class SpotifyManager:
     def get_playback_state(self) -> dict:
         """Obtiene el estado actual de reproducción."""
         import time
-        if self._state_cache and time.time() - self._state_cache_time < 3.0:
+        if self._state_cache and time.time() - self._state_cache_time < 5.0:
             return self._state_cache
             
         res = self._api_request("me/player")
@@ -345,7 +345,61 @@ class SpotifyManager:
         return {"handled": False}
 
     def _get_mpris_state(self) -> dict:
+        import shutil
+        import time
         try:
+            if shutil.which("playerctl"):
+                status_res = subprocess.run(["playerctl", "-p", "spotify", "status"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=1.0)
+                if status_res.returncode == 0:
+                    is_playing = "Playing" in status_res.stdout
+                    meta_res = subprocess.run(["playerctl", "-p", "spotify", "metadata"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=1.0)
+                    
+                    title = "Spotify Desktop"
+                    artist = "Unknown Artist"
+                    art_url = ""
+                    
+                    for line in meta_res.stdout.splitlines():
+                        if "xesam:title" in line:
+                            title = line.split("xesam:title")[-1].strip()
+                        elif "xesam:artist" in line:
+                            artist = line.split("xesam:artist")[-1].strip()
+                        elif "mpris:artUrl" in line:
+                            art_url = line.split("mpris:artUrl")[-1].strip()
+                            
+                    if title.startswith("http"):
+                        title = "Reproduciendo (Sin título)"
+                        
+                    # Extraer posicion para sincronizar lyrics!
+                    progress_ms = 0
+                    duration_ms = 0
+                    
+                    pos_res = subprocess.run(["playerctl", "-p", "spotify", "position"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=1.0)
+                    if pos_res.returncode == 0:
+                        try:
+                            progress_ms = int(float(pos_res.stdout.strip()) * 1000)
+                        except: pass
+                        
+                    len_res = subprocess.run(["playerctl", "-p", "spotify", "metadata", "mpris:length"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=1.0)
+                    if len_res.returncode == 0:
+                        try:
+                            duration_ms = int(int(len_res.stdout.strip()) / 1000)
+                        except: pass
+                        
+                    m_state = {
+                        "available": True,
+                        "is_playing": is_playing,
+                        "title": title,
+                        "artist": artist,
+                        "album_art": art_url,
+                        "progress_ms": progress_ms,
+                        "duration_ms": duration_ms,
+                        "device_name": "Spotify en PC (Local)"
+                    }
+                    self._state_cache = m_state
+                    self._state_cache_time = time.time()
+                    return m_state
+
+            # Fallback a gdbus si no hay playerctl
             cmd = ["gdbus", "call", "--session", "--dest", "org.mpris.MediaPlayer2.spotify",
                    "--object-path", "/org/mpris/MediaPlayer2",
                    "--method", "org.freedesktop.DBus.Properties.Get",
@@ -354,16 +408,14 @@ class SpotifyManager:
             if "PlaybackStatus" in res.stdout or "Playing" in res.stdout or "Paused" in res.stdout:
                 is_playing = "Playing" in res.stdout
 
-                # Obtener metadatos
                 cmd_meta = ["gdbus", "call", "--session", "--dest", "org.mpris.MediaPlayer2.spotify",
                             "--object-path", "/org/mpris/MediaPlayer2",
                             "--method", "org.freedesktop.DBus.Properties.Get",
                             "org.mpris.MediaPlayer2.Player", "Metadata"]
                 res_meta = subprocess.run(cmd_meta, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=1.0)
                 
-                # Extracción rápida de campos comunes
                 title = "Spotify Desktop"
-                artist = ""
+                artist = "Unknown Artist"
                 art_url = ""
                 for line in res_meta.stdout.splitlines():
                     if "xesam:title" in line:
@@ -392,4 +444,4 @@ class SpotifyManager:
                 return m_state
         except Exception:
             pass
-        return {"available": False}
+        return {"available": False, "error": "AppArmor bloqueó la conexión (Instala playerctl) o Spotify está cerrado"}

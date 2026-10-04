@@ -1180,7 +1180,7 @@ def start_spotify_monitor():
         time.sleep(2)
         while True:
             try:
-                time.sleep(1)
+                time.sleep(6)
                 st = spotify_mgr.get_playback_state()
                 if st and st.get("available"):
                     broadcast_event("spotify_state", st)

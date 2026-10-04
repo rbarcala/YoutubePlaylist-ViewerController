@@ -52,7 +52,7 @@ fi
 # Auto-instalar dependencias de sistema si faltan
 echo "Comprobando dependencias del sistema (PyQt5, Flask, etc)..."
 MISSING_APT=""
-for pkg in python3-pyqt5 python3-pyqt5.qtwebengine python3-flask python3-requests yt-dlp; do
+for pkg in python3-pyqt5 python3-pyqt5.qtwebengine python3-flask python3-requests yt-dlp playerctl; do
     if ! dpkg -s $pkg >/dev/null 2>&1; then
         MISSING_APT="$MISSING_APT $pkg"
     fi
