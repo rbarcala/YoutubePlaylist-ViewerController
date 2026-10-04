@@ -156,10 +156,26 @@ def try_add_overlay_via_websocket(port: int, password: str, overlay_url: str) ->
             sock.close()
             return False
 
+        has_clase = any(sc.get("sceneName") == "CLASE" for sc in scenes)
+        if not has_clase:
+            create_scene_req = {
+                "op": 6,
+                "d": {
+                    "requestType": "CreateScene",
+                    "requestId": "create-scene-clase",
+                    "requestData": {
+                        "sceneName": "CLASE"
+                    }
+                }
+            }
+            obs._send_ws_frame(sock, json.dumps(create_scene_req))
+            obs._recv_ws_frame(sock)
+            scenes.append({"sceneName": "CLASE"})
+
         added_count = 0
         for sc in scenes:
             scene_name = sc.get("sceneName")
-            if not scene_name:
+            if not scene_name or scene_name != "CLASE":
                 continue
 
             # Crear o verificar la entrada Browser Source
@@ -277,10 +293,29 @@ def inject_overlay_into_scene_json(json_path: Path, overlay_url: str) -> bool:
         }
         sources.append(new_source)
 
-    # Inyectar el ítem en todas las escenas
+    # Asegurar que la escena CLASE exista
+    clase_scene = next((s for s in sources if s.get("id") == "scene" and s.get("name") == "CLASE"), None)
+    if not clase_scene:
+        clase_scene = {
+            "prev_ver": 537001984,
+            "name": "CLASE",
+            "uuid": str(uuid.uuid4()),
+            "id": "scene",
+            "versioned_id": "scene",
+            "settings": {
+                "id_counter": 1,
+                "items": []
+            }
+        }
+        sources.append(clase_scene)
+        # Añadir al orden de escenas para que sea visible
+        if "scene_order" in data:
+            data["scene_order"].append({"name": "CLASE"})
+
+    # Inyectar el ítem solo en la escena llamada CLASE
     modified_scenes = 0
     for s in sources:
-        if s.get("id") == "scene":
+        if s.get("id") == "scene" and s.get("name") == "CLASE":
             scene_settings = s.setdefault("settings", {})
             items = scene_settings.setdefault("items", [])
 
@@ -348,9 +383,9 @@ def create_default_scene_collection_if_needed(scenes_dir: Path, overlay_url: str
 
     default_data = {
         "name": "Untitled",
-        "current_scene": "Scene",
-        "current_program_scene": "Scene",
-        "scene_order": [{"name": "Scene"}],
+        "current_scene": "CLASE",
+        "current_program_scene": "CLASE",
+        "scene_order": [{"name": "CLASE"}],
         "sources": [
             {
                 "prev_ver": 537001984,
@@ -372,7 +407,7 @@ def create_default_scene_collection_if_needed(scenes_dir: Path, overlay_url: str
             },
             {
                 "prev_ver": 537001984,
-                "name": "Scene",
+                "name": "CLASE",
                 "uuid": scene_uuid,
                 "id": "scene",
                 "versioned_id": "scene",
