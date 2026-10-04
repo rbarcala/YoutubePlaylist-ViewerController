@@ -289,18 +289,28 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private synchronized void onServerDiscovered(final String host, final int port, final String method) {
+    private synchronized void onServerDiscovered(String host, final int port, final String method) {
+        if (host == null || host.equals("127.0.0.1") || host.equals("localhost") || host.startsWith("169.254")) {
+            return; // Ignorar IPs inválidas para el teléfono
+        }
+        
+        // Formatear IPv6 correctamente con corchetes
+        if (host.contains(":") && !host.startsWith("[")) {
+            host = "[" + host + "]";
+        }
+        
         if (isAutoConnecting) return;
         isAutoConnecting = true;
 
-        final String fullUrl = "http://" + host + ":" + port + "/controller.html";
+        final String finalHost = host;
+        final String fullUrl = "http://" + finalHost + ":" + port + "/controller.html";
         Log.i(TAG, "✓ Servidor detectado vía " + method + ": " + fullUrl);
 
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
                 // Notificar a connect.html si está en pantalla
-                String js = "if(window.onAutoDiscovered) { window.onAutoDiscovered('" + host + "', " + port + ", '" + fullUrl + "'); }";
+                String js = "if(window.onAutoDiscovered) { window.onAutoDiscovered('" + finalHost + "', " + port + ", '" + fullUrl + "'); }";
                 webView.evaluateJavascript(js, null);
 
                 // Guardar la URL detectada

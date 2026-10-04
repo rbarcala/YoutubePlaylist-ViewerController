@@ -1594,6 +1594,35 @@
     letter-spacing: 0.5px;
     margin-bottom: 2px;
   }
+  /* ─── MOBILE UI ENHANCEMENTS (Android/Phones) ─── */
+  @media (max-width: 768px) {
+    body { font-size: 13px; }
+    header { flex-direction: column; align-items: stretch; padding: 12px; gap: 12px; height: auto; }
+    .nav-pills { display: flex !important; overflow-x: auto; padding-bottom: 5px; flex-wrap: nowrap; justify-content: flex-start; -webkit-overflow-scrolling: touch; }
+    .nav-pills .btn { flex: 0 0 auto; padding: 6px 12px; font-size: 11px; }
+    .hub-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .now-playing-row1 { flex-direction: column; align-items: stretch; gap: 10px; height: auto; padding-bottom: 10px; }
+    .now-playing-bar { height: auto; padding: 12px; }
+    .now-playing-bar input[type="range"] { width: 100% !important; }
+    .spotify-dashboard-grid { display: flex; flex-direction: column; height: auto; overflow: visible; }
+    .spotify-side-panel { width: 100%; border-right: none; border-bottom: 1px solid var(--border); min-height: 250px; }
+    .spotify-main-panel { flex: none; min-height: 400px; }
+    .spotify-search-bar { flex-direction: column; align-items: stretch; }
+    .spotify-search-bar input { width: 100%; }
+    .spotify-queue-item { font-size: 11px; }
+    .botonera-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; }
+    .btn-sound { height: 60px; font-size: 10px; }
+    .overlay-stage-canvas { outline-width: 2px; }
+    .settings-grid { grid-template-columns: 1fr; }
+    .modal-content { width: 95%; padding: 16px; margin: 20px auto; max-height: 90vh; }
+    .grid-videos { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+    .video-card { height: 100px; }
+    .video-title { font-size: 10px; }
+    .obs-status-box { flex-direction: column; align-items: stretch; }
+    .obs-status-box > div:last-child { justify-content: stretch; }
+    .obs-status-box .btn { flex: 1; }
+    .btn, .form-input, select, input[type="text"], input[type="password"] { min-height: 38px; }
+  }
 </style>
 </head>
 <body>
