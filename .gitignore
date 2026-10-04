@@ -42,3 +42,13 @@ debian/DEBIAN/
 .DS_Store
 *.swp
 *~
+
+# Android / Gradle
+.gradle/
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+android/.idea/
+android/local.properties
+*.iml

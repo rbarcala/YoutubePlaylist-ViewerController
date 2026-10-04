@@ -250,21 +250,35 @@ class SpotifyManager:
         if not query:
             return {"tracks": []}
         encoded = urllib.parse.quote(query)
-        res = self._api_request(f"search?q={encoded}&type=track")
-        if "tracks" in res:
-            items = []
-            for t in res["tracks"].get("items", []):
-                items.append({
-                    "id": t.get("id"),
-                    "uri": t.get("uri"),
-                    "title": t.get("name"),
-                    "artist": ", ".join([a.get("name", "") for a in t.get("artists", [])]),
-                    "album": t.get("album", {}).get("name", ""),
-                    "thumb": (t.get("album", {}).get("images", [{}])[1].get("url") if len(t.get("album", {}).get("images", [])) > 1 else t.get("album", {}).get("images", [{}])[0].get("url", "")) if t.get("album", {}).get("images") else "",
-                    "duration_ms": t.get("duration_ms", 0)
-                })
+        items = []
+        error = None
+        
+        # Hacemos hasta 4 paginaciones de 10 para devolver 40 resultados
+        # debido al nuevo límite restrictivo de 10 de Spotify Web API.
+        for offset in [0, 10, 20, 30]:
+            res = self._api_request(f"search?q={encoded}&type=track&limit=10&offset={offset}")
+            if "tracks" in res:
+                page_items = res["tracks"].get("items", [])
+                if not page_items:
+                    break
+                for t in page_items:
+                    items.append({
+                        "id": t.get("id"),
+                        "uri": t.get("uri"),
+                        "title": t.get("name"),
+                        "artist": ", ".join([a.get("name", "") for a in t.get("artists", [])]),
+                        "album": t.get("album", {}).get("name", ""),
+                        "thumb": (t.get("album", {}).get("images", [{}])[1].get("url") if len(t.get("album", {}).get("images", [])) > 1 else t.get("album", {}).get("images", [{}])[0].get("url", "")) if t.get("album", {}).get("images") else "",
+                        "duration_ms": t.get("duration_ms", 0)
+                    })
+            else:
+                if not items:
+                    error = res.get("error")
+                break
+                
+        if items:
             return {"tracks": items}
-        return {"tracks": [], "error": res.get("error")}
+        return {"tracks": [], "error": error}
 
     def get_playlist(self, playlist_id: str) -> dict:
         """Obtiene todas las canciones de una playlist de Spotify, paginando automáticamente."""
