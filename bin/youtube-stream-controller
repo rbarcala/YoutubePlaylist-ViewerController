@@ -72,5 +72,8 @@ if [ -f "$APP_DIR/requirements.txt" ]; then
     "$PYTHON_EXEC" -m pip install -q -r "$APP_DIR/requirements.txt" 2>/dev/null || true
 fi
 
+# Matar procesos zombies de la app para evitar que SQLite se bloquee (database is locked)
+pkill -f "python3.*youtube-stream-controller/app.py" 2>/dev/null || true
+
 # Wrapper exec
 exec "$PYTHON_EXEC" "$APP_DIR/app.py" "$@"

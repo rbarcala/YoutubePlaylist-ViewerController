@@ -5,6 +5,8 @@ Integra servidor Flask en segundo plano y ventana nativa GTK3 / WebKit2 en Ubunt
 """
 
 import os
+import shutil
+import subprocess
 import sys
 import time
 import socket
@@ -374,12 +376,15 @@ def launch_native_window(url: str, title: str = "YouTube Stream Controller", por
         # Permitir matar la app con Ctrl+C en la terminal
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         
+        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-logging --log-level=3"
         sys.argv.extend([
             "--ignore-gpu-blocklist",
             "--enable-gpu-rasterization",
             "--use-gl=angle", 
             "--enable-features=Vulkan", 
-            "--use-vulkan=native"
+            "--use-vulkan=native",
+            "--disable-logging",
+            "--log-level=3"
         ])
         
         print("[app] Iniciando con motor PyQt5 (Chromium) forzando Vulkan...")

@@ -18,6 +18,8 @@ class SpotifyManager:
         self._last_seek_pos = 0
         self._last_volume_time = 0
         self._last_volume = 50
+        self._state_cache = None
+        self._state_cache_time = 0
 
     def _get_tokens(self):
         cfg = self.get_config()
@@ -388,13 +390,6 @@ class SpotifyManager:
                 self._state_cache = m_state
                 self._state_cache_time = time.time()
                 return m_state
-                    "available": True,
-                    "is_playing": is_playing,
-                    "title": title,
-                    "artist": artist,
-                    "album_art": art_url,
-                    "device_name": "Spotify en esta PC (Ubuntu MPRIS)"
-                }
         except Exception:
             pass
         return {"available": False}
