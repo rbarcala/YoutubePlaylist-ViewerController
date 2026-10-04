@@ -208,6 +208,33 @@ class OBSController:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def get_screenshot(self, source_name: str) -> dict:
+        try:
+            sock = self._connect_and_identify()
+            if not sock: return {"success": False}
+            self._send_ws_frame(sock, json.dumps({
+                "op": 6,
+                "d": {
+                    "requestType": "GetSourceScreenshot",
+                    "requestId": "get-screenshot",
+                    "requestData": {
+                        "sourceName": source_name,
+                        "imageFormat": "jpeg",
+                        "imageWidth": 320,
+                        "imageHeight": 180,
+                        "imageCompressionQuality": 20
+                    }
+                }
+            }))
+            resp = json.loads(self._recv_ws_frame(sock) or "{}")
+            sock.close()
+            img_data = resp.get("d", {}).get("responseData", {}).get("imageData", "")
+            if img_data:
+                return {"success": True, "imageData": img_data}
+            return {"success": False, "error": "No imageData in response"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def toggle_record(self) -> dict:
         try:
             sock = self._connect_and_identify()

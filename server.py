@@ -433,6 +433,16 @@ def obs_toggle_stream():
     broadcast_event("obs_status_changed", res)
     return jsonify(res)
 
+@app.route('/api/obs/preview')
+def get_obs_preview():
+    cfg = load_config()
+    obs = OBSController(cfg.get("obs_host", "localhost"), cfg.get("obs_port", 4455), cfg.get("obs_password", ""))
+    scene = request.args.get('scene', '')
+    if not scene:
+        return jsonify({"success": False, "error": "No scene provided"})
+    res = obs.get_screenshot(scene)
+    return jsonify(res)
+
 @app.route('/api/obs/toggle_record', methods=['POST'])
 def obs_toggle_record():
     cfg = load_config()

@@ -1772,6 +1772,10 @@
             <button class="btn" onclick="refreshLiveStream()">🔄 Recargar</button>
           </div>
         </div>
+        <div class="obs-preview-frame" id="obsPreviewContainer" style="background:#000; aspect-ratio:16/9; position:relative; overflow:hidden; border-bottom:1px solid var(--border);">
+          <img id="obsPreviewImg" src="" style="width:100%; height:100%; object-fit:contain; display:none;">
+          <div id="obsPreviewFallback" style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted); font-size:12px;">Vista previa de OBS...</div>
+        </div>
         <div class="live-video-frame" id="liveVideoContainer">
           <div style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted); flex-direction:column; gap:10px;">
             <p>Buscando transmisión activa de tu canal…</p>
@@ -2927,6 +2931,9 @@ function showView(viewName, push = false) {
   if (viewName === 'obs') {
     loadObsData();
     loadLiveData();
+    if(typeof startObsPreviewLoop === 'function') startObsPreviewLoop();
+  } else {
+    if(typeof stopObsPreviewLoop === 'function') stopObsPreviewLoop();
   }
   if (viewName === 'spotify') loadSpotifyData();
   if (viewName === 'soundboard') loadSoundboardView();
@@ -3493,6 +3500,50 @@ function toggleMute() {
 }
 
 // ─── 2. OBS STUDIO LOGIC ───
+let obsPreviewTimeout = null;
+let isPreviewRunning = false;
+let currentObsScene = '';
+
+async function fetchObsPreview() {
+  if (!isPreviewRunning || !currentObsScene) return;
+  try {
+    const res = await fetch('/api/obs/preview?scene=' + encodeURIComponent(currentObsScene));
+    const data = await res.json();
+    const img = document.getElementById('obsPreviewImg');
+    const fallback = document.getElementById('obsPreviewFallback');
+    if (data.success && data.imageData) {
+      img.src = data.imageData;
+      img.style.display = 'block';
+      fallback.style.display = 'none';
+    } else {
+      img.style.display = 'none';
+      fallback.style.display = 'flex';
+      fallback.textContent = 'Previsualización no disponible';
+    }
+  } catch (e) {
+    // ignorar para no saturar consola
+  }
+  
+  if (isPreviewRunning) {
+    obsPreviewTimeout = setTimeout(fetchObsPreview, 250);
+  }
+}
+
+function startObsPreviewLoop() {
+  if (isPreviewRunning) return;
+  isPreviewRunning = true;
+  if (obsPreviewTimeout) clearTimeout(obsPreviewTimeout);
+  fetchObsPreview();
+}
+
+function stopObsPreviewLoop() {
+  isPreviewRunning = false;
+  if (obsPreviewTimeout) clearTimeout(obsPreviewTimeout);
+  obsPreviewTimeout = null;
+}
+
+// Intercept navigateTo to start/stop preview loop
+
 async function loadObsData() {
   try {
     const res = await fetch('/api/obs/scenes');
@@ -3521,6 +3572,7 @@ async function loadObsData() {
     const stRes = await fetch('/api/obs/status');
     const st = await stRes.json();
     if (st.connected) {
+      currentObsScene = st.current_scene;
       if (btnLaunch) btnLaunch.style.display = 'none';
       document.getElementById('btnObsStream').textContent = st.is_streaming ? 'Detener Stream' : 'Iniciar Stream';
       document.getElementById('btnObsStream').className = st.is_streaming ? 'btn btn-danger' : 'btn';
