@@ -400,15 +400,13 @@
     overlay_enabled: true,
     overlay_timer_enabled: true,
     overlay_now_playing_enabled: true,
-    overlay_source_mode: 'both',
+    overlay_show_idle: false,
     overlay_show_song_title: true,
-    overlay_show_video_title: true,
     overlay_show_artist: true,
     overlay_show_badge: true,
     overlay_show_cover: true,
     overlay_show_equalizer: true,
     overlay_show_lyrics: true,
-    overlay_require_focus: false,
     overlay_extra_text: '',
     overlay_position: 'bottom-left',
     overlay_pos_x: 28,
@@ -425,9 +423,7 @@
 
   let currentTimerState = { active: false, running: false, remaining_seconds: 300, total_seconds: 300 };
   let currentSpotify = { is_playing: false, title: '', artist: '', cover_url: '' };
-  let currentYouTube = { is_playing: false, title: '', video_id: '' };
   let lastChimePlayedFor = 0;
-  let viewerFocused = true;
   let currentLyrics = "";
   let currentSyncedLyrics = [];
   let lastLyricsQuery = "";
@@ -594,11 +590,22 @@
         if (titleEl) titleEl.classList.remove('wave-active');
       }
 
-      // Toggles de sub-elementos Now Playing
+      // Toggles y tamaños de sub-elementos Now Playing
+      const npTitleSize = (cfg.overlay_now_playing_title_size !== undefined ? cfg.overlay_now_playing_title_size : (overlayConfig.overlay_now_playing_title_size || 13)) + 'px';
+      const npArtistSize = (cfg.overlay_now_playing_artist_size !== undefined ? cfg.overlay_now_playing_artist_size : (overlayConfig.overlay_now_playing_artist_size || 11)) + 'px';
+      const npBadgeSize = (cfg.overlay_now_playing_badge_size !== undefined ? cfg.overlay_now_playing_badge_size : (overlayConfig.overlay_now_playing_badge_size || 9)) + 'px';
+
+      if (titleEl) titleEl.style.fontSize = npTitleSize;
       const badgeEl = document.getElementById('npBadge');
-      if (badgeEl) badgeEl.style.display = (overlayConfig.overlay_show_badge !== false) ? 'flex' : 'none';
+      if (badgeEl) {
+        badgeEl.style.display = (overlayConfig.overlay_show_badge !== false) ? 'flex' : 'none';
+        badgeEl.style.fontSize = npBadgeSize;
+      }
       const subEl = document.getElementById('npSubtitle');
-      if (subEl) subEl.style.display = (overlayConfig.overlay_show_artist !== false) ? 'block' : 'none';
+      if (subEl) {
+        subEl.style.display = (overlayConfig.overlay_show_artist !== false) ? 'block' : 'none';
+        subEl.style.fontSize = npArtistSize;
+      }
       const coverEl = document.getElementById('npCover');
       if (coverEl) coverEl.style.display = (overlayConfig.overlay_show_cover !== false) ? 'block' : 'none';
       const eqEl = document.querySelector('.np-eq');
@@ -639,11 +646,17 @@
         breakCard.style.transformOrigin = 'top left';
       }
 
-      // Sub-elementos de Temporizador
+      // Sub-elementos de Temporizador y tamaños configurables
+      const tmClockSize = (cfg.overlay_timer_clock_size !== undefined ? cfg.overlay_timer_clock_size : (overlayConfig.overlay_timer_clock_size || 72)) + 'px';
+      const tmTitleSize = (cfg.overlay_timer_title_size !== undefined ? cfg.overlay_timer_title_size : (overlayConfig.overlay_timer_title_size || 30)) + 'px';
+      const tmBadgeSize = (cfg.overlay_timer_badge_size !== undefined ? cfg.overlay_timer_badge_size : (overlayConfig.overlay_timer_badge_size || 12)) + 'px';
+      const tmPhraseSize = (cfg.overlay_timer_phrase_size !== undefined ? cfg.overlay_timer_phrase_size : (overlayConfig.overlay_timer_phrase_size || 14)) + 'px';
+
       const badgePill = document.getElementById('breakHeaderPill');
       const badgeText = document.getElementById('breakBadgeText');
       if (badgePill) {
         badgePill.style.display = (cfg.overlay_timer_show_badge !== false) ? 'inline-flex' : 'none';
+        badgePill.style.fontSize = tmBadgeSize;
         if (cfg.overlay_timer_badge_text && badgeText) badgeText.textContent = cfg.overlay_timer_badge_text;
         if (cfg.overlay_timer_badge_color) {
           badgePill.style.color = cfg.overlay_timer_badge_color;
@@ -654,6 +667,7 @@
       const titleEl = document.getElementById('breakTitleText');
       if (titleEl) {
         titleEl.style.display = (cfg.overlay_timer_show_title !== false) ? 'block' : 'none';
+        titleEl.style.fontSize = tmTitleSize;
         if (cfg.overlay_timer_title_text && (!currentTimerState || !currentTimerState.title)) {
           titleEl.textContent = cfg.overlay_timer_title_text;
         }
@@ -663,6 +677,7 @@
       const clockEl = document.getElementById('breakTimerText');
       if (clockEl) {
         clockEl.style.display = (cfg.overlay_timer_show_clock !== false) ? 'block' : 'none';
+        clockEl.style.fontSize = tmClockSize;
         if (cfg.overlay_timer_clock_color) {
           clockEl.style.color = cfg.overlay_timer_clock_color;
           clockEl.style.textShadow = `0 0 24px ${hexToRgba(cfg.overlay_timer_clock_color, 0.5)}`;
@@ -676,7 +691,10 @@
 
       const phraseBox = document.getElementById('breakPhraseBox');
       const phraseText = document.getElementById('breakPhraseText');
-      if (phraseBox) phraseBox.style.display = (cfg.overlay_timer_show_phrase !== false) ? 'block' : 'none';
+      if (phraseBox) {
+        phraseBox.style.display = (cfg.overlay_timer_show_phrase !== false) ? 'block' : 'none';
+        phraseBox.style.fontSize = tmPhraseSize;
+      }
       if (phraseText && cfg.overlay_timer_phrase_color) phraseText.style.color = cfg.overlay_timer_phrase_color;
     }
 
@@ -800,29 +818,34 @@
     const title = document.getElementById('npTitle');
     const sub = document.getElementById('npSubtitle');
 
-    const mode = overlayConfig.overlay_source_mode || 'both';
-
-    if (overlayConfig.overlay_enabled === false || overlayConfig.overlay_now_playing_enabled === false || mode === 'none') {
+    if (overlayConfig.overlay_enabled === false || overlayConfig.overlay_now_playing_enabled === false) {
       container.classList.remove('visible');
       if (lyricsEl) lyricsEl.classList.remove('visible');
       return;
     }
 
-    // 1. Spotify (si está permitido en el modo)
-    if (mode !== 'youtube_only' && currentSpotify && currentSpotify.is_playing && currentSpotify.title) {
+    // Spotify Now Playing
+    if (currentSpotify && currentSpotify.is_playing && currentSpotify.title) {
       container.classList.add('visible');
       badge.className = 'np-badge spotify';
       icon.textContent = '🎵';
       sourceText.textContent = 'SPOTIFY';
 
-      title.style.display = (overlayConfig.overlay_show_song_title !== false) ? 'block' : 'none';
+      title.style.display = (overlayConfig.overlay_show_song_title !== false && overlayConfig.overlay_show_title !== false) ? 'block' : 'none';
       title.textContent = currentSpotify.title;
 
       sub.style.display = (overlayConfig.overlay_show_artist !== false) ? 'block' : 'none';
       sub.textContent = currentSpotify.artist || 'Música en PC';
 
       if (overlayConfig.overlay_show_cover !== false) {
-        cover.src = currentSpotify.cover_url || '/assets/icon.png';
+        let coverUrl = currentSpotify.album_art || currentSpotify.cover_url || currentSpotify.cover || '';
+        if (coverUrl.startsWith('spotify:image:')) {
+          coverUrl = 'https://i.scdn.co/image/' + coverUrl.split(':').pop();
+        } else if (coverUrl.startsWith('https://open.spotify.com/image/')) {
+          coverUrl = 'https://i.scdn.co/image/' + coverUrl.split('/').pop();
+        }
+        cover.src = coverUrl || '/assets/icon.png';
+        cover.onerror = () => { cover.onerror = null; cover.src = '/assets/icon.png'; };
         cover.style.display = 'block';
       } else {
         cover.style.display = 'none';
@@ -830,43 +853,8 @@
       return;
     }
 
-    // 2. YouTube (si está permitido en el modo)
-    if (mode !== 'spotify_only' && currentYouTube && currentYouTube.is_playing && currentYouTube.title) {
-      container.classList.add('visible');
-      badge.className = 'np-badge youtube';
-      icon.textContent = '▶️';
-      sourceText.textContent = 'FONDO / STREAM';
-
-      title.style.display = (overlayConfig.overlay_show_video_title !== false) ? 'block' : 'none';
-      title.textContent = currentYouTube.title;
-
-      sub.style.display = (overlayConfig.overlay_show_artist !== false) ? 'block' : 'none';
-      sub.textContent = 'YouTube Stream';
-
-      if (overlayConfig.overlay_show_cover !== false && currentYouTube.video_id) {
-        cover.src = `https://img.youtube.com/vi/${currentYouTube.video_id}/mqdefault.jpg`;
-        cover.style.display = 'block';
-      } else {
-        cover.style.display = 'none';
-      }
-      return;
-    }
-
-    // Estado de espera visible por defecto para confirmar que OBS cargó la fuente.
-    if (overlayConfig.overlay_show_idle !== false) {
-      container.classList.add('visible');
-      badge.className = 'np-badge';
-      icon.textContent = '🎛️';
-      sourceText.textContent = 'STREAM HUB';
-      title.style.display = 'block';
-      title.textContent = 'Esperando reproducción';
-      sub.style.display = 'block';
-      sub.textContent = 'Listo para mostrar Now Playing';
-      cover.src = '/assets/icon.png';
-      cover.style.display = 'block';
-    } else {
-      container.classList.remove('visible');
-    }
+    // Solo mostrar el rectángulo cuando se reproduce música
+    container.classList.remove('visible');
     if (lyricsEl) lyricsEl.classList.remove('visible');
   }
 
@@ -948,41 +936,6 @@
       } catch(err) {}
     });
 
-    evtSource.addEventListener('state', (e) => {
-      try {
-        const d = JSON.parse(e.data).data || {};
-        currentYouTube.is_playing = Boolean(d.isPlaying);
-        if (d.title) currentYouTube.title = d.title;
-        if (d.videoId) currentYouTube.video_id = d.videoId;
-        updateNowPlayingUI();
-      } catch(err) {}
-    });
-
-    evtSource.addEventListener('play', (e) => {
-      try {
-        const d = JSON.parse(e.data).data || {};
-        currentYouTube.is_playing = true;
-        if (d.title) currentYouTube.title = d.title;
-        if (d.videoId) currentYouTube.video_id = d.videoId;
-        updateNowPlayingUI();
-      } catch(err) {}
-    });
-
-    evtSource.addEventListener('pause', () => {
-      currentYouTube.is_playing = false;
-      updateNowPlayingUI();
-    });
-
-    evtSource.addEventListener('viewer_focus', () => {
-      viewerFocused = true;
-      updateNowPlayingUI();
-    });
-
-    evtSource.addEventListener('viewer_blur', () => {
-      viewerFocused = false;
-      updateNowPlayingUI();
-    });
-
     evtSource.onerror = () => {
       setTimeout(initSSE, 3000);
     };
@@ -1002,13 +955,19 @@
     } catch(e) {}
 
     try {
-      const resS = await fetch('/api/state');
-      const dataS = await resS.json();
-      currentYouTube.is_playing = Boolean(dataS.isPlaying);
-      currentYouTube.title = dataS.title || '';
-      currentYouTube.video_id = dataS.videoId || '';
+      const resSp = await fetch('/api/spotify/state');
+      const dataSp = await resSp.json();
+      if (dataSp && dataSp.available) {
+        currentSpotify = dataSp;
+        updateNowPlayingUI();
+        updateSyncedLyrics(currentSpotify.progress_ms || 0);
+        fetchAndUpdateLyrics();
+      } else {
+        updateNowPlayingUI();
+      }
+    } catch(e) {
       updateNowPlayingUI();
-    } catch(e) {}
+    }
   }
 
   document.addEventListener('DOMContentLoaded', () => {

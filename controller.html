@@ -1691,13 +1691,16 @@
       </div>
     </div>
 
-    <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; font-size:11px;">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span style="color:var(--muted);">VELOCIDAD:</span>
-        <input type="range" id="speedSlider" min="1.0" max="5.0" step="0.1" value="1.7" style="accent-color:var(--accent); width:190px;">
-        <span id="speedValue" style="color:var(--accent); font-weight:700;">1.7x</span>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; font-size:11px;">
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="color:var(--muted);">VELOCIDAD:</span>
+          <input type="range" id="speedSlider" min="1.0" max="5.0" step="0.1" value="1.7" style="accent-color:var(--accent); width:190px;">
+          <span id="speedValue" style="color:var(--accent); font-weight:700;">1.7x</span>
+        </div>
+        <button class="btn" id="muteBtn" onclick="toggleMute()">Muted</button>
       </div>
-      <button class="btn" id="muteBtn" onclick="toggleMute()">Muted</button>
+      <button class="btn btn-accent" onclick="scrollToTopFondos()" title="Subir al inicio">⬆️ Subir</button>
     </div>
   </div>
 
@@ -1810,6 +1813,7 @@
         <div style="display:flex; gap:8px;">
           <input type="text" id="spSearchInput" class="form-input" style="flex:1;" placeholder="Buscar canción o: https://open.spotify.com/playlist/... [término para filtrar]" oninput="onSpotifySearchInput(this.value)" onkeydown="if(event.key === 'Enter') spotifySearch()">
           <button class="btn btn-spotify" onclick="spotifySearch()" style="font-weight:700; padding:8px 20px;">🔍 Buscar</button>
+          <button class="btn btn-accent" onclick="scrollToTopSpotify()" title="Subir al inicio">⬆️ Subir</button>
         </div>
 
         <div id="spPlaylistHeader" style="display:none; margin-top:4px;"></div>
@@ -2068,14 +2072,9 @@ Warm smell of colitas, rising up through the air...</div>
                   <input type="checkbox" id="modNpEnabled" checked onchange="updateModularProp('now_playing', 'enabled', this.checked)"> Habilitar
                 </label>
               </div>
-              <div>
-                <label class="form-label" style="font-size:11px;">Fuentes a mostrar</label>
-                <select id="modNpSourceMode" class="form-input" style="width:100%; font-size:12px;" onchange="updateModularProp('now_playing', 'source_mode', this.value)">
-                  <option value="both">Música (Spotify) + Videos (YouTube)</option>
-                  <option value="spotify_only">Solo Música de Spotify</option>
-                  <option value="youtube_only">Solo Videos de YouTube</option>
-                  <option value="none">Desactivar ambos</option>
-                </select>
+              <div style="font-size:11px; color:var(--muted); display:flex; align-items:center; gap:6px; background:#181818; padding:6px 10px; border-radius:6px; border:1px solid var(--border); margin-top:6px;">
+                <span>🟢</span>
+                <span>Fuente activa: <strong style="color:#1db954;">Solo Música (Spotify)</strong></span>
               </div>
             </div>
 
@@ -2165,12 +2164,30 @@ Warm smell of colitas, rising up through the air...</div>
             </div>
 
             <div class="inspector-section">
+              <span class="inspector-section-title">🔤 Tamaños de Fuente (px)</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Título</label>
+                  <input type="number" id="modNpTitleSize" class="form-input" min="8" max="72" value="13" oninput="updateModularProp('now_playing', 'title_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Artista</label>
+                  <input type="number" id="modNpArtistSize" class="form-input" min="8" max="60" value="11" oninput="updateModularProp('now_playing', 'artist_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Badge</label>
+                  <input type="number" id="modNpBadgeSize" class="form-input" min="6" max="36" value="9" oninput="updateModularProp('now_playing', 'badge_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-section">
               <span class="inspector-section-title">👁️ Elementos Visibles</span>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px;">
                 <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowCover" checked onchange="updateModularProp('now_playing', 'show_cover', this.checked)"> Portada</label>
                 <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowBadge" checked onchange="updateModularProp('now_playing', 'show_badge', this.checked)"> Badge</label>
                 <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowTitle" checked onchange="updateModularProp('now_playing', 'show_title', this.checked)"> Título</label>
-                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowArtist" checked onchange="updateModularProp('now_playing', 'show_artist', this.checked)"> Artista / Canal</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowArtist" checked onchange="updateModularProp('now_playing', 'show_artist', this.checked)"> Artista</label>
                 <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowEq" checked onchange="updateModularProp('now_playing', 'show_equalizer', this.checked)"> Ecualizador</label>
               </div>
             </div>
@@ -2279,6 +2296,30 @@ Warm smell of colitas, rising up through the air...</div>
               <div>
                 <label class="form-label" style="font-size:11px;">Color Frase / Meme</label>
                 <input type="color" id="modTmPhraseColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('timer', 'phrase_color', this.value)">
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">🔤 Tamaños de Fuente (px)</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Reloj Grande</label>
+                  <input type="number" id="modTmClockSize" class="form-input" min="20" max="180" value="72" oninput="updateModularProp('timer', 'clock_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Título</label>
+                  <input type="number" id="modTmTitleSize" class="form-input" min="10" max="90" value="30" oninput="updateModularProp('timer', 'title_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Badge Superior</label>
+                  <input type="number" id="modTmBadgeSize" class="form-input" min="8" max="40" value="12" oninput="updateModularProp('timer', 'badge_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Frase / Meme</label>
+                  <input type="number" id="modTmPhraseSize" class="form-input" min="8" max="40" value="14" oninput="updateModularProp('timer', 'phrase_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                </div>
               </div>
             </div>
 
@@ -2707,7 +2748,7 @@ Warm smell of colitas, rising up through the air...</div>
 </div>
 
 <div id="toastNotice">Notificación</div>
-<button class="sb-floating-top-btn" id="sbFloatingTopBtn" onclick="scrollToTopSoundboard()" title="Subir al inicio">⬆️</button>
+<button class="sb-floating-top-btn" id="sbFloatingTopBtn" onclick="scrollToTopCurrentView()" title="Subir al inicio">⬆️</button>
 
 <script>
 // ─── ESTADO Y NAVEGACIÓN ───
@@ -4251,6 +4292,26 @@ async function stopSoundboard() {
   } catch(e) {}
 }
 
+function scrollToTopFondos() {
+  const container = document.getElementById('fondosScrollContent');
+  if (container) {
+    container.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function scrollToTopSpotify() {
+  const container = document.getElementById('spResultsList');
+  if (container) {
+    container.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  const side = document.getElementById('spSavedPlaylists');
+  if (side) {
+    side.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function scrollToTopSoundboard() {
   const container = document.getElementById('sbScrollContainer');
   if (container) {
@@ -4259,18 +4320,64 @@ function scrollToTopSoundboard() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function scrollToTopCurrentView() {
+  if (currentView === 'fondos') {
+    scrollToTopFondos();
+  } else if (currentView === 'spotify') {
+    scrollToTopSpotify();
+  } else if (currentView === 'soundboard') {
+    scrollToTopSoundboard();
+  } else {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
 function updateFloatingTopBtn() {
   const floatBtn = document.getElementById('sbFloatingTopBtn');
   if (!floatBtn) return;
-  const container = document.getElementById('sbScrollContainer');
-  const scrollPos = (container && container.scrollTop > 0) ? container.scrollTop : window.scrollY;
-  if (currentView === 'soundboard' && scrollPos > 160) {
+  let scrollPos = window.scrollY;
+
+  if (currentView === 'soundboard') {
+    const sb = document.getElementById('sbScrollContainer');
+    if (sb && sb.scrollTop > 0) scrollPos = sb.scrollTop;
+  } else if (currentView === 'fondos') {
+    const fc = document.getElementById('fondosScrollContent');
+    if (fc && fc.scrollTop > 0) scrollPos = fc.scrollTop;
+  } else if (currentView === 'spotify') {
+    const sp = document.getElementById('spResultsList');
+    if (sp && sp.scrollTop > 0) scrollPos = sp.scrollTop;
+  }
+
+  if (['fondos', 'spotify', 'soundboard'].includes(currentView) && scrollPos > 120) {
     floatBtn.classList.add('visible');
   } else {
     floatBtn.classList.remove('visible');
   }
 }
 window.addEventListener('scroll', updateFloatingTopBtn, { passive: true });
+document.addEventListener('DOMContentLoaded', () => {
+  const fc = document.getElementById('fondosScrollContent');
+  if (fc) fc.addEventListener('scroll', updateFloatingTopBtn, { passive: true });
+  const sp = document.getElementById('spResultsList');
+  if (sp) sp.addEventListener('scroll', updateFloatingTopBtn, { passive: true });
+  const sb = document.getElementById('sbScrollContainer');
+  if (sb) sb.addEventListener('scroll', updateFloatingTopBtn, { passive: true });
+});
+
+// Ajustar cualquier valor numérico fácilmente con la ruedita del mouse (mouse wheel)
+document.addEventListener('wheel', (e) => {
+  if (e.target && e.target.matches && e.target.matches('input[type="number"]') && !e.target.disabled) {
+    e.preventDefault();
+    const step = parseFloat(e.target.step) || 1;
+    const min = e.target.min !== '' ? parseFloat(e.target.min) : -Infinity;
+    const max = e.target.max !== '' ? parseFloat(e.target.max) : Infinity;
+    let val = (parseFloat(e.target.value) || 0) + (e.deltaY < 0 ? step : -step);
+    val = Math.min(max, Math.max(min, Math.round(val * 100) / 100));
+    e.target.value = val;
+    e.target.dispatchEvent(new Event('input', { bubbles: true }));
+    e.target.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+}, { passive: false });
 
 let lastVolSentTime = 0;
 
@@ -5445,8 +5552,6 @@ function updateModularProp(mod, prop, val) {
   if (mod === 'now_playing') {
     if (prop === 'enabled') {
       config.overlay_now_playing_enabled = val;
-    } else if (prop === 'source_mode') {
-      config.overlay_source_mode = val;
     } else if (prop === 'x') {
       config.overlay_now_playing_x = parseInt(val, 10) || 0;
     } else if (prop === 'y') {
@@ -5488,6 +5593,12 @@ function updateModularProp(mod, prop, val) {
       config.overlay_show_artist = Boolean(val);
     } else if (prop === 'show_equalizer') {
       config.overlay_show_equalizer = Boolean(val);
+    } else if (prop === 'title_size') {
+      config.overlay_now_playing_title_size = parseInt(val, 10) || 13;
+    } else if (prop === 'artist_size') {
+      config.overlay_now_playing_artist_size = parseInt(val, 10) || 11;
+    } else if (prop === 'badge_size') {
+      config.overlay_now_playing_badge_size = parseInt(val, 10) || 9;
     }
   } else if (mod === 'timer') {
     if (prop === 'enabled') {
@@ -5528,6 +5639,14 @@ function updateModularProp(mod, prop, val) {
       config.overlay_timer_progress_color = val;
     } else if (prop === 'phrase_color') {
       config.overlay_timer_phrase_color = val;
+    } else if (prop === 'clock_size') {
+      config.overlay_timer_clock_size = parseInt(val, 10) || 72;
+    } else if (prop === 'title_size') {
+      config.overlay_timer_title_size = parseInt(val, 10) || 30;
+    } else if (prop === 'badge_size') {
+      config.overlay_timer_badge_size = parseInt(val, 10) || 12;
+    } else if (prop === 'phrase_size') {
+      config.overlay_timer_phrase_size = parseInt(val, 10) || 14;
     } else if (prop === 'show_badge') {
       config.overlay_timer_show_badge = Boolean(val);
     } else if (prop === 'show_title') {
@@ -6143,7 +6262,6 @@ function initOverlayStudio() {
 
   // 1. Inputs Now Playing
   setCheck('modNpEnabled', config.overlay_now_playing_enabled, true);
-  setVal('modNpSourceMode', config.overlay_source_mode, 'both');
   const npX = config.overlay_now_playing_x !== undefined ? config.overlay_now_playing_x : (config.overlay_pos_x !== undefined ? config.overlay_pos_x : 40);
   const npY = config.overlay_now_playing_y !== undefined ? config.overlay_now_playing_y : (config.overlay_pos_y !== undefined ? config.overlay_pos_y : 40);
   const npScale = parseFloat(config.overlay_now_playing_scale !== undefined ? config.overlay_now_playing_scale : (config.overlay_scale || 1.0));
@@ -6170,6 +6288,9 @@ function initOverlayStudio() {
   setCheck('modNpShowTitle', (config.overlay_show_song_title !== undefined ? config.overlay_show_song_title : config.overlay_show_title), true);
   setCheck('modNpShowArtist', config.overlay_show_artist, true);
   setCheck('modNpShowEq', config.overlay_show_equalizer, true);
+  setVal('modNpTitleSize', config.overlay_now_playing_title_size, 13);
+  setVal('modNpArtistSize', config.overlay_now_playing_artist_size, 11);
+  setVal('modNpBadgeSize', config.overlay_now_playing_badge_size, 9);
   const npZ = config.overlay_now_playing_z_index !== undefined ? config.overlay_now_playing_z_index : 30;
   setVal('modNpZIndex', npZ);
   setText('modNpZVal', npZ);
@@ -6197,6 +6318,10 @@ function initOverlayStudio() {
   setColorVal('modTmClockColor', config.overlay_timer_clock_color, '#e8ff47');
   setColorVal('modTmProgressColor', config.overlay_timer_progress_color, '#e8ff47');
   setColorVal('modTmPhraseColor', config.overlay_timer_phrase_color, '#bbbbbb');
+  setVal('modTmClockSize', config.overlay_timer_clock_size, 72);
+  setVal('modTmTitleSize', config.overlay_timer_title_size, 30);
+  setVal('modTmBadgeSize', config.overlay_timer_badge_size, 12);
+  setVal('modTmPhraseSize', config.overlay_timer_phrase_size, 14);
   setCheck('modTmShowBadge', config.overlay_timer_show_badge, true);
   setCheck('modTmShowTitle', config.overlay_timer_show_title, true);
   setCheck('modTmShowClock', config.overlay_timer_show_clock, true);
@@ -6243,7 +6368,6 @@ async function saveModularOverlayConfig() {
     const payload = {
       // Now playing
       overlay_now_playing_enabled: config.overlay_now_playing_enabled !== false,
-      overlay_source_mode: config.overlay_source_mode || 'both',
       overlay_now_playing_x: config.overlay_now_playing_x !== undefined ? config.overlay_now_playing_x : (config.overlay_pos_x !== undefined ? config.overlay_pos_x : 40),
       overlay_now_playing_y: config.overlay_now_playing_y !== undefined ? config.overlay_now_playing_y : (config.overlay_pos_y !== undefined ? config.overlay_pos_y : 40),
       overlay_now_playing_scale: parseFloat(config.overlay_now_playing_scale !== undefined ? config.overlay_now_playing_scale : (config.overlay_scale || 1.0)),
@@ -6262,6 +6386,9 @@ async function saveModularOverlayConfig() {
       overlay_show_title: config.overlay_show_song_title !== false,
       overlay_show_artist: config.overlay_show_artist !== false,
       overlay_show_equalizer: config.overlay_show_equalizer !== false,
+      overlay_now_playing_title_size: parseInt(config.overlay_now_playing_title_size || 13, 10),
+      overlay_now_playing_artist_size: parseInt(config.overlay_now_playing_artist_size || 11, 10),
+      overlay_now_playing_badge_size: parseInt(config.overlay_now_playing_badge_size || 9, 10),
 
       // Timer
       overlay_timer_enabled: config.overlay_timer_enabled !== false,
@@ -6282,6 +6409,10 @@ async function saveModularOverlayConfig() {
       overlay_timer_clock_color: config.overlay_timer_clock_color || '#e8ff47',
       overlay_timer_progress_color: config.overlay_timer_progress_color || '#e8ff47',
       overlay_timer_phrase_color: config.overlay_timer_phrase_color || '#bbbbbb',
+      overlay_timer_clock_size: parseInt(config.overlay_timer_clock_size || 72, 10),
+      overlay_timer_title_size: parseInt(config.overlay_timer_title_size || 30, 10),
+      overlay_timer_badge_size: parseInt(config.overlay_timer_badge_size || 12, 10),
+      overlay_timer_phrase_size: parseInt(config.overlay_timer_phrase_size || 14, 10),
       overlay_timer_show_badge: config.overlay_timer_show_badge !== false,
       overlay_timer_show_title: config.overlay_timer_show_title !== false,
       overlay_timer_show_clock: config.overlay_timer_show_clock !== false,
