@@ -495,15 +495,15 @@ def launch_native_window(url: str, title: str = "YouTube Stream Controller", por
         # Permitir matar la app con Ctrl+C en la terminal
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         
-        # Parámetros Chromium estables para Linux (evita que el motor crashee a blanco por EGL/Vulkan fallido)
+        # Deshabilitar GPU para evitar EGL_BAD_CONTEXT en Linux y garantizar renderizado 100% estable
         sys.argv.extend([
-            "--ignore-gpu-blocklist",
-            "--enable-gpu-rasterization",
-            "--enable-zero-copy",
+            "--disable-gpu",
+            "--disable-software-rasterizer",
+            "--disable-gpu-compositing",
             "--disable-dev-shm-usage"
         ])
         
-        print("[app] Iniciando con motor PyQt5 (Chromium)...")
+        print("[app] Iniciando con motor PyQt5 (Chromium) en modo CPU estable...")
         app = QApplication(sys.argv)
         
         # Agrupar en la barra lateral de Ubuntu y usar icono

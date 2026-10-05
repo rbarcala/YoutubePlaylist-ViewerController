@@ -242,10 +242,10 @@
 
   .break-card {
     position: absolute;
-    left: var(--timer-x, 50%);
-    top: var(--timer-y, 50%);
-    transform: translate(-50%, -50%) scale(var(--timer-scale, 1));
-    transform-origin: center center;
+    left: var(--timer-x, 680px);
+    top: var(--timer-y, 320px);
+    transform: scale(var(--timer-scale, 1));
+    transform-origin: top left;
     background: var(--timer-bg, var(--bg-card));
     border: 2px solid var(--timer-border, var(--accent));
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 28px var(--accent-glow);
@@ -262,7 +262,7 @@
     font-family: var(--timer-font, var(--overlay-font));
   }
   .break-overlay.visible .break-card {
-    transform: translate(-50%, -50%) scale(var(--timer-scale, 1));
+    transform: scale(var(--timer-scale, 1));
   }
 
   .break-header-pill {

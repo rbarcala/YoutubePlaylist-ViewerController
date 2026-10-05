@@ -264,6 +264,28 @@ class OBSController:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def get_video_settings(self) -> dict:
+        """Obtiene la resolución base y de salida del lienzo de OBS."""
+        try:
+            sock = self._connect_and_identify()
+            if not sock: return {"success": False}
+            self._send_ws_frame(sock, json.dumps({
+                "op": 6,
+                "d": {"requestType": "GetVideoSettings", "requestId": "get-video-settings"}
+            }))
+            resp = json.loads(self._recv_ws_frame(sock) or "{}")
+            sock.close()
+            data = resp.get("d", {}).get("responseData", {})
+            return {
+                "success": True,
+                "baseWidth": data.get("baseWidth", 1920),
+                "baseHeight": data.get("baseHeight", 1080),
+                "outputWidth": data.get("outputWidth", 1920),
+                "outputHeight": data.get("outputHeight", 1080)
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def toggle_record(self) -> dict:
         try:
             sock = self._connect_and_identify()

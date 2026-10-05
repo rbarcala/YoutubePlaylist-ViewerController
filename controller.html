@@ -2168,6 +2168,7 @@
             <button class="btn btn-sm" onclick="alignActiveModule('bl')" title="Alinear Abajo a la Izquierda" style="padding:2px 7px; font-size:10px;">↙</button>
             <button class="btn btn-sm" onclick="alignActiveModule('br')" title="Alinear Abajo a la Derecha" style="padding:2px 7px; font-size:10px;">↘</button>
             <button class="btn btn-sm btn-accent" onclick="alignActiveModule('center')" title="Centrar elemento activo" style="padding:2px 8px; font-size:10px;">🎯 Centrar</button>
+            <button class="btn btn-sm" id="btnToggleObsCanvasPreview" onclick="toggleStageObsPreview()" title="Ver la transmisión/escena real de OBS en el fondo del lienzo" style="padding:2px 8px; font-size:10px; background:#1b2838; border-color:#2a82da;">👁️ Preview OBS</button>
             <button class="btn btn-sm" id="btnToggleLayers" onclick="toggleLayersPanel()" title="Ver y reordenar capas de pantalla (Z-Index)" style="padding:2px 8px; font-size:10px;">📑 Capas</button>
             <button class="btn btn-sm" id="btnToggleBgMode" onclick="toggleStageBgMode()" title="Cambiar fondo del lienzo (Oscuro / Cuadrícula Transparente)" style="padding:2px 8px; font-size:10px;">🏁 Fondo</button>
             <button class="btn btn-sm btn-accent" id="btnToggleGuides" onclick="toggleStageGuides()" title="Alternar guías de TV y cruz central" style="padding:2px 8px; font-size:10px;">📐 Guías</button>
@@ -2183,15 +2184,19 @@
           <div id="stageLayersList" style="display:flex; flex-direction:column; gap:4px; max-height:220px; overflow-y:auto;"></div>
         </div>
 
-        <div class="overlay-stage-canvas bg-dark" id="stageCanvas" ondragstart="return false;" style="touch-action:none;">
-          <!-- BADGE LÍMITE TOTAL OBS -->
-          <div class="stage-screen-badge">🖥️ PANTALLA OBS 1920 × 1080 (LÍMITE TOTAL)</div>
+        <div class="overlay-stage-canvas bg-dark" id="stageCanvas" ondragstart="return false;" style="touch-action:none; position:relative; overflow:hidden;">
+          <!-- FONDO DE PREVIEW OBS EN VIVO (CÁMARA VIRTUAL O CAPTURA DE PANTALLA) -->
+          <video id="stageObsVideoBg" autoplay playsinline muted style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0.85; pointer-events:none; z-index:0; display:none;"></video>
+          <img id="stageObsScreenshotBg" style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0.85; pointer-events:none; z-index:0; display:none;" alt="">
+
+          <!-- BADGE LÍMITE TOTAL OBS (DINÁMICO CON LA RESOLUCIÓN REAL DE OBS) -->
+          <div class="stage-screen-badge" id="stageObsResolutionBadge">🖥️ PANTALLA OBS 1920 × 1080 (LÍMITE TOTAL)</div>
 
           <!-- ESQUINAS LÍMITE OBS -->
           <div class="stage-corner top-left">⌜ 0, 0</div>
-          <div class="stage-corner top-right">1920, 0 ⌝</div>
-          <div class="stage-corner bottom-left">⌞ 0, 1080</div>
-          <div class="stage-corner bottom-right">1920, 1080 ⌟</div>
+          <div class="stage-corner top-right" id="stageCornerTR">1920, 0 ⌝</div>
+          <div class="stage-corner bottom-left" id="stageCornerBL">⌞ 0, 1080</div>
+          <div class="stage-corner bottom-right" id="stageCornerBR">1920, 1080 ⌟</div>
 
           <!-- GUÍAS DE ALINEACIÓN OBS (SAFE AREA & CENTRO) -->
           <div id="stageGuides" class="stage-guides">
@@ -5688,6 +5693,7 @@ async function loadOverlaysView() {
   } catch(e) {}
 
   await loadTimerPhrases();
+  await syncObsCanvasResolution();
   initOverlayStudio();
   switchInspectorTab('now_playing', true);
   requestAnimationFrame(() => {
@@ -6028,6 +6034,91 @@ function toggleStageGuides() {
   const btn = document.getElementById('btnToggleGuides');
   if (btn) {
     btn.classList.toggle('active', stageGuidesVisible);
+  }
+}
+
+let stageObsPreviewActive = false;
+let obsBaseWidth = 1920;
+let obsBaseHeight = 1080;
+let stageObsScreenshotInterval = null;
+
+async function syncObsCanvasResolution() {
+  try {
+    const res = await fetch('/api/obs/video_settings');
+    const data = await res.json();
+    if (data.success && data.baseWidth && data.baseHeight) {
+      obsBaseWidth = data.baseWidth;
+      obsBaseHeight = data.baseHeight;
+
+      const badge = document.getElementById('stageObsResolutionBadge');
+      if (badge) {
+        badge.textContent = `🖥️ PANTALLA OBS ${obsBaseWidth} × ${obsBaseHeight} (LÍMITE TOTAL)`;
+      }
+      const tr = document.getElementById('stageCornerTR');
+      if (tr) tr.textContent = `${obsBaseWidth}, 0 ⌝`;
+      const bl = document.getElementById('stageCornerBL');
+      if (bl) bl.textContent = `⌞ 0, ${obsBaseHeight}`;
+      const br = document.getElementById('stageCornerBR');
+      if (br) br.textContent = `${obsBaseWidth}, ${obsBaseHeight} ⌟`;
+
+      updateStageMockups();
+    }
+  } catch(e) {}
+}
+
+async function toggleStageObsPreview() {
+  stageObsPreviewActive = !stageObsPreviewActive;
+  const btn = document.getElementById('btnToggleObsCanvasPreview');
+  const videoEl = document.getElementById('stageObsVideoBg');
+  const imgEl = document.getElementById('stageObsScreenshotBg');
+
+  if (btn) btn.classList.toggle('btn-accent', stageObsPreviewActive);
+
+  if (stageObsPreviewActive) {
+    showToast('Conectando preview de OBS al lienzo…');
+    // 1. Intentar usar la cámara virtual si ya está activa
+    if (currentCamStream && videoEl) {
+      videoEl.srcObject = currentCamStream;
+      videoEl.style.display = 'block';
+      if (imgEl) imgEl.style.display = 'none';
+      videoEl.play().catch(() => {});
+      return;
+    }
+
+    // 2. Fallback: Captura de pantalla de OBS cada 800ms
+    if (imgEl) imgEl.style.display = 'block';
+    const fetchScreenshot = async () => {
+      if (!stageObsPreviewActive) return;
+      try {
+        const scRes = await fetch('/api/obs/status');
+        const scData = await scRes.json();
+        const currentScene = scData.current_scene || '';
+        if (currentScene) {
+          const res = await fetch('/api/obs/preview?scene=' + encodeURIComponent(currentScene));
+          const pData = await res.json();
+          if (pData.success && pData.imageData) {
+            imgEl.src = pData.imageData;
+            imgEl.style.display = 'block';
+            if (videoEl) videoEl.style.display = 'none';
+          }
+        }
+      } catch(e) {}
+    };
+
+    fetchScreenshot();
+    if (stageObsScreenshotInterval) clearInterval(stageObsScreenshotInterval);
+    stageObsScreenshotInterval = setInterval(fetchScreenshot, 800);
+  } else {
+    if (stageObsScreenshotInterval) clearInterval(stageObsScreenshotInterval);
+    if (videoEl) {
+      videoEl.style.display = 'none';
+      videoEl.srcObject = null;
+    }
+    if (imgEl) {
+      imgEl.style.display = 'none';
+      imgEl.src = '';
+    }
+    showToast('Preview de OBS desactivada del lienzo');
   }
 }
 
@@ -6666,7 +6757,7 @@ function handleGlobalStageMove(clientX, clientY) {
   const canvas = document.getElementById('stageCanvas');
   if (!canvas) return;
   const canvasW = canvas.offsetWidth || canvas.getBoundingClientRect().width || 960;
-  const stageScale = Math.max(0.1, canvasW / 1920);
+  const stageScale = Math.max(0.1, canvasW / (obsBaseWidth || 1920));
 
   if (isDraggingStage) {
     const dx = (clientX - stageDragStartX) / stageScale;
@@ -6872,8 +6963,9 @@ function updateStageMockups() {
   if (!canvas) return;
   const parentW = canvas.parentElement ? canvas.parentElement.clientWidth : 0;
   const canvasW = canvas.offsetWidth || canvas.getBoundingClientRect().width || parentW || 960;
-  canvas.style.height = Math.round(canvasW * 9 / 16) + 'px';
-  const scale = Math.max(0.1, canvasW / 1920);
+  const aspect = (obsBaseWidth > 0 && obsBaseHeight > 0) ? (obsBaseHeight / obsBaseWidth) : (9 / 16);
+  canvas.style.height = Math.round(canvasW * aspect) + 'px';
+  const scale = Math.max(0.1, canvasW / (obsBaseWidth || 1920));
 
   // Asegurar que los mocks de simulación estén visibles si no se han apagado
   const simNp = document.getElementById('simNowPlayingToggle');

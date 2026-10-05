@@ -483,6 +483,12 @@ def generate_obs_auth():
     
     return jsonify({"auth": auth_response})
 
+@app.route('/api/obs/video_settings')
+def get_obs_video_settings():
+    cfg = load_config()
+    obs = OBSController(cfg.get("obs_host", "localhost"), cfg.get("obs_port", 4455), cfg.get("obs_password", ""))
+    return jsonify(obs.get_video_settings())
+
 @app.route('/api/obs/preview')
 def get_obs_preview():
     cfg = load_config()
