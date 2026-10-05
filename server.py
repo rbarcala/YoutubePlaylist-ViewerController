@@ -1296,6 +1296,12 @@ def start_obs_audio_monitor():
                     time.sleep(3)
                     continue
 
+                # Iniciar la cámara virtual de OBS automáticamente tan pronto conecta el socket
+                try:
+                    obs.start_virtual_cam()
+                except Exception:
+                    pass
+
                 sock.settimeout(3.0)
                 last_emit = 0.0
 

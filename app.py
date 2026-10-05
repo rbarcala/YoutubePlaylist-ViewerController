@@ -103,11 +103,47 @@ def find_obs_command() -> list[str] | None:
         return ["/snap/bin/obs-studio"]
     return None
 
+def ensure_v4l2loopback_installed():
+    """Verifica e instala/carga v4l2loopback automáticamente para la cámara virtual de OBS."""
+    try:
+        # 1. Comprobar si el módulo ya está cargado en el kernel
+        res = subprocess.run(["lsmod"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        if "v4l2loopback" in res.stdout:
+            return
+
+        print("[app] Verificando soporte para Cámara Virtual de OBS (v4l2loopback)...")
+
+        # 2. Comprobar si el paquete está instalado
+        check_pkg = subprocess.run(["dpkg", "-s", "v4l2loopback-dkms"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        need_install = (check_pkg.returncode != 0)
+
+        # Usar pkexec (ventana gráfica de contraseña de Ubuntu) o sudo interactivo
+        cmd = []
+        if shutil.which("pkexec"):
+            cmd = ["pkexec", "bash", "-c"]
+        elif shutil.which("sudo"):
+            cmd = ["sudo", "bash", "-c"]
+        else:
+            return
+
+        bash_script = ""
+        if need_install:
+            print("[app] Solicitando autorización para instalar v4l2loopback (Cámara Virtual OBS)...")
+            bash_script += "apt-get update && apt-get install -y v4l2loopback-dkms && "
+        bash_script += "modprobe v4l2loopback exclusive_caps=1 card_label='OBS Virtual Camera' && echo 'v4l2loopback' > /etc/modules-load.d/v4l2loopback.conf"
+
+        subprocess.run(cmd + [bash_script], check=False)
+    except Exception as e:
+        print(f"[app] Aviso: No se pudo configurar v4l2loopback automáticamente: {e}")
+
 def launch_obs_if_needed():
     """Inicia OBS Studio en segundo plano si no está en ejecución."""
     cfg = load_config()
     if not cfg.get("auto_open_obs", True):
         return
+
+    # Asegurar módulo de cámara virtual antes de abrir OBS
+    ensure_v4l2loopback_installed()
 
     if is_obs_running():
         print("[app] OBS Studio ya se encuentra en ejecución.")
@@ -132,7 +168,7 @@ def launch_obs_if_needed():
             time.sleep(3)
             setup_script = BASE_DIR / "scripts" / "setup_obs.py"
             if setup_script.exists():
-                for attempt in range(3):
+                for attempt in range(5):
                     result = subprocess.run(
                         [sys.executable, str(setup_script)],
                         cwd=str(BASE_DIR),
@@ -144,11 +180,25 @@ def launch_obs_if_needed():
                     )
                     if result.returncode == 0 and "conectada vía WebSocket" in result.stdout:
                         print("[app] Overlay sincronizado con OBS.")
-                        return
+                        break
                     if result.stdout:
                         print(f"[app] Intento {attempt + 1} de sincronización OBS:\n{result.stdout.strip()}")
                     time.sleep(2)
-                print("[app] No se pudo sincronizar automáticamente el overlay con OBS.")
+
+            # Iniciar automáticamente la cámara virtual de OBS
+            try:
+                from obs_client import OBSController
+                cfg_local = load_config()
+                obs = OBSController(
+                    host=cfg_local.get("obs_host", "localhost"),
+                    port=cfg_local.get("obs_port", 4455),
+                    password=cfg_local.get("obs_password", "")
+                )
+                res_vcam = obs.start_virtual_cam()
+                if res_vcam.get("success"):
+                    print("[app] Cámara virtual de OBS iniciada automáticamente ✓")
+            except Exception as ex_vcam:
+                print(f"[app] Aviso al iniciar cámara virtual: {ex_vcam}")
         threading.Thread(target=_sync_obs_overlay, daemon=True).start()
     except Exception as e:
         print(f"[app] Error al abrir OBS Studio: {e}")
@@ -171,27 +221,55 @@ def normalize_runtime_ports(cfg: dict) -> dict:
     return cfg
 
 def check_dependencies() -> bool:
-    """Verifica que las librerías necesarias de Python estén instaladas."""
-    missing = []
+    """Verifica que las librerías necesarias estén instaladas. Si falta alguna, intenta instalarla automáticamente."""
+    missing_pkgs = []
     try:
         import flask
     except ImportError:
-        missing.append("flask (paquete: python3-flask)")
+        missing_pkgs.append("python3-flask")
     try:
         import yt_dlp
     except ImportError:
-        missing.append("yt-dlp (paquete: yt-dlp)")
+        missing_pkgs.append("yt-dlp")
+    try:
+        import requests
+    except ImportError:
+        missing_pkgs.append("python3-requests")
 
-    if not missing:
+    # Comprobar herramientas de ventana y sistema en Linux
+    for tool, pkg in [("xdotool", "xdotool"), ("wmctrl", "wmctrl")]:
+        if not shutil.which(tool):
+            missing_pkgs.append(pkg)
+
+    if not missing_pkgs:
         return True
 
+    print(f"[app] Faltan paquetes requeridos: {', '.join(missing_pkgs)}. Intentando instalación automática...")
+
+    # Intentar instalación automática mediante pkexec o sudo
+    auth_cmd = []
+    if shutil.which("pkexec"):
+        auth_cmd = ["pkexec"]
+    elif shutil.which("sudo"):
+        auth_cmd = ["sudo"]
+
+    if auth_cmd:
+        try:
+            install_cmd = auth_cmd + ["apt-get", "update"]
+            subprocess.run(install_cmd, check=False)
+            install_cmd = auth_cmd + ["apt-get", "install", "-y"] + missing_pkgs
+            ret = subprocess.run(install_cmd, check=False)
+            if ret.returncode == 0:
+                print("[app] ¡Paquetes instalados correctamente!")
+                return True
+        except Exception as e:
+            print(f"[app] Error durante la auto-instalación: {e}")
+
     err_text = (
-        "No se encontraron las siguientes dependencias de Python requeridas:\n\n"
-        + "\n".join(f"  • {m}" for m in missing)
-        + "\n\nPara solucionarlo, abre una terminal y ejecuta:\n"
-        "  sudo apt update && sudo apt install -y python3-flask yt-dlp python3-requests\n"
-        "\nO si utilizas pip / entorno virtual:\n"
-        "  pip install -r requirements.txt"
+        "No se pudieron instalar automáticamente las siguientes dependencias:\n\n"
+        + "\n".join(f"  • {m}" for m in missing_pkgs)
+        + "\n\nPara instalarlas manualmente, ejecuta en tu terminal:\n"
+        f"  sudo apt update && sudo apt install -y {' '.join(missing_pkgs)}"
     )
 
     print(f"\n{'='*70}\n[ERROR] YouTube Stream Controller:\n{err_text}\n{'='*70}\n", file=sys.stderr)
@@ -206,12 +284,12 @@ def check_dependencies() -> bool:
                 flags=0,
                 message_type=Gtk.MessageType.ERROR,
                 buttons=Gtk.ButtonsType.OK,
-                text="Faltan dependencias de Python"
+                text="Faltan dependencias de sistema"
             )
             dialog.format_secondary_text(
-                "No se encontraron módulos necesarios:\n\n"
-                + "\n".join(f"• {m}" for m in missing)
-                + "\n\nEjecuta en tu terminal:\nsudo apt install -y python3-flask yt-dlp"
+                "No se encontraron paquetes necesarios:\n\n"
+                + "\n".join(f"• {m}" for m in missing_pkgs)
+                + f"\n\nEjecuta en tu terminal:\nsudo apt install -y {' '.join(missing_pkgs)}"
             )
             dialog.run()
             dialog.destroy()

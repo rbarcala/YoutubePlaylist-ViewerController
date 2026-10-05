@@ -3887,6 +3887,11 @@ async function loadObsData() {
       document.getElementById('btnObsRecord').textContent = st.is_recording ? 'Detener Grabación' : 'Iniciar Grabación';
       document.getElementById('btnObsRecord').className = st.is_recording ? 'btn btn-danger' : 'btn';
       loadObsAudioData();
+
+      // Iniciar automáticamente la previsualización de cámara virtual en el controller si no está corriendo
+      if (!currentCamStream && document.getElementById('obsVideoCam') && document.getElementById('obsVideoCam').style.display !== 'block') {
+        startVirtualCameraPreview().catch(() => {});
+      }
     }
   } catch(e) {}
 }
