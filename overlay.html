@@ -457,7 +457,332 @@
   let lastLyricsQuery = "";
   let lyricsInterval = null;
   let lyricsOffset = 0;
-  
+
+  function hexToRgba(hex, alpha) {
+    if (!hex) return `rgba(10, 10, 10, ${alpha})`;
+    if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
+    let cleanHex = hex.replace('#', '');
+    if (cleanHex.length === 3) cleanHex = cleanHex.split('').map(c => c + c).join('');
+    const r = parseInt(cleanHex.substring(0, 2), 16) || 10;
+    const g = parseInt(cleanHex.substring(2, 4), 16) || 10;
+    const b = parseInt(cleanHex.substring(4, 6), 16) || 10;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  function playSchoolBellChime() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        const startTime = ctx.currentTime + (idx * 0.22);
+        gain.gain.setValueAtTime(0.01, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.35, startTime + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.8);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + 0.85);
+      });
+    } catch(e) {}
+  }
+
+  function updateTimerUI(data) {
+    if (!data) return;
+    currentTimerState = data;
+    const overlay = document.getElementById('breakOverlay');
+    const timerText = document.getElementById('breakTimerText');
+    const titleText = document.getElementById('breakTitleText');
+    const phraseText = document.getElementById('breakPhraseText');
+    const bar = document.getElementById('breakProgressBar');
+
+    if (!data.active) {
+      if (overlay) overlay.classList.remove('visible');
+      if (timerText) timerText.classList.remove('finished');
+      return;
+    }
+
+    if (overlayConfig.overlay_enabled === false || overlayConfig.overlay_timer_enabled === false) {
+      if (overlay) overlay.classList.remove('visible');
+      return;
+    }
+
+    if (overlay) overlay.classList.add('visible');
+
+    const rem = Math.max(0, data.remaining_seconds || 0);
+    const m = Math.floor(rem / 60);
+    const s = rem % 60;
+    const timeStr = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    if (timerText) timerText.textContent = timeStr;
+
+    if (data.title && titleText) titleText.textContent = data.title;
+    if (data.phrase && phraseText) phraseText.textContent = data.phrase;
+
+    const total = data.total_seconds || 300;
+    const pct = Math.max(0, Math.min(100, (rem / total) * 100));
+    if (bar) bar.style.width = pct + '%';
+
+    if (rem <= 0) {
+      if (timerText) {
+        timerText.classList.add('finished');
+        timerText.textContent = '00:00';
+      }
+      if (bar) bar.style.width = '0%';
+      const now = Date.now();
+      if ((data.play_sound || overlayConfig.overlay_timer_sound !== false) && (now - lastChimePlayedFor > 8000)) {
+        lastChimePlayedFor = now;
+        playSchoolBellChime();
+      }
+    } else {
+      if (timerText) timerText.classList.remove('finished');
+    }
+  }
+
+  function applyConfigToOverlay(cfg) {
+    if (!cfg || typeof cfg !== 'object') return;
+    overlayConfig = Object.assign({}, overlayConfig, cfg);
+
+    // 1. POSICIONAR Y ESTILAR NOW PLAYING
+    const npContainer = document.getElementById('nowPlayingContainer');
+    if (npContainer) {
+      const npX = cfg.overlay_now_playing_x !== undefined ? cfg.overlay_now_playing_x : (cfg.overlay_pos_x !== undefined ? cfg.overlay_pos_x : 40);
+      const npY = cfg.overlay_now_playing_y !== undefined ? cfg.overlay_now_playing_y : (cfg.overlay_pos_y !== undefined ? cfg.overlay_pos_y : 40);
+      const npScale = parseFloat(cfg.overlay_now_playing_scale !== undefined ? cfg.overlay_now_playing_scale : (cfg.overlay_scale || 1.0));
+      const npWidth = parseInt(cfg.overlay_now_playing_width || 380, 10);
+      const npBg = cfg.overlay_now_playing_bg_color || cfg.overlay_bg_color || '#0a0a0a';
+      const npOp = (cfg.overlay_now_playing_bg_opacity !== undefined ? cfg.overlay_now_playing_bg_opacity : (cfg.overlay_bg_opacity !== undefined ? cfg.overlay_bg_opacity : 78)) / 100;
+      const npBorder = cfg.overlay_now_playing_border_color || cfg.overlay_border_color || 'rgba(255, 255, 255, 0.12)';
+      const npRadius = (cfg.overlay_now_playing_border_radius !== undefined ? cfg.overlay_now_playing_border_radius : (cfg.overlay_border_radius !== undefined ? cfg.overlay_border_radius : 12)) + 'px';
+      const npFont = cfg.overlay_now_playing_font || cfg.overlay_font_family || 'system-ui';
+      const npTextCol = cfg.overlay_now_playing_text_color || cfg.overlay_text_color || '#ffffff';
+      const npZ = cfg.overlay_now_playing_z_index !== undefined ? cfg.overlay_now_playing_z_index : 30;
+
+      npContainer.style.left = npX + 'px';
+      npContainer.style.bottom = npY + 'px';
+      npContainer.style.top = 'auto';
+      npContainer.style.right = 'auto';
+      npContainer.style.width = npWidth + 'px';
+      npContainer.style.maxWidth = npWidth + 'px';
+      npContainer.style.background = hexToRgba(npBg, npOp);
+      npContainer.style.borderColor = npBorder;
+      npContainer.style.borderRadius = npRadius;
+      npContainer.style.fontFamily = npFont;
+      npContainer.style.color = npTextCol;
+      npContainer.style.zIndex = npZ;
+      npContainer.style.setProperty('--overlay-scale', npScale);
+
+      const npTitleSize = (cfg.overlay_now_playing_title_size !== undefined ? cfg.overlay_now_playing_title_size : 13) + 'px';
+      const npArtistSize = (cfg.overlay_now_playing_artist_size !== undefined ? cfg.overlay_now_playing_artist_size : 11) + 'px';
+      const npBadgeSize = (cfg.overlay_now_playing_badge_size !== undefined ? cfg.overlay_now_playing_badge_size : 9) + 'px';
+
+      const titleEl = document.getElementById('npTitle');
+      if (titleEl) {
+        titleEl.style.fontSize = npTitleSize;
+        titleEl.style.color = npTextCol;
+      }
+      const artistEl = document.getElementById('npSubtitle');
+      if (artistEl) {
+        artistEl.style.fontSize = npArtistSize;
+      }
+      const badgeEl = document.getElementById('npBadge');
+      if (badgeEl) {
+        badgeEl.style.fontSize = npBadgeSize;
+        badgeEl.style.display = (cfg.overlay_show_badge !== false) ? 'flex' : 'none';
+      }
+      const eqEl = badgeEl ? badgeEl.querySelector('.np-eq') : null;
+      if (eqEl) {
+        eqEl.style.display = (cfg.overlay_show_equalizer !== false) ? 'flex' : 'none';
+      }
+
+      // Wave animation
+      const waveVal = parseInt(cfg.overlay_now_playing_wave !== undefined ? cfg.overlay_now_playing_wave : (cfg.overlay_text_wave || 0), 10);
+      if (titleEl) {
+        if (waveVal > 0) {
+          titleEl.style.setProperty('--wave-amp', `${waveVal * 1.5}px`);
+          titleEl.classList.add('wave-active');
+        } else {
+          titleEl.classList.remove('wave-active');
+        }
+      }
+    }
+
+    // 2. POSICIONAR Y ESTILAR TEMPORIZADOR
+    const tmCard = document.getElementById('breakCard');
+    if (tmCard) {
+      const tmX = cfg.overlay_timer_x !== undefined ? cfg.overlay_timer_x : 680;
+      const tmY = cfg.overlay_timer_y !== undefined ? cfg.overlay_timer_y : 320;
+      const tmScale = parseFloat(cfg.overlay_timer_scale || 1.0);
+      const tmWidth = parseInt(cfg.overlay_timer_width || 560, 10);
+      const tmBg = cfg.overlay_timer_bg_color || '#0a0a0a';
+      const tmOp = (cfg.overlay_timer_bg_opacity !== undefined ? cfg.overlay_timer_bg_opacity : 85) / 100;
+      const tmBorder = cfg.overlay_timer_border_color || 'rgba(232, 255, 71, 0.35)';
+      const tmRadius = (cfg.overlay_timer_border_radius !== undefined ? cfg.overlay_timer_border_radius : 20) + 'px';
+      const tmFont = cfg.overlay_timer_font || 'system-ui';
+      const tmZ = cfg.overlay_timer_z_index !== undefined ? cfg.overlay_timer_z_index : 20;
+
+      tmCard.style.left = tmX + 'px';
+      tmCard.style.top = tmY + 'px';
+      tmCard.style.width = tmWidth + 'px';
+      tmCard.style.background = hexToRgba(tmBg, tmOp);
+      tmCard.style.borderColor = tmBorder;
+      tmCard.style.borderRadius = tmRadius;
+      tmCard.style.fontFamily = tmFont;
+      tmCard.style.setProperty('--timer-scale', tmScale);
+
+      const tmOverlay = document.getElementById('breakOverlay');
+      if (tmOverlay) tmOverlay.style.zIndex = tmZ;
+
+      const tmClockSize = (cfg.overlay_timer_clock_size !== undefined ? cfg.overlay_timer_clock_size : 72) + 'px';
+      const tmTitleSize = (cfg.overlay_timer_title_size !== undefined ? cfg.overlay_timer_title_size : 30) + 'px';
+      const tmBadgeSize = (cfg.overlay_timer_badge_size !== undefined ? cfg.overlay_timer_badge_size : 12) + 'px';
+      const tmPhraseSize = (cfg.overlay_timer_phrase_size !== undefined ? cfg.overlay_timer_phrase_size : 14) + 'px';
+
+      const bBadge = document.getElementById('breakHeaderPill');
+      const bBadgeText = document.getElementById('breakBadgeText');
+      if (bBadge) {
+        bBadge.style.display = (cfg.overlay_timer_show_badge !== false) ? 'inline-flex' : 'none';
+        bBadge.style.fontSize = tmBadgeSize;
+        if (cfg.overlay_timer_badge_font) bBadge.style.fontFamily = cfg.overlay_timer_badge_font;
+        if (cfg.overlay_timer_badge_text && bBadgeText) bBadgeText.textContent = cfg.overlay_timer_badge_text;
+        if (cfg.overlay_timer_badge_color) {
+          bBadge.style.color = cfg.overlay_timer_badge_color;
+          bBadge.style.borderColor = cfg.overlay_timer_badge_color;
+        }
+      }
+
+      const bTitle = document.getElementById('breakTitleText');
+      if (bTitle) {
+        bTitle.style.display = (cfg.overlay_timer_show_title !== false) ? 'block' : 'none';
+        bTitle.style.fontSize = tmTitleSize;
+        if (cfg.overlay_timer_title_font) bTitle.style.fontFamily = cfg.overlay_timer_title_font;
+        if (cfg.overlay_timer_title_text) bTitle.textContent = cfg.overlay_timer_title_text;
+        if (cfg.overlay_timer_title_color) bTitle.style.color = cfg.overlay_timer_title_color;
+      }
+
+      const bClock = document.getElementById('breakTimerText');
+      if (bClock) {
+        bClock.style.display = (cfg.overlay_timer_show_clock !== false) ? 'block' : 'none';
+        bClock.style.fontSize = tmClockSize;
+        if (cfg.overlay_timer_clock_font) bClock.style.fontFamily = cfg.overlay_timer_clock_font;
+        if (cfg.overlay_timer_clock_color) {
+          bClock.style.color = cfg.overlay_timer_clock_color;
+          bClock.style.textShadow = `0 0 16px ${hexToRgba(cfg.overlay_timer_clock_color, 0.45)}`;
+        }
+      }
+
+      const bProgTrack = document.getElementById('breakProgressTrack');
+      const bProgBar = document.getElementById('breakProgressBar');
+      if (bProgTrack) bProgTrack.style.display = (cfg.overlay_timer_show_progress !== false) ? 'block' : 'none';
+      if (bProgBar && cfg.overlay_timer_progress_color) bProgBar.style.background = cfg.overlay_timer_progress_color;
+
+      const bPhraseBox = document.getElementById('breakPhraseBox');
+      const bPhrase = document.getElementById('breakPhraseText');
+      if (bPhraseBox) bPhraseBox.style.display = (cfg.overlay_timer_show_phrase !== false) ? 'block' : 'none';
+      if (bPhrase) {
+        bPhrase.style.fontSize = tmPhraseSize;
+        if (cfg.overlay_timer_phrase_color) bPhrase.style.color = cfg.overlay_timer_phrase_color;
+        if (cfg.overlay_timer_phrase_font) bPhrase.style.fontFamily = cfg.overlay_timer_phrase_font;
+      }
+
+      const imgContainer = document.getElementById('breakTimerImagesContainer');
+      if (imgContainer) {
+        if (cfg.overlay_timer_image_enabled && cfg.overlay_timer_image_url) {
+          const ix = cfg.overlay_timer_image_x !== undefined ? cfg.overlay_timer_image_x : 0;
+          const iy = cfg.overlay_timer_image_y !== undefined ? cfg.overlay_timer_image_y : -100;
+          const iscale = cfg.overlay_timer_image_scale || 1.0;
+          const iradius = (cfg.overlay_timer_image_radius !== undefined ? cfg.overlay_timer_image_radius : 10) + 'px';
+          imgContainer.innerHTML = `<img src="${cfg.overlay_timer_image_url}" style="position:absolute; left:calc(50% + ${ix}px); top:calc(50% + ${iy}px); transform:translate(-50%, -50%) scale(${iscale}); border-radius:${iradius}; max-width:500px; object-fit:contain; pointer-events:none;" alt="" />`;
+        } else {
+          imgContainer.innerHTML = '';
+        }
+      }
+    }
+
+    // 3. POSICIONAR Y ESTILAR LETRAS
+    const lyContainer = document.getElementById('lyricsContainer');
+    if (lyContainer) {
+      const lyX = cfg.overlay_lyrics_x !== undefined ? cfg.overlay_lyrics_x : 40;
+      const lyY = cfg.overlay_lyrics_y !== undefined ? cfg.overlay_lyrics_y : 130;
+      const lyScale = parseFloat(cfg.overlay_lyrics_scale || 1.0);
+      const lyWidth = parseInt(cfg.overlay_lyrics_width || 440, 10);
+      const lyMaxH = parseInt(cfg.overlay_lyrics_max_height || 150, 10);
+      const lyBg = cfg.overlay_lyrics_bg_color || '#0a0a0a';
+      const lyOp = (cfg.overlay_lyrics_bg_opacity !== undefined ? cfg.overlay_lyrics_bg_opacity : 75) / 100;
+      const lyBorder = cfg.overlay_lyrics_border_color || 'rgba(255, 255, 255, 0.12)';
+      const lyRadius = (cfg.overlay_lyrics_border_radius !== undefined ? cfg.overlay_lyrics_border_radius : 10) + 'px';
+      const lyTextCol = cfg.overlay_lyrics_text_color || '#e0e0e0';
+      const lyFontSize = (cfg.overlay_lyrics_font_size || 13) + 'px';
+      const lyFont = cfg.overlay_lyrics_font || 'system-ui';
+      const lyZ = cfg.overlay_lyrics_z_index !== undefined ? cfg.overlay_lyrics_z_index : 15;
+
+      lyContainer.style.left = lyX + 'px';
+      lyContainer.style.bottom = lyY + 'px';
+      lyContainer.style.top = 'auto';
+      lyContainer.style.right = 'auto';
+      lyContainer.style.width = lyWidth + 'px';
+      lyContainer.style.maxHeight = lyMaxH + 'px';
+      lyContainer.style.background = hexToRgba(lyBg, lyOp);
+      lyContainer.style.borderColor = lyBorder;
+      lyContainer.style.borderRadius = lyRadius;
+      lyContainer.style.fontFamily = lyFont;
+      lyContainer.style.zIndex = lyZ;
+      lyContainer.style.setProperty('--overlay-scale', lyScale);
+
+      const lt = document.getElementById('lyricsText');
+      if (lt) {
+        lt.style.color = lyTextCol;
+        lt.style.fontSize = lyFontSize;
+      }
+    }
+
+    // 4. RENDERIZAR TEXTOS PERSONALIZADOS
+    renderCustomTexts(cfg.overlay_custom_texts || []);
+
+    // Actualizar visualizaciones con la nueva config
+    updateNowPlayingUI();
+    if (currentTimerState && currentTimerState.active) {
+      updateTimerUI(currentTimerState);
+    }
+  }
+
+  function renderCustomTexts(texts) {
+    const container = document.getElementById('customTextsContainer');
+    if (!container) return;
+    if (overlayConfig.overlay_enabled === false) {
+      container.innerHTML = '';
+      return;
+    }
+
+    container.innerHTML = (texts || []).map(t => {
+      const posX = t.x !== undefined ? t.x : 100;
+      const posY = t.y !== undefined ? t.y : 100;
+      const tScale = t.scale !== undefined ? t.scale : 1.0;
+      const bgOpacity = (t.bg_opacity !== undefined ? t.bg_opacity : 75) / 100;
+      const bgColor = t.bg_color ? hexToRgba(t.bg_color, bgOpacity) : 'transparent';
+      const border = t.border_color ? `1px solid ${t.border_color}` : 'none';
+      const radius = (t.border_radius !== undefined ? t.border_radius : 8) + 'px';
+      const color = t.color || '#ffffff';
+      const font = t.font_family || 'system-ui';
+      const size = (t.font_size || 16) + 'px';
+      const tZ = t.z_index !== undefined ? t.z_index : 25;
+      const anim = t.animation === 'wave' ? 'wave' : (t.animation === 'pulse' ? 'pulse' : '');
+
+      return `
+        <div class="overlay-custom-text ${anim}" id="custom_text_${t.id}"
+             style="left:${posX}px; top:${posY}px; transform:scale(${tScale}); transform-origin:top left; z-index:${tZ};">
+          <div style="background:${bgColor}; border:${border}; border-radius:${radius}; padding:8px 14px; color:${color}; font-family:${font}; font-size:${size}; font-weight:700; white-space:pre-wrap; max-width:500px; box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+            ${String(t.text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
   // Interpolacion local para que las letras sincronizadas se actualicen suavemente cada segundo
   setInterval(() => {
     if (currentSpotify && currentSpotify.is_playing && currentSpotify.progress_ms !== undefined) {
