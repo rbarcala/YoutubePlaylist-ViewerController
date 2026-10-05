@@ -842,12 +842,11 @@
     }
 
     // 3. Render based on mode
+    lyricsEl.classList.add('visible');
     if (mode === 'single') {
-      if (activeIdx === -1) {
-          lyricsText.textContent = '';
-      } else {
-          lyricsText.textContent = currentSyncedLyrics[activeIdx].text;
-      }
+      const idx = activeIdx === -1 ? 0 : activeIdx;
+      lyricsText.textContent = (currentSyncedLyrics[idx] && currentSyncedLyrics[idx].text) || '';
+      lyricsText.style.color = hlColor;
       lyricsText.style.transform = 'translateY(0px)';
       return true;
     }
@@ -1026,13 +1025,13 @@
 
     const query = (currentSpotify.artist || '') + ' - ' + (currentSpotify.title || '');
     if (query === lastLyricsQuery && currentLyrics) {
-      if (!updateSyncedLyrics(currentSpotify.progress_ms)) lyricsEl.classList.add('visible');
+      updateSyncedLyrics(currentSpotify.progress_ms);
+      lyricsEl.classList.add('visible');
       return;
     }
 
     lastLyricsQuery = query;
     currentLyrics = '';
-    lyricsEl.classList.remove('visible');
 
     try {
       const art = encodeURIComponent((currentSpotify.artist || '').trim());
@@ -1052,11 +1051,37 @@
         if (currentSyncedLyrics.length && currentSpotify.progress_ms !== undefined) {
           updateSyncedLyrics(currentSpotify.progress_ms);
         } else {
-          lyricsInterval = setInterval(() => {
-            lyricsOffset -= 14;
-            if (Math.abs(lyricsOffset) > lt.scrollHeight) lyricsOffset = 0;
-            lt.style.transform = `translateY(${lyricsOffset}px)`;
-          }, 2200);
+          const lines = currentLyrics.split('\n').filter(l => l.trim().length > 0);
+          if (lines.length > 0) {
+            lt.className = 'lyrics-text';
+            lt.innerHTML = lines.map((l, idx) => `<div class="lyric-line" id="plain-lyr-${idx}">${l}</div>`).join('');
+            let lineIdx = 0;
+            const updatePlainActive = () => {
+              const domLines = Array.from(lt.children);
+              domLines.forEach((dl, i) => {
+                if (i === lineIdx) {
+                  dl.classList.add('active');
+                  dl.style.color = overlayConfig.overlay_lyrics_highlight_color || '#e8ff47';
+                  dl.style.opacity = '1';
+                } else {
+                  dl.classList.remove('active');
+                  dl.style.color = '';
+                  dl.style.opacity = '0.4';
+                }
+              });
+              if (domLines[lineIdx]) {
+                const containerHeight = lyricsEl.offsetHeight || 150;
+                const pos = domLines[lineIdx].offsetTop + (domLines[lineIdx].offsetHeight / 2);
+                lt.style.transition = 'transform 0.4s ease';
+                lt.style.transform = `translateY(${Math.min(0, (containerHeight / 2) - pos)}px)`;
+              }
+            };
+            updatePlainActive();
+            lyricsInterval = setInterval(() => {
+              lineIdx = (lineIdx + 1) % lines.length;
+              updatePlainActive();
+            }, 3500);
+          }
         }
       }
     } catch(e) {}

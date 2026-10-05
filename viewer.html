@@ -115,8 +115,8 @@
 </div>
 
 <div id="player-container">
-  <video id="video-player" playsinline muted></video>
-  <audio id="audio-player"></audio>
+  <video id="video-player" playsinline muted loop></video>
+  <audio id="audio-player" loop></audio>
 </div>
 
 <div id="fullscreenControls">
@@ -142,17 +142,23 @@ let audioFallbackRequested = false;
 video.addEventListener('play', () => {
   if (!usesCombinedMedia) audio.play().catch(() => {});
 });
-video.addEventListener('pause', () => audio.pause());
-audio.addEventListener('error', () => {
+video.addEventListener('pause', () => {
+  if (!isLooping && !usesCombinedMedia) audio.pause();
+});
+video.addEventListener('error', () => {
   if (!usesCombinedMedia && currentPlayingId && !audioFallbackRequested) {
     switchToCombinedMedia();
   }
 });
 video.addEventListener('waiting', () => {
-  audio.pause();
-  handleBuffering();
+  if (!isLooping) {
+    audio.pause();
+    handleBuffering();
+  }
 });
-video.addEventListener('stalled', handleBuffering);
+video.addEventListener('stalled', () => {
+  if (!isLooping) handleBuffering();
+});
 
 video.addEventListener('playing', () => {
   if (!usesCombinedMedia) {
@@ -167,11 +173,36 @@ video.addEventListener('seeked', () => {
   if (!usesCombinedMedia) audio.currentTime = video.currentTime;
 });
 
-// Bucle continuo sin cortes
+// Bucle continuo garantizado
+let isLooping = false;
+function loopPlayback() {
+  if (isLooping) return;
+  isLooping = true;
+  video.currentTime = 0;
+  if (!usesCombinedMedia) {
+    audio.currentTime = 0;
+  }
+  const pVideo = video.play();
+  if (pVideo !== undefined) {
+    pVideo.catch(() => {});
+  }
+  if (!usesCombinedMedia && !isMuted) {
+    const pAudio = audio.play();
+    if (pAudio !== undefined) {
+      pAudio.catch(() => {});
+    }
+  }
+  setTimeout(() => { isLooping = false; }, 400);
+}
+
+video.addEventListener('ended', loopPlayback);
+audio.addEventListener('ended', () => {
+  if (!usesCombinedMedia) loopPlayback();
+});
+
 video.addEventListener('timeupdate', () => {
-  if (video.duration && (video.duration - video.currentTime) <= 0.25) {
-    video.currentTime = 0;
-    if (!usesCombinedMedia) audio.currentTime = 0;
+  if (video.duration > 0 && (video.duration - video.currentTime) <= 0.35) {
+    loopPlayback();
   }
 });
 
