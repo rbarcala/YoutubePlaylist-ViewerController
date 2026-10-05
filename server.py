@@ -490,6 +490,68 @@ def obs_toggle_record():
     broadcast_event("obs_status_changed", res)
     return jsonify(res)
 
+@app.route('/api/obs/audio')
+def get_obs_audio():
+    cfg = load_config()
+    obs = OBSController(
+        host=cfg.get("obs_host", "localhost"),
+        port=cfg.get("obs_port", 4455),
+        password=cfg.get("obs_password", "")
+    )
+    res = obs.get_audio_inputs()
+    inputs = res.get("inputs", {})
+    desktop = inputs.get("desktop", {})
+    mic = inputs.get("mic", {})
+    return jsonify({
+        "connected": res.get("connected", False),
+        "desktop": {
+            "name": desktop.get("name"),
+            "volume_mul": desktop.get("volumeMul", 1.0),
+            "volume_db": desktop.get("volumeDb", 0.0),
+            "muted": desktop.get("muted", False)
+        } if desktop else None,
+        "mic": {
+            "name": mic.get("name"),
+            "volume_mul": mic.get("volumeMul", 1.0),
+            "volume_db": mic.get("volumeDb", 0.0),
+            "muted": mic.get("muted", False)
+        } if mic else None
+    })
+
+@app.route('/api/obs/audio/volume', methods=['POST'])
+def set_obs_audio_volume():
+    data = request.get_json(force=True, silent=True) or {}
+    input_name = data.get("input_name")
+    volume_mul = data.get("volume_mul", 1.0)
+    if not input_name:
+        return jsonify({"success": False, "error": "Falta input_name"}), 400
+    cfg = load_config()
+    obs = OBSController(
+        host=cfg.get("obs_host", "localhost"),
+        port=cfg.get("obs_port", 4455),
+        password=cfg.get("obs_password", "")
+    )
+    res = obs.set_input_volume(input_name, float(volume_mul))
+    broadcast_event("obs_audio_changed", {"input_name": input_name, "volume_mul": float(volume_mul)})
+    return jsonify(res)
+
+@app.route('/api/obs/audio/mute', methods=['POST'])
+def set_obs_audio_mute():
+    data = request.get_json(force=True, silent=True) or {}
+    input_name = data.get("input_name")
+    muted = data.get("muted") # None or boolean
+    if not input_name:
+        return jsonify({"success": False, "error": "Falta input_name"}), 400
+    cfg = load_config()
+    obs = OBSController(
+        host=cfg.get("obs_host", "localhost"),
+        port=cfg.get("obs_port", 4455),
+        password=cfg.get("obs_password", "")
+    )
+    res = obs.set_input_mute(input_name, muted)
+    broadcast_event("obs_audio_changed", {"input_name": input_name, "muted": res.get("muted", muted)})
+    return jsonify(res)
+
 # ─── API SPOTIFY REMOTE ───
 @app.route('/api/spotify/auth_url')
 def spotify_auth_url():
@@ -1208,3 +1270,84 @@ def start_spotify_monitor():
     threading.Thread(target=_loop, daemon=True).start()
 
 start_spotify_monitor()
+
+# ─── MONITOR EN SEGUNDO PLANO DE AUDIO & VÚMETROS OBS (SSE TIEMPO REAL) ───
+def start_obs_audio_monitor():
+    def _loop():
+        time.sleep(3)
+        while True:
+            try:
+                cfg = load_config()
+                # Verificar si hay clientes conectados a SSE
+                with listeners_lock:
+                    has_listeners = len(event_listeners) > 0
+                if not has_listeners:
+                    time.sleep(2)
+                    continue
+
+                obs = OBSController(
+                    host=cfg.get("obs_host", "localhost"),
+                    port=cfg.get("obs_port", 4455),
+                    password=cfg.get("obs_password", "")
+                )
+                # EventSubscription: InputVolumeMeters (65536) | Inputs (8)
+                sock = obs._connect_and_identify(event_subscriptions=65536 | 8)
+                if not sock:
+                    time.sleep(3)
+                    continue
+
+                sock.settimeout(3.0)
+                last_emit = 0.0
+
+                while True:
+                    with listeners_lock:
+                        if len(event_listeners) == 0:
+                            break
+
+                    frame = obs._recv_ws_frame(sock)
+                    if not frame:
+                        break
+
+                    try:
+                        msg = json.loads(frame)
+                    except Exception:
+                        continue
+
+                    op = msg.get("op")
+                    if op == 5: # Event
+                        event_type = msg.get("d", {}).get("eventType")
+                        event_data = msg.get("d", {}).get("eventData", {})
+
+                        if event_type == "InputVolumeMeters":
+                            now = time.time()
+                            # Limitar a ~10-12 FPS para no saturar la red local y permitir animación ultra fluida
+                            if now - last_emit >= 0.08:
+                                last_emit = now
+                                inputs = event_data.get("inputs", [])
+                                meter_map = {}
+                                for inp in inputs:
+                                    name = inp.get("inputName")
+                                    levels = inp.get("inputLevelsMul", [])
+                                    # levels es lista de [peak, rms, inputPeak] por canal
+                                    # Tomamos el valor de pico máximo entre canales
+                                    peak = 0.0
+                                    for ch in levels:
+                                        if ch and len(ch) > 0:
+                                            peak = max(peak, float(ch[0]))
+                                    meter_map[name] = round(peak, 4)
+                                broadcast_event("obs_audio_levels", {"meters": meter_map})
+
+                        elif event_type in ("InputMuteStateChanged", "InputVolumeChanged"):
+                            broadcast_event("obs_audio_changed", event_data)
+
+                try:
+                    sock.close()
+                except Exception:
+                    pass
+                time.sleep(1)
+            except Exception:
+                time.sleep(3)
+
+    threading.Thread(target=_loop, daemon=True, name="obs-audio-monitor").start()
+
+start_obs_audio_monitor()

@@ -441,6 +441,133 @@
     box-shadow: 0 0 14px rgba(232, 255, 71, 0.2);
   }
 
+  /* Vúmetros OBS Compactos */
+  .obs-vumeters-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .obs-vumeters-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 600px) {
+    .obs-vumeters-grid { grid-template-columns: 1fr; }
+  }
+  .obs-vu-strip {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .obs-vu-strip.is-muted {
+    opacity: 0.6;
+    border-color: rgba(255, 71, 87, 0.4);
+  }
+  .obs-vu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .obs-vu-track {
+    position: relative;
+    width: 100%;
+    height: 10px;
+    background: #111;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .obs-vu-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(to right, #2ed573 0%, #2ed573 70%, #ffa502 70%, #ffa502 88%, #ff4757 88%, #ff4757 100%);
+    border-radius: 3px;
+    transition: width 0.06s ease-out;
+  }
+  .obs-vu-slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .obs-vu-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: #333;
+    outline: none;
+    cursor: pointer;
+  }
+  .obs-vu-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(0,0,0,0.8);
+  }
+  .obs-vu-btn-mute {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 3px 7px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    line-height: 1;
+  }
+  .obs-vu-btn-mute:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--accent);
+  }
+  .obs-vu-btn-mute.muted {
+    background: rgba(255, 71, 87, 0.2);
+    border-color: #ff4757;
+    color: #ff4757;
+  }
+
+  /* Link para compartir transmisión en vivo */
+  .live-share-bar {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .live-share-link-input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'Space Mono', monospace;
+    flex: 1;
+    min-width: 200px;
+    outline: none;
+    user-select: all;
+  }
+
+
   
     /* ─── 4. VISTA SPOTIFY REMOTE (WIDESCREEN DASHBOARD & MATRIX GRID) ─── */
   #view-spotify {
@@ -1762,6 +1889,45 @@
       <div class="obs-scenes-grid" id="obsScenesGrid">
         <p style="color:var(--muted);">Cargando escenas de OBS…</p>
       </div>
+
+      <!-- Vúmetros de Audio OBS (Sistema y Micrófono) -->
+      <div class="obs-vumeters-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--muted); letter-spacing:0.5px;">🎚️ Mezclador de Audio OBS</span>
+          <span id="obsAudioStatusTag" style="font-size:10px; color:var(--accent); font-weight:700;">Conectando…</span>
+        </div>
+        <div class="obs-vumeters-grid">
+          <!-- Desktop Audio -->
+          <div class="obs-vu-strip" id="obsVuStripDesktop">
+            <div class="obs-vu-header">
+              <span style="color:#fff; display:flex; align-items:center; gap:5px;">🔊 Sistema</span>
+              <span id="obsVuValDesktop" style="font-family:'Space Mono',monospace; color:var(--accent); font-size:10px;">0 dB</span>
+            </div>
+            <div class="obs-vu-track">
+              <div class="obs-vu-bar" id="obsVuBarDesktop"></div>
+            </div>
+            <div class="obs-vu-slider-wrap">
+              <button class="obs-vu-btn-mute" id="obsVuMuteDesktop" onclick="toggleObsAudioMute('desktop')" title="Mutear / Desmutear Sistema">🔊</button>
+              <input type="range" class="obs-vu-slider" id="obsVuSliderDesktop" min="0" max="100" value="100" oninput="onObsAudioSliderInput('desktop', this.value)" onchange="onObsAudioSliderChange('desktop', this.value)">
+            </div>
+          </div>
+
+          <!-- Mic/Aux Audio -->
+          <div class="obs-vu-strip" id="obsVuStripMic">
+            <div class="obs-vu-header">
+              <span style="color:#fff; display:flex; align-items:center; gap:5px;">🎙️ Micrófono</span>
+              <span id="obsVuValMic" style="font-family:'Space Mono',monospace; color:var(--accent); font-size:10px;">-inf dB</span>
+            </div>
+            <div class="obs-vu-track">
+              <div class="obs-vu-bar" id="obsVuBarMic"></div>
+            </div>
+            <div class="obs-vu-slider-wrap">
+              <button class="obs-vu-btn-mute" id="obsVuMuteMic" onclick="toggleObsAudioMute('mic')" title="Mutear / Desmutear Micrófono">🎙️</button>
+              <input type="range" class="obs-vu-slider" id="obsVuSliderMic" min="0" max="100" value="100" oninput="onObsAudioSliderInput('mic', this.value)" onchange="onObsAudioSliderChange('mic', this.value)">
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="obs-live-panel">
       <div class="live-monitor-container">
@@ -1790,6 +1956,15 @@
             <p>Buscando transmisión activa de tu canal…</p>
             <button class="btn btn-accent" onclick="openSettingsModal()">⚙️ Configurar Canal de YouTube</button>
           </div>
+        </div>
+        <!-- Link de compartir transmisión en vivo -->
+        <div class="live-share-bar" id="liveShareBar" style="display:none;">
+          <span style="font-size:12px; font-weight:700; color:#fff; display:flex; align-items:center; gap:6px;">
+            🔗 Enlace al Directo:
+          </span>
+          <input type="text" class="live-share-link-input" id="liveShareLinkInput" readonly value="" onclick="this.select()">
+          <button class="btn btn-accent btn-sm" onclick="copyLiveStreamLink()" title="Copiar enlace para compartir">📋 Copiar Link</button>
+          <button class="btn btn-sm" onclick="openLiveStreamLink()" title="Abrir en YouTube">↗️ Abrir</button>
         </div>
       </div>
     </div>
@@ -3201,6 +3376,69 @@ function initSSE() {
   });
   evtSource.addEventListener('obs_status_changed', () => loadObsData());
 
+  // OBS Audio & Vúmetros en tiempo real
+  evtSource.addEventListener('obs_audio_levels', (e) => {
+    try {
+      const payload = JSON.parse(e.data).data;
+      if (!payload || !payload.meters) return;
+      const meters = payload.meters;
+
+      // Desktop
+      if (obsAudioInputs.desktop && meters[obsAudioInputs.desktop.name] !== undefined) {
+        const val = meters[obsAudioInputs.desktop.name];
+        const bar = document.getElementById('obsVuBarDesktop');
+        if (bar) {
+          const pct = Math.min(100, Math.round(val * 100));
+          bar.style.width = pct + '%';
+        }
+      }
+
+      // Mic/Aux
+      if (obsAudioInputs.mic && meters[obsAudioInputs.mic.name] !== undefined) {
+        const val = meters[obsAudioInputs.mic.name];
+        const bar = document.getElementById('obsVuBarMic');
+        if (bar) {
+          const pct = Math.min(100, Math.round(val * 100));
+          bar.style.width = pct + '%';
+        }
+      }
+    } catch(err) {}
+  });
+
+  evtSource.addEventListener('obs_audio_changed', (e) => {
+    try {
+      const d = JSON.parse(e.data).data;
+      if (!d) return;
+
+      const inputName = d.input_name || d.inputName;
+      let matchedType = null;
+      if (obsAudioInputs.desktop && obsAudioInputs.desktop.name === inputName) matchedType = 'desktop';
+      else if (obsAudioInputs.mic && obsAudioInputs.mic.name === inputName) matchedType = 'mic';
+
+      if (matchedType) {
+        if (d.inputMuted !== undefined || d.muted !== undefined) {
+          const m = d.inputMuted !== undefined ? d.inputMuted : d.muted;
+          obsAudioInputs[matchedType].muted = m;
+        }
+        if (d.inputVolumeMul !== undefined || d.volume_mul !== undefined) {
+          const v = d.inputVolumeMul !== undefined ? d.inputVolumeMul : d.volume_mul;
+          obsAudioInputs[matchedType].volume_mul = v;
+          if (d.inputVolumeDb !== undefined) {
+            obsAudioInputs[matchedType].volume_db = d.inputVolumeDb;
+          } else if (v > 0.0001) {
+            obsAudioInputs[matchedType].volume_db = 20 * Math.log10(v);
+          } else {
+            obsAudioInputs[matchedType].volume_db = -Infinity;
+          }
+        }
+        updateObsAudioUI(matchedType, obsAudioInputs[matchedType]);
+      } else {
+        // Si no tenemos matcheado el inputName aún, recargamos la info completa
+        loadObsAudioData();
+      }
+    } catch(err) {}
+  });
+
   evtSource.addEventListener('viewer_ready', () => setConnected(true));
 
   // Temporizador y Overlays OBS
@@ -3648,6 +3886,115 @@ async function loadObsData() {
       document.getElementById('btnObsStream').className = st.is_streaming ? 'btn btn-danger' : 'btn';
       document.getElementById('btnObsRecord').textContent = st.is_recording ? 'Detener Grabación' : 'Iniciar Grabación';
       document.getElementById('btnObsRecord').className = st.is_recording ? 'btn btn-danger' : 'btn';
+      loadObsAudioData();
+    }
+  } catch(e) {}
+}
+
+// ─── OBS AUDIO CONTROLS & VUMETERS ───
+let obsAudioInputs = { desktop: null, mic: null };
+let obsAudioDragging = { desktop: false, mic: false };
+
+async function loadObsAudioData() {
+  try {
+    const res = await fetch('/api/obs/audio');
+    const data = await res.json();
+    const tag = document.getElementById('obsAudioStatusTag');
+    if (!data.connected) {
+      if (tag) {
+        tag.textContent = 'OBS Desconectado';
+        tag.style.color = 'var(--muted)';
+      }
+      return;
+    }
+    if (tag) {
+      tag.textContent = 'En vivo';
+      tag.style.color = 'var(--accent)';
+    }
+
+    obsAudioInputs.desktop = data.desktop;
+    obsAudioInputs.mic = data.mic;
+
+    updateObsAudioUI('desktop', data.desktop);
+    updateObsAudioUI('mic', data.mic);
+  } catch(e) {}
+}
+
+function updateObsAudioUI(type, input) {
+  if (!input) return;
+  const strip = document.getElementById(type === 'desktop' ? 'obsVuStripDesktop' : 'obsVuStripMic');
+  const slider = document.getElementById(type === 'desktop' ? 'obsVuSliderDesktop' : 'obsVuSliderMic');
+  const muteBtn = document.getElementById(type === 'desktop' ? 'obsVuMuteDesktop' : 'obsVuMuteMic');
+  const valText = document.getElementById(type === 'desktop' ? 'obsVuValDesktop' : 'obsVuValMic');
+
+  if (strip) {
+    strip.classList.toggle('muted', Boolean(input.muted));
+  }
+  if (muteBtn) {
+    muteBtn.classList.toggle('muted', Boolean(input.muted));
+    if (type === 'desktop') {
+      muteBtn.textContent = input.muted ? '🔇' : '🔊';
+    } else {
+      muteBtn.textContent = input.muted ? '🔇' : '🎙️';
+    }
+  }
+  if (slider && !obsAudioDragging[type]) {
+    const pct = Math.round((input.volume_mul || 0) * 100);
+    slider.value = pct;
+  }
+  if (valText && input.volume_db !== undefined && input.volume_db !== null) {
+    valText.textContent = input.volume_db === -Infinity ? '-inf dB' : `${input.volume_db.toFixed(1)} dB`;
+  }
+}
+
+function onObsAudioSliderInput(type, val) {
+  obsAudioDragging[type] = true;
+  const mul = parseFloat(val) / 100.0;
+  const valText = document.getElementById(type === 'desktop' ? 'obsVuValDesktop' : 'obsVuValMic');
+  if (valText) {
+    if (mul <= 0.0001) {
+      valText.textContent = '-inf dB';
+    } else {
+      const db = 20 * Math.log10(mul);
+      valText.textContent = `${db.toFixed(1)} dB`;
+    }
+  }
+}
+
+async function onObsAudioSliderChange(type, val) {
+  obsAudioDragging[type] = false;
+  const mul = parseFloat(val) / 100.0;
+  const inputObj = obsAudioInputs[type];
+  const inputName = inputObj ? inputObj.name : null;
+
+  try {
+    await fetch('/api/obs/audio/volume', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: type, input_name: inputName, volume_mul: mul })
+    });
+  } catch(e) {}
+}
+
+async function toggleObsAudioMute(type) {
+  const inputObj = obsAudioInputs[type];
+  const inputName = inputObj ? inputObj.name : null;
+  const currentlyMuted = inputObj ? Boolean(inputObj.muted) : false;
+  const newMuted = !currentlyMuted;
+
+  if (inputObj) inputObj.muted = newMuted;
+  updateObsAudioUI(type, inputObj || { muted: newMuted });
+
+  try {
+    const res = await fetch('/api/obs/audio/mute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: type, input_name: inputName, muted: newMuted })
+    });
+    const data = await res.json();
+    if (data.ok && inputObj) {
+      inputObj.muted = data.muted;
+      updateObsAudioUI(type, inputObj);
     }
   } catch(e) {}
 }
@@ -4175,6 +4522,8 @@ async function loadLiveData() {
   const badge = document.getElementById('liveBadgeStatus');
   const title = document.getElementById('liveTitleText');
   const muteBtn = document.getElementById('btnLiveToggleMute');
+  const shareBar = document.getElementById('liveShareBar');
+  const shareInput = document.getElementById('liveShareLinkInput');
 
   updateLiveMuteButton();
 
@@ -4188,6 +4537,12 @@ async function loadLiveData() {
       title.textContent = data.title || 'Transmisión activa';
       if (muteBtn) muteBtn.style.display = 'inline-flex';
 
+      // Mostrar link de compartir transmisión directa
+      if (shareBar && shareInput) {
+        shareInput.value = `https://www.youtube.com/watch?v=${data.video_id}`;
+        shareBar.style.display = 'flex';
+      }
+
       // Recrear solo si cambió el video o no hay iframe cargado
       if (currentLiveVideoId !== data.video_id || !container.querySelector('iframe')) {
         currentLiveVideoId = data.video_id;
@@ -4199,6 +4554,7 @@ async function loadLiveData() {
     } else {
       currentLiveVideoId = '';
       if (muteBtn) muteBtn.style.display = 'none';
+      if (shareBar) shareBar.style.display = 'none';
       badge.textContent = '⏸️ SIN DIRECTO ACTIVO';
       badge.style.color = 'var(--muted)';
       title.textContent = data.message || 'Configura tu canal de YouTube en Ajustes';
@@ -4210,6 +4566,37 @@ async function loadLiveData() {
       `;
     }
   } catch(e) {}
+}
+
+function copyLiveStreamLink() {
+  const shareInput = document.getElementById('liveShareLinkInput');
+  if (!shareInput || !shareInput.value) {
+    showToast('No hay enlace de directo disponible');
+    return;
+  }
+  const text = shareInput.value;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('¡Enlace del directo copiado al portapapeles! 📋');
+    }).catch(() => {
+      shareInput.select();
+      document.execCommand('copy');
+      showToast('¡Enlace copiado! 📋');
+    });
+  } else {
+    shareInput.select();
+    document.execCommand('copy');
+    showToast('¡Enlace copiado! 📋');
+  }
+}
+
+function openLiveStreamLink() {
+  const shareInput = document.getElementById('liveShareLinkInput');
+  if (shareInput && shareInput.value) {
+    window.open(shareInput.value, '_blank');
+  } else {
+    showToast('No hay enlace disponible');
+  }
 }
 
 function updateLiveMuteButton() {

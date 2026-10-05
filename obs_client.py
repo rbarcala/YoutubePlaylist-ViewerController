@@ -16,7 +16,7 @@ class OBSController:
         self.port = int(port)
         self.password = password
 
-    def _connect_and_identify(self):
+    def _connect_and_identify(self, event_subscriptions=None):
         """Conecta con OBS WebSocket v5 y realiza la identificación."""
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(2.5)
@@ -59,6 +59,8 @@ class OBSController:
             "op": 1,
             "d": {"rpcVersion": 1}
         }
+        if event_subscriptions is not None:
+            identify_payload["d"]["eventSubscriptions"] = int(event_subscriptions)
         if auth_response:
             identify_payload["d"]["authentication"] = auth_response
 
@@ -85,22 +87,32 @@ class OBSController:
         frame.extend(masked_data)
         sock.sendall(frame)
 
+    def _recv_exact(self, sock, n: int):
+        buf = bytearray()
+        while len(buf) < n:
+            chunk = sock.recv(n - len(buf))
+            if not chunk:
+                return None
+            buf.extend(chunk)
+        return buf
+
     def _recv_ws_frame(self, sock):
-        header = sock.recv(2)
-        if len(header) < 2:
+        header = self._recv_exact(sock, 2)
+        if not header:
             return None
         length = header[1] & 0x7F
         if length == 126:
-            length = int.from_bytes(sock.recv(2), byteorder='big')
+            ext = self._recv_exact(sock, 2)
+            if not ext: return None
+            length = int.from_bytes(ext, 'big')
         elif length == 127:
-            length = int.from_bytes(sock.recv(8), byteorder='big')
-        data = bytearray()
-        while len(data) < length:
-            chunk = sock.recv(min(4096, length - len(data)))
-            if not chunk:
-                break
-            data.extend(chunk)
-        return data.decode('utf-8', errors='ignore')
+            ext = self._recv_exact(sock, 8)
+            if not ext: return None
+            length = int.from_bytes(ext, 'big')
+        payload = self._recv_exact(sock, length)
+        if not payload:
+            return None
+        return payload.decode('utf-8', errors='ignore')
 
     def switch_scene(self, scene_name: str) -> dict:
         """Cambia la escena actual en OBS Studio."""
@@ -266,3 +278,123 @@ class OBSController:
             return {"success": True, "outputActive": active}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def get_audio_inputs(self) -> dict:
+        """Obtiene información de entradas de audio principales (Desktop Audio y Micrófono)."""
+        try:
+            sock = self._connect_and_identify()
+            if not sock:
+                return {"connected": False, "inputs": {}}
+
+            # Consultar inputs especiales (desktop1, mic1)
+            self._send_ws_frame(sock, json.dumps({
+                "op": 6,
+                "d": {"requestType": "GetSpecialInputs", "requestId": "get-special-inputs"}
+            }))
+            resp_spec = json.loads(self._recv_ws_frame(sock) or "{}")
+            spec_data = resp_spec.get("d", {}).get("responseData", {})
+            desktop_name = spec_data.get("desktop1") or "Desktop Audio"
+            mic_name = spec_data.get("mic1") or "Mic/Aux"
+
+            # Consultar lista general por si los nombres difieren
+            self._send_ws_frame(sock, json.dumps({
+                "op": 6,
+                "d": {"requestType": "GetInputList", "requestId": "get-all-inputs"}
+            }))
+            resp_list = json.loads(self._recv_ws_frame(sock) or "{}")
+            all_inputs = [x.get("inputName") for x in resp_list.get("d", {}).get("responseData", {}).get("inputs", [])]
+
+            if desktop_name not in all_inputs:
+                for inp in all_inputs:
+                    if "desktop" in inp.lower() or "sistema" in inp.lower():
+                        desktop_name = inp
+                        break
+
+            if mic_name not in all_inputs:
+                for inp in all_inputs:
+                    if "mic" in inp.lower() or "aux" in inp.lower():
+                        mic_name = inp
+                        break
+
+            result_inputs = {}
+            for key, name in [("desktop", desktop_name), ("mic", mic_name)]:
+                if name and name in all_inputs:
+                    self._send_ws_frame(sock, json.dumps({
+                        "op": 6,
+                        "d": {"requestType": "GetInputVolume", "requestId": f"vol-{key}", "requestData": {"inputName": name}}
+                    }))
+                    resp_vol = json.loads(self._recv_ws_frame(sock) or "{}")
+                    vdata = resp_vol.get("d", {}).get("responseData", {})
+
+                    self._send_ws_frame(sock, json.dumps({
+                        "op": 6,
+                        "d": {"requestType": "GetInputMute", "requestId": f"mute-{key}", "requestData": {"inputName": name}}
+                    }))
+                    resp_mute = json.loads(self._recv_ws_frame(sock) or "{}")
+                    mdata = resp_mute.get("d", {}).get("responseData", {})
+
+                    result_inputs[key] = {
+                        "name": name,
+                        "volumeDb": vdata.get("inputVolumeDb", 0.0),
+                        "volumeMul": vdata.get("inputVolumeMul", 1.0),
+                        "muted": mdata.get("inputMuted", False)
+                    }
+                else:
+                    result_inputs[key] = {
+                        "name": name,
+                        "volumeDb": 0.0,
+                        "volumeMul": 1.0,
+                        "muted": False
+                    }
+
+            sock.close()
+            return {"connected": True, "inputs": result_inputs}
+        except Exception as e:
+            return {"connected": False, "error": str(e), "inputs": {}}
+
+    def set_input_volume(self, input_name: str, volume_mul: float) -> dict:
+        """Establece el volumen de una fuente en multiplicador (0.0 a 1.0)."""
+        try:
+            sock = self._connect_and_identify()
+            if not sock: return {"success": False, "error": "No conectado a OBS"}
+            self._send_ws_frame(sock, json.dumps({
+                "op": 6,
+                "d": {
+                    "requestType": "SetInputVolume",
+                    "requestId": f"set-vol-{int(time.time()*1000)}",
+                    "requestData": {"inputName": input_name, "inputVolumeMul": max(0.0, min(1.0, float(volume_mul)))}
+                }
+            }))
+            self._recv_ws_frame(sock)
+            sock.close()
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def set_input_mute(self, input_name: str, muted: bool = None) -> dict:
+        """Mutea, desmutea o alterna el mute de una fuente en OBS."""
+        try:
+            sock = self._connect_and_identify()
+            if not sock: return {"success": False, "error": "No conectado a OBS"}
+            if muted is None:
+                req_type = "ToggleInputMute"
+                req_data = {"inputName": input_name}
+            else:
+                req_type = "SetInputMute"
+                req_data = {"inputName": input_name, "inputMuted": bool(muted)}
+            
+            self._send_ws_frame(sock, json.dumps({
+                "op": 6,
+                "d": {
+                    "requestType": req_type,
+                    "requestId": f"set-mute-{int(time.time()*1000)}",
+                    "requestData": req_data
+                }
+            }))
+            resp = json.loads(self._recv_ws_frame(sock) or "{}")
+            sock.close()
+            new_mute = resp.get("d", {}).get("responseData", {}).get("inputMuted", muted)
+            return {"success": True, "muted": new_mute}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
