@@ -281,8 +281,16 @@ class SpotifyManager:
             return {"tracks": items}
         return {"tracks": [], "error": error}
 
-    def get_playlist(self, playlist_id: str) -> dict:
-        """Obtiene todas las canciones de una playlist de Spotify, paginando automáticamente."""
+    def get_playlist(self, playlist_id: str, refresh: bool = False) -> dict:
+        """Obtiene todas las canciones de una playlist de Spotify, paginando automáticamente con cache."""
+        now = time.time()
+        if not hasattr(self, '_playlist_cache'):
+            self._playlist_cache = {}
+        if not refresh and playlist_id in self._playlist_cache:
+            cached_data, exp = self._playlist_cache[playlist_id]
+            if now < exp and cached_data:
+                return cached_data
+
         res = self._api_request(f"playlists/{playlist_id}")
         if not res or "error" in res:
             return {"tracks": [], "error": res.get("error") if isinstance(res, dict) else "Error de conexión"}
@@ -336,7 +344,9 @@ class SpotifyManager:
                 "duration_ms": t.get("duration_ms", 0)
             })
 
-        return {"name": name, "tracks": items, "total": len(items)}
+        out = {"name": name, "tracks": items, "total": len(items)}
+        self._playlist_cache[playlist_id] = (out, now + 3600)
+        return out
 
     # ─── FALLBACK MPRIS PARA SPOTIFY LOCAL EN LINUX ───
     def _mpris_call(self, method: str):

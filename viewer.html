@@ -307,12 +307,17 @@ async function handleBuffering() {
 }
 
 // ─── RESOLUCIÓN Y REPRODUCCIÓN ───
+let _prefetchTimer = null;
+
 async function playVideo(videoId, title = "") {
   if (!videoId) return;
   currentPlayingId = videoId;
   audioFallbackRequested = false;
   waitingScreen.classList.add('hidden');
   loadingOverlay.classList.add('active');
+
+  // Cancelar prefetch anterior si existe
+  if (_prefetchTimer) { clearTimeout(_prefetchTimer); _prefetchTimer = null; }
 
   if (title) {
     document.title = `🔴 ${title} — VIEWER`;
@@ -373,6 +378,44 @@ async function playVideo(videoId, title = "") {
           }
         }
       }, 5000);
+
+      // ─── PREFETCH PROACTIVO: renovar URL 2 minutos antes de que expire ───
+      if (data.expires_at) {
+        const msUntilExpiry = (data.expires_at * 1000) - Date.now();
+        const prefetchIn = Math.max(30000, msUntilExpiry - 120000); // 2 min antes, mínimo 30s
+        console.log(`[viewer] URL de ${videoId} expira en ${Math.round(msUntilExpiry/1000)}s, prefetch en ${Math.round(prefetchIn/1000)}s`);
+        _prefetchTimer = setTimeout(async () => {
+          if (currentPlayingId !== videoId) return;
+          console.log(`[viewer] Renovando URL de ${videoId} proactivamente...`);
+          try {
+            // Pedir al servidor que renueve la URL en cache
+            await fetch(`/api/prefetch_video_url?v=${videoId}`);
+            // Esperar ~15s para que el servidor la tenga lista y luego reasignar src
+            await new Promise(r => setTimeout(r, 15000));
+            if (currentPlayingId !== videoId) return;
+            const fresh = await fetch(`/api/get_video_url?v=${videoId}`);
+            const freshData = await fresh.json();
+            if (freshData.video_url && freshData.video_url !== video.src) {
+              console.log(`[viewer] Aplicando URL fresca para ${videoId}`);
+              const pos = video.currentTime || 0;
+              video.src = freshData.video_url;
+              if (!freshData.combined_audio && freshData.audio_url !== freshData.video_url) {
+                audio.src = freshData.audio_url;
+              }
+              applyState();
+              video.oncanplay = () => {
+                video.oncanplay = null;
+                if (pos > 1) video.currentTime = pos;
+                startVideoPlayback();
+              };
+              if (video.readyState >= 2) startVideoPlayback();
+            }
+          } catch(e) {
+            console.warn('[viewer] Error en prefetch:', e);
+          }
+        }, prefetchIn);
+      }
+
     } else {
       console.error("Error al obtener URL del video:", data.error);
       loadingOverlay.classList.remove('active');
@@ -382,6 +425,60 @@ async function playVideo(videoId, title = "") {
     loadingOverlay.classList.remove('active');
   }
 }
+
+// ─── WATCHDOG ANTI-CONGELAMIENTO (cada 8s revisa que el video avance) ───
+let _lastTime = -1;
+let _stallCount = 0;
+setInterval(() => {
+  if (!currentPlayingId) return;
+  if (video.paused || video.ended) return;
+  if (loadingOverlay.classList.contains('active')) return;
+  const t = video.currentTime;
+  if (t === _lastTime) {
+    _stallCount++;
+    if (_stallCount >= 2) {
+      // Video congelado por ~16s — reintentar
+      console.warn('[viewer] Video congelado, reintentando...');
+      _stallCount = 0;
+      _lastTime = -1;
+      audioFallbackRequested = false;
+      const retryId = currentPlayingId;
+      loadingOverlay.classList.add('active');
+      fetch(`/api/get_video_url?v=${retryId}&fresh=1&ts=${Date.now()}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.video_url) {
+            const pos = video.currentTime || 0;
+            usesCombinedMedia = Boolean(data.combined_audio || data.video_url === data.audio_url);
+            video.src = data.video_url;
+            if (!usesCombinedMedia && data.audio_url) {
+              audio.src = data.audio_url;
+            } else {
+              audio.removeAttribute('src');
+              audio.load();
+            }
+            applyState();
+            video.oncanplay = () => {
+              video.oncanplay = null;
+              if (pos > 0) video.currentTime = pos;
+              loadingOverlay.classList.remove('active');
+              startVideoPlayback();
+            };
+            if (video.readyState >= 2) {
+              loadingOverlay.classList.remove('active');
+              startVideoPlayback();
+            }
+          } else {
+            loadingOverlay.classList.remove('active');
+          }
+        })
+        .catch(() => { loadingOverlay.classList.remove('active'); });
+    }
+  } else {
+    _stallCount = 0;
+    _lastTime = t;
+  }
+}, 3000);
 
 let autoFocusEnabled = true;
 

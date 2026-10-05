@@ -34,15 +34,22 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
+  html {
+    height: 100%;
+    overflow: hidden;
+  }
   body {
     background: var(--bg);
     color: var(--text);
     font-family: 'Space Mono', monospace;
     min-height: 100vh;
+    height: 100%;
     overflow-x: hidden;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
   }
+
 
   /* ─── HEADER Y NAVEGACIÓN ─── */
   header {
@@ -3647,12 +3654,10 @@ function renderVideosGrid(reset = true) {
 
 function renderNextVideosBatch() {
   const grid = document.getElementById('gridVideos');
-  if (!grid || renderedVideosCount >= currentFilterVideos.length) return;
+  if (!grid) return;
 
-  const nextCount = Math.min(renderedVideosCount + VIDEOS_PAGE_SIZE, currentFilterVideos.length);
   const fragment = document.createDocumentFragment();
-
-  for (let i = renderedVideosCount; i < nextCount; i++) {
+  for (let i = 0; i < currentFilterVideos.length; i++) {
     const v = currentFilterVideos[i];
     const card = document.createElement('div');
     const isPlaying = v.videoId === currentPlayingVideoId;
@@ -3670,29 +3675,11 @@ function renderNextVideosBatch() {
     fragment.appendChild(card);
   }
 
-  // Quitar el sentinel anterior si existía
   const oldSentinel = document.getElementById('videosSentinel');
   if (oldSentinel) oldSentinel.remove();
 
   grid.appendChild(fragment);
-  renderedVideosCount = nextCount;
-
-  // Si quedan más videos por renderizar, agregar un sentinel ligero al final
-  if (renderedVideosCount < currentFilterVideos.length) {
-    const sentinel = document.createElement('div');
-    sentinel.id = 'videosSentinel';
-    sentinel.style.cssText = 'grid-column: 1 / -1; height: 30px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11px; opacity: 0.6;';
-    sentinel.innerHTML = '<span>Cargando más videos…</span>';
-    grid.appendChild(sentinel);
-
-    if (videosObserver) videosObserver.disconnect();
-    videosObserver = new IntersectionObserver((entries) => {
-      if (entries[0] && entries[0].isIntersecting) {
-        renderNextVideosBatch();
-      }
-    }, { rootMargin: '400px' });
-    videosObserver.observe(sentinel);
-  }
+  renderedVideosCount = currentFilterVideos.length;
 }
 
 function playVideo(v) {

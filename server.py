@@ -695,7 +695,8 @@ def spotify_saved_playlists():
 @app.route('/api/spotify/playlist')
 def spotify_playlist():
     playlist_id = request.args.get("id", "")
-    return jsonify(spotify_mgr.get_playlist(playlist_id))
+    refresh = request.args.get("refresh") == "1"
+    return jsonify(spotify_mgr.get_playlist(playlist_id, refresh=refresh))
 
 
 _lyrics_cache = {}
@@ -786,11 +787,20 @@ def spotify_play_track():
     return jsonify(spotify_mgr.play(track_uris=[uri]))
 
 # ─── API YOUTUBE PLAYLIST (FONDOS) ───
+_yt_playlist_cache = {}
+
 @app.route('/api/youtube/playlist')
 def get_youtube_playlist():
     cfg = load_config()
     playlist_id = request.args.get('playlist_id') or cfg.get('playlist_id', 'PL7E8lrk1ePfZVWMM2vsUkpQ6vbpbHi4G_')
     api_key = request.args.get('key') or cfg.get('youtube_api_key', '')
+    refresh = request.args.get('refresh') == '1'
+
+    now = time.time()
+    if not refresh and playlist_id in _yt_playlist_cache:
+        cached_items, exp = _yt_playlist_cache[playlist_id]
+        if now < exp and cached_items:
+            return jsonify({"success": True, "source": "cache", "items": cached_items})
 
     # 1. Si hay API key, consultar primero con YouTube Data API v3
     if api_key:
@@ -802,7 +812,7 @@ def get_youtube_playlist():
                 if page_token:
                     url += f"&pageToken={page_token}"
                 req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-                with urllib.request.urlopen(req, timeout=5) as resp:
+                with urllib.request.urlopen(req, timeout=8) as resp:
                     data = json.loads(resp.read().decode())
                 if data.get("error"):
                     break
@@ -817,9 +827,10 @@ def get_youtube_playlist():
                             "thumb": thumb_url
                         })
                 page_token = data.get("nextPageToken")
-                if not page_token or len(items) >= 200:
+                if not page_token:
                     break
             if items:
+                _yt_playlist_cache[playlist_id] = (items, now + 3600)
                 return jsonify({"success": True, "source": "api", "items": items})
         except Exception as e:
             print(f"[youtube_playlist] API Key falló ({e}), usando fallback con yt-dlp...")
@@ -828,7 +839,7 @@ def get_youtube_playlist():
     try:
         pl_url = f"https://www.youtube.com/playlist?list={playlist_id}"
         cmd = ["yt-dlp", "--flat-playlist", "-J", pl_url]
-        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=12)
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
         if res.returncode == 0:
             data = json.loads(res.stdout)
             items = []
@@ -844,6 +855,7 @@ def get_youtube_playlist():
                     "thumb": thumb_url
                 })
             if items:
+                _yt_playlist_cache[playlist_id] = (items, now + 3600)
                 return jsonify({"success": True, "source": "yt-dlp", "items": items})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -1211,7 +1223,8 @@ def get_video_url():
 
     if not force_fresh and video_id in video_cache:
         cached_data, exp_time = video_cache[video_id]
-        if now < exp_time:
+        # Consideramos válida si queda más de 3 minutos
+        if now < exp_time - 180:
             return jsonify(cached_data)
 
     url = f"https://www.youtube.com/watch?v={video_id}"
@@ -1244,13 +1257,52 @@ def get_video_url():
                 audio_url = video_url
                 combined_audio = True
 
-            result = {'video_url': video_url, 'audio_url': audio_url, 'combined_audio': combined_audio}
-            video_cache[video_id] = (result, now + 7200)
+            # Leer la expiración real de la URL de YouTube (parámetro expire=)
+            import urllib.parse as _up
+            def _parse_expire(u):
+                try:
+                    qs = _up.parse_qs(_up.urlparse(u).query)
+                    exp = qs.get('expire', qs.get('exp', [None]))[0]
+                    if exp:
+                        return int(exp)
+                except Exception:
+                    pass
+                return None
+
+            real_expire = _parse_expire(video_url) or _parse_expire(audio_url)
+            if real_expire and real_expire > now:
+                # Usamos la expiración real menos 3 min de margen
+                cache_until = real_expire - 180
+            else:
+                # Fallback conservador: 25 minutos
+                cache_until = now + 1500
+
+            result = {'video_url': video_url, 'audio_url': audio_url, 'combined_audio': combined_audio,
+                      'expires_at': int(cache_until + 180)}
+            video_cache[video_id] = (result, cache_until)
             if playback_mode in ('cache', 'adaptive'):
                 _queue_video_download(video_id)
             return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/prefetch_video_url')
+def prefetch_video_url():
+    """Renueva proactivamente la URL de un video en background (lo llama el viewer antes de que expire)."""
+    video_id = request.args.get('v')
+    if not video_id:
+        return jsonify({'ok': False}), 400
+    # Eliminar del cache para forzar renovación en la próxima llamada
+    video_cache.pop(video_id, None)
+    # Lanzar en background para no bloquear
+    def _renew():
+        try:
+            import requests as _req
+            _req.get(f'http://127.0.0.1:{request.environ.get("SERVER_PORT", 5000)}/api/get_video_url?v={video_id}', timeout=30)
+        except Exception:
+            pass
+    threading.Thread(target=_renew, daemon=True).start()
+    return jsonify({'ok': True})
 
 @app.route('/api/cache/video/<video_id>')
 def serve_cached_video(video_id):
