@@ -1237,7 +1237,9 @@ def get_video_url():
         ),
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'web']
+                # tv_embedded no requiere deofuscación del param 'n' → URLs estables, sin Error 153
+                'player_client': ['tv_embedded', 'web'],
+                'skip': ['hls', 'dash'],
             }
         },
         'quiet': True,
