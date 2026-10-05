@@ -399,6 +399,10 @@ def get_obs_status():
     )
     return jsonify(obs.get_status())
 
+# Cache de escenas OBS para evitar parpadeos o fallos transitorios en el controller
+obs_scenes_cache = {"scenes": [], "current_scene": "", "last_success_time": 0}
+obs_scenes_lock = threading.Lock()
+
 @app.route('/api/obs/scenes')
 def get_obs_scenes():
     cfg = load_config()
@@ -407,7 +411,24 @@ def get_obs_scenes():
         port=cfg.get("obs_port", 4455),
         password=cfg.get("obs_password", "")
     )
-    return jsonify(obs.get_scenes())
+    res = obs.get_scenes()
+    with obs_scenes_lock:
+        if res.get("success") and res.get("scenes"):
+            obs_scenes_cache["scenes"] = res.get("scenes", [])
+            obs_scenes_cache["current_scene"] = res.get("current_scene", "")
+            obs_scenes_cache["last_success_time"] = time.time()
+            return jsonify(res)
+        
+        # Si falló la conexión puntual pero tenemos escenas recientes en caché y OBS responde a status o está vivo
+        if obs_scenes_cache["scenes"]:
+            cached_res = {
+                "success": True,
+                "scenes": obs_scenes_cache["scenes"],
+                "current_scene": obs_scenes_cache["current_scene"],
+                "cached": True
+            }
+            return jsonify(cached_res)
+    return jsonify(res)
 
 @app.route('/api/obs/switch', methods=['POST'])
 def obs_switch():
@@ -1290,8 +1311,8 @@ def start_obs_audio_monitor():
                     port=cfg.get("obs_port", 4455),
                     password=cfg.get("obs_password", "")
                 )
-                # EventSubscription: InputVolumeMeters (65536) | Inputs (8)
-                sock = obs._connect_and_identify(event_subscriptions=65536 | 8)
+                # EventSubscription: InputVolumeMeters (65536) | Inputs (8) | Scenes (4)
+                sock = obs._connect_and_identify(event_subscriptions=65536 | 8 | 4)
                 if not sock:
                     time.sleep(3)
                     continue
@@ -1345,6 +1366,25 @@ def start_obs_audio_monitor():
 
                         elif event_type in ("InputMuteStateChanged", "InputVolumeChanged"):
                             broadcast_event("obs_audio_changed", event_data)
+
+                        elif event_type == "CurrentProgramSceneChanged":
+                            scene_name = event_data.get("sceneName", "")
+                            with obs_scenes_lock:
+                                obs_scenes_cache["current_scene"] = scene_name
+                            broadcast_event("obs_updated", {"scene": scene_name})
+
+                        elif event_type == "SceneListChanged":
+                            # Refrescar lista de escenas
+                            try:
+                                scenes_list = event_data.get("scenes", [])
+                                if scenes_list:
+                                    names = [s.get("sceneName") for s in reversed(scenes_list) if "sceneName" in s]
+                                    with obs_scenes_lock:
+                                        obs_scenes_cache["scenes"] = names
+                                    broadcast_event("obs_scenes_list", {"scenes": names})
+                            except Exception:
+                                pass
+                            broadcast_event("obs_status_changed", {})
 
                 try:
                     sock.close()

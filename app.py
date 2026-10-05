@@ -495,18 +495,15 @@ def launch_native_window(url: str, title: str = "YouTube Stream Controller", por
         # Permitir matar la app con Ctrl+C en la terminal
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         
-        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-logging --log-level=3"
+        # Parámetros Chromium estables para Linux (evita que el motor crashee a blanco por EGL/Vulkan fallido)
         sys.argv.extend([
             "--ignore-gpu-blocklist",
             "--enable-gpu-rasterization",
-            "--use-gl=angle", 
-            "--enable-features=Vulkan", 
-            "--use-vulkan=native",
-            "--disable-logging",
-            "--log-level=3"
+            "--enable-zero-copy",
+            "--disable-dev-shm-usage"
         ])
         
-        print("[app] Iniciando con motor PyQt5 (Chromium) forzando Vulkan...")
+        print("[app] Iniciando con motor PyQt5 (Chromium)...")
         app = QApplication(sys.argv)
         
         # Agrupar en la barra lateral de Ubuntu y usar icono
@@ -516,9 +513,9 @@ def launch_native_window(url: str, title: str = "YouTube Stream Controller", por
         # Forzar tema oscuro nativo para bordes blancos
         app.setStyle("Fusion")
         dark_palette = QPalette()
-        dark_palette.setColor(QPalette.Window, QColor(25, 25, 25))
+        dark_palette.setColor(QPalette.Window, QColor(20, 20, 20))
         dark_palette.setColor(QPalette.WindowText, Qt.white)
-        dark_palette.setColor(QPalette.Base, QColor(15, 15, 15))
+        dark_palette.setColor(QPalette.Base, QColor(14, 14, 14))
         dark_palette.setColor(QPalette.AlternateBase, QColor(25, 25, 25))
         dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
         dark_palette.setColor(QPalette.ToolTipText, Qt.white)
@@ -537,6 +534,10 @@ def launch_native_window(url: str, title: str = "YouTube Stream Controller", por
             def __init__(self, profile, parent=None):
                 super().__init__(profile, parent)
                 self.featurePermissionRequested.connect(self.on_feature_permission_requested)
+                self.setBackgroundColor(QColor(18, 18, 18))
+            def javaScriptConsoleMessage(self, level, message, line_number, source_id):
+                if level >= QWebEnginePage.WarningMessageLevel:
+                    print(f"[app js] {message} (line {line_number})")
             def on_feature_permission_requested(self, sec_url, feature):
                 # Auto-allow camera/mic for virtual camera WebRTC
                 if feature in (QWebEnginePage.MediaAudioCapture, QWebEnginePage.MediaVideoCapture, QWebEnginePage.MediaAudioVideoCapture):

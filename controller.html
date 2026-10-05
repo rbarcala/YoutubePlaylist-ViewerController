@@ -745,7 +745,6 @@
     transition: background 0.12s, border-color 0.12s, transform 0.12s;
     user-select: none;
     cursor: pointer;
-    contain: content;
   }
   .sp-track-card:hover {
     background: #202020;
@@ -756,9 +755,10 @@
     position: relative;
     width: 100%;
     aspect-ratio: 1/1;
+    min-height: 120px;
     border-radius: 6px;
     overflow: hidden;
-    background: #111;
+    background: #181818;
   }
   .sp-card-thumb {
     width: 100%;
@@ -3374,6 +3374,14 @@ function initSSE() {
       if (data?.scene) highlightCurrentScene(data.scene);
     } catch(err) {}
   });
+  evtSource.addEventListener('obs_scenes_list', (e) => {
+    try {
+      const data = JSON.parse(e.data).data;
+      if (data?.scenes && data.scenes.length > 0) {
+        renderObsScenesCards(data.scenes, lastKnownCurrentScene);
+      }
+    } catch(err) {}
+  });
   evtSource.addEventListener('obs_status_changed', () => loadObsData());
 
   // OBS Audio & Vúmetros en tiempo real
@@ -3851,41 +3859,96 @@ function stopObsPreviewLoop() {
 
 window.startObsPreviewLoop = startVirtualCameraPreview;
 
+let lastKnownObsScenes = [];
+let lastKnownCurrentScene = '';
+
+function highlightCurrentScene(sceneName) {
+  if (!sceneName) return;
+  lastKnownCurrentScene = sceneName;
+  const cards = document.querySelectorAll('.obs-scene-card');
+  let matched = false;
+  cards.forEach(card => {
+    const isThis = card.getAttribute('data-scene') === sceneName || card.textContent.trim() === sceneName.trim();
+    card.classList.toggle('active', isThis);
+    if (isThis) matched = true;
+  });
+  const statusElem = document.getElementById('obsStatusText');
+  if (statusElem && (lastKnownObsScenes.length > 0 || matched)) {
+    statusElem.textContent = `Conectado a OBS (Escena actual: ${sceneName})`;
+  }
+}
+
+function renderObsScenesCards(scenes, currentScene) {
+  const grid = document.getElementById('obsScenesGrid');
+  const btnLaunch = document.getElementById('btnLaunchObs');
+  if (!grid) return;
+  if (scenes && scenes.length > 0) {
+    lastKnownObsScenes = scenes;
+    lastKnownCurrentScene = currentScene || lastKnownCurrentScene;
+    if (btnLaunch) btnLaunch.style.display = 'none';
+    grid.innerHTML = '';
+    scenes.forEach(scene => {
+      const card = document.createElement('div');
+      card.className = 'obs-scene-card' + (scene === lastKnownCurrentScene ? ' active' : '');
+      card.setAttribute('data-scene', scene);
+      card.textContent = scene;
+      card.onclick = () => switchObsScene(scene);
+      grid.appendChild(card);
+    });
+    const statusElem = document.getElementById('obsStatusText');
+    if (statusElem) {
+      statusElem.textContent = `Conectado a OBS (Escena actual: ${lastKnownCurrentScene || 'Normal'})`;
+    }
+  }
+}
+
 async function loadObsData() {
   try {
     fetch('/api/obs/start_virtual_cam', { method: 'POST' }).catch(() => {});
-    const res = await fetch('/api/obs/scenes');
-    const data = await res.json();
-    const grid = document.getElementById('obsScenesGrid');
-    grid.innerHTML = '';
-
     const btnLaunch = document.getElementById('btnLaunchObs');
+    const grid = document.getElementById('obsScenesGrid');
 
-    if (data.scenes && data.scenes.length > 0) {
+    // Consultar status y scenes en paralelo
+    const [scenesRes, stRes] = await Promise.allSettled([
+      fetch('/api/obs/scenes').then(r => r.json()),
+      fetch('/api/obs/status').then(r => r.json())
+    ]);
+
+    const data = scenesRes.status === 'fulfilled' ? scenesRes.value : null;
+    const st = stRes.status === 'fulfilled' ? stRes.value : null;
+
+    const isConnected = (st && st.connected) || (data && data.success && data.scenes && data.scenes.length > 0);
+
+    if (data && data.scenes && data.scenes.length > 0) {
+      renderObsScenesCards(data.scenes, data.current_scene);
+    } else if (lastKnownObsScenes.length > 0 && isConnected) {
+      // Si la llamada puntual de escenas falló pero OBS está conectado, mantenemos las escenas
       if (btnLaunch) btnLaunch.style.display = 'none';
-      data.scenes.forEach(scene => {
-        const card = document.createElement('div');
-        card.className = 'obs-scene-card' + (scene === data.current_scene ? ' active' : '');
-        card.textContent = scene;
-        card.onclick = () => switchObsScene(scene);
-        grid.appendChild(card);
-      });
-      document.getElementById('obsStatusText').textContent = `Conectado a OBS (Escena actual: ${data.current_scene || 'Normal'})`;
-    } else {
+      if (st && st.current_scene) highlightCurrentScene(st.current_scene);
+    } else if (!isConnected && lastKnownObsScenes.length === 0) {
+      // Solo mostramos desconectado si realmente no está conectado y no tenemos escenas previas
       if (btnLaunch) btnLaunch.style.display = 'inline-flex';
-      grid.innerHTML = '<p style="color:var(--muted);">OBS Studio no está conectado o está cerrado. Haz clic en "🎬 Abrir OBS" para iniciarlo.</p>';
-      document.getElementById('obsStatusText').innerHTML = 'OBS no conectado &bull; <a href="javascript:void(0)" onclick="openObsStudio()" style="color:var(--accent); text-decoration:underline;">Abrir OBS Studio</a>';
+      if (grid) grid.innerHTML = '<p style="color:var(--muted);">OBS Studio no está conectado o está cerrado. Haz clic en "🎬 Abrir OBS" para iniciarlo.</p>';
+      const statusElem = document.getElementById('obsStatusText');
+      if (statusElem) {
+        statusElem.innerHTML = 'OBS no conectado &bull; <a href="javascript:void(0)" onclick="openObsStudio()" style="color:var(--accent); text-decoration:underline;">Abrir OBS Studio</a>';
+      }
     }
 
-    const stRes = await fetch('/api/obs/status');
-    const st = await stRes.json();
-    if (st.connected) {
-      currentObsScene = st.current_scene;
+    if (st && st.connected) {
+      currentObsScene = st.current_scene || currentObsScene;
+      if (st.current_scene) highlightCurrentScene(st.current_scene);
       if (btnLaunch) btnLaunch.style.display = 'none';
-      document.getElementById('btnObsStream').textContent = st.is_streaming ? 'Detener Stream' : 'Iniciar Stream';
-      document.getElementById('btnObsStream').className = st.is_streaming ? 'btn btn-danger' : 'btn';
-      document.getElementById('btnObsRecord').textContent = st.is_recording ? 'Detener Grabación' : 'Iniciar Grabación';
-      document.getElementById('btnObsRecord').className = st.is_recording ? 'btn btn-danger' : 'btn';
+      const btnStream = document.getElementById('btnObsStream');
+      if (btnStream) {
+        btnStream.textContent = st.is_streaming ? 'Detener Stream' : 'Iniciar Stream';
+        btnStream.className = st.is_streaming ? 'btn btn-danger' : 'btn';
+      }
+      const btnRecord = document.getElementById('btnObsRecord');
+      if (btnRecord) {
+        btnRecord.textContent = st.is_recording ? 'Detener Grabación' : 'Iniciar Grabación';
+        btnRecord.className = st.is_recording ? 'btn btn-danger' : 'btn';
+      }
       loadObsAudioData();
 
       // Iniciar automáticamente la previsualización de cámara virtual en el controller si no está corriendo
@@ -4339,6 +4402,11 @@ function applyTrackFilter(filterTerm) {
   renderSpotifyMatrix(filtered, spCurrentPlaylistInfo, filterTerm);
 }
 
+let spCurrentDisplayedTracks = [];
+let spRenderedTrackCount = 0;
+const SP_BATCH_SIZE = 40;
+let spTracksObserver = null;
+
 function renderSpotifyMatrix(tracks, playlistInfo = null, activeFilter = '') {
   const list = document.getElementById('spResultsList');
   const header = document.getElementById('spPlaylistHeader');
@@ -4376,32 +4444,76 @@ function renderSpotifyMatrix(tracks, playlistInfo = null, activeFilter = '') {
     return;
   }
 
-  list.innerHTML = tracks.map((track, idx) => {
+  spCurrentDisplayedTracks = tracks;
+  spRenderedTrackCount = 0;
+  list.innerHTML = '';
+  renderNextSpotifyBatch();
+}
+
+function renderNextSpotifyBatch() {
+  const list = document.getElementById('spResultsList');
+  if (!list || spRenderedTrackCount >= spCurrentDisplayedTracks.length) return;
+
+  const nextCount = Math.min(spRenderedTrackCount + SP_BATCH_SIZE, spCurrentDisplayedTracks.length);
+  const fragment = document.createDocumentFragment();
+
+  for (let i = spRenderedTrackCount; i < nextCount; i++) {
+    const track = spCurrentDisplayedTracks[i];
     const safeTitle = (track.title || '').replace(/"/g, '&quot;');
     const safeArtist = (track.artist || '').replace(/"/g, '&quot;');
     const safeUri = track.uri || '';
     const dur = formatDurationMs(track.duration_ms);
-    const thumb = track.thumb || '/assets/icon.png';
-    const indexNum = track.index || (idx + 1);
+    const thumb = track.thumb || '';
+    const indexNum = track.index || (i + 1);
 
-    return `
-      <div class="sp-track-card" data-uri="${safeUri}" title="${safeTitle} — ${safeArtist}" onclick="spotifyPlayTrack('${safeUri}')">
-        <div class="sp-card-thumb-wrap">
-          <img class="sp-card-thumb" src="${thumb}" loading="lazy" alt="art">
-          <span class="sp-card-idx">#${indexNum}</span>
-          ${dur ? `<span class="sp-card-dur">${dur}</span>` : ''}
-        </div>
-        <div class="sp-card-info">
-          <span class="sp-card-title">${safeTitle}</span>
-          <span class="sp-card-artist">${safeArtist}</span>
-        </div>
-        <div class="sp-card-actions" onclick="event.stopPropagation()">
-          <button class="sp-card-btn-play" onclick="spotifyPlayTrack('${safeUri}')" title="Reproducir">▶ Play</button>
-          <button class="sp-card-btn-queue" onclick="spotifyAddQueue('${safeUri}')" title="Agregar a la cola">➕</button>
-        </div>
+    const card = document.createElement('div');
+    card.className = 'sp-track-card';
+    card.dataset.uri = safeUri;
+    card.title = `${safeTitle} — ${safeArtist}`;
+    card.onclick = () => spotifyPlayTrack(safeUri);
+
+    card.innerHTML = `
+      <div class="sp-card-thumb-wrap">
+        ${thumb ? `<img class="sp-card-thumb" src="${thumb}" decoding="async" alt="art" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">` : ''}
+        <div class="sp-card-thumb-fallback" style="${thumb ? 'display:none;' : 'display:flex;'} width:100%; height:100%; align-items:center; justify-content:center; background:#1e1e1e; color:var(--muted); font-size:22px;">🎵</div>
+        <span class="sp-card-idx">#${indexNum}</span>
+        ${dur ? `<span class="sp-card-dur">${dur}</span>` : ''}
+      </div>
+      <div class="sp-card-info">
+        <span class="sp-card-title">${safeTitle}</span>
+        <span class="sp-card-artist">${safeArtist}</span>
+      </div>
+      <div class="sp-card-actions" onclick="event.stopPropagation()">
+        <button class="sp-card-btn-play" onclick="spotifyPlayTrack('${safeUri}')" title="Reproducir">▶ Play</button>
+        <button class="sp-card-btn-queue" onclick="spotifyAddQueue('${safeUri}')" title="Agregar a la cola">➕</button>
       </div>
     `;
-  }).join('');
+    fragment.appendChild(card);
+  }
+
+  // Quitar sentinel previo si existía
+  const oldSentinel = document.getElementById('spSentinel');
+  if (oldSentinel) oldSentinel.remove();
+
+  list.appendChild(fragment);
+  spRenderedTrackCount = nextCount;
+
+  // Si aún quedan más canciones por renderizar, agregar un sentinel al final
+  if (spRenderedTrackCount < spCurrentDisplayedTracks.length) {
+    const sentinel = document.createElement('div');
+    sentinel.id = 'spSentinel';
+    sentinel.style.cssText = 'grid-column: 1 / -1; height: 35px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11px; opacity: 0.7;';
+    sentinel.innerHTML = '<span>Cargando más canciones…</span>';
+    list.appendChild(sentinel);
+
+    if (spTracksObserver) spTracksObserver.disconnect();
+    spTracksObserver = new IntersectionObserver((entries) => {
+      if (entries[0] && entries[0].isIntersecting) {
+        renderNextSpotifyBatch();
+      }
+    }, { rootMargin: '300px' });
+    spTracksObserver.observe(sentinel);
+  }
 }
 
 async function spotifySearch() {
@@ -5577,10 +5689,12 @@ async function loadOverlaysView() {
 
   await loadTimerPhrases();
   initOverlayStudio();
+  switchInspectorTab('now_playing', true);
   requestAnimationFrame(() => {
     updateStageMockups();
   });
-  setTimeout(updateStageMockups, 100);
+  setTimeout(updateStageMockups, 50);
+  setTimeout(updateStageMockups, 180);
 }
 
 async function loadTimerPhrases() {
@@ -6756,9 +6870,27 @@ function updateCustomTextProp(id, prop, val) {
 function updateStageMockups() {
   const canvas = document.getElementById('stageCanvas');
   if (!canvas) return;
-  const canvasW = canvas.offsetWidth || canvas.getBoundingClientRect().width || 960;
+  const parentW = canvas.parentElement ? canvas.parentElement.clientWidth : 0;
+  const canvasW = canvas.offsetWidth || canvas.getBoundingClientRect().width || parentW || 960;
   canvas.style.height = Math.round(canvasW * 9 / 16) + 'px';
   const scale = Math.max(0.1, canvasW / 1920);
+
+  // Asegurar que los mocks de simulación estén visibles si no se han apagado
+  const simNp = document.getElementById('simNowPlayingToggle');
+  const simTm = document.getElementById('simTimerToggle');
+  const simLy = document.getElementById('simLyricsToggle');
+  if (simNp && simNp.checked) {
+    const el = document.getElementById('stageNowPlaying');
+    if (el && el.style.display === 'none') el.style.display = 'flex';
+  }
+  if (simTm && simTm.checked) {
+    const el = document.getElementById('stageTimer');
+    if (el && el.style.display === 'none') el.style.display = 'flex';
+  }
+  if (simLy && simLy.checked) {
+    const el = document.getElementById('stageLyrics');
+    if (el && el.style.display === 'none') el.style.display = 'flex';
+  }
 
   // 1. NOW PLAYING
   const npEl = document.getElementById('stageNowPlaying');
@@ -7136,14 +7268,7 @@ function initOverlayStudio() {
   setVal('modTmTitleFont', config.overlay_timer_title_font || '');
   setVal('modTmBadgeFont', config.overlay_timer_badge_font || '');
   setVal('modTmPhraseFont', config.overlay_timer_phrase_font || '');
-  renderTimerImages();
-  
-  
-  
-  
-  
-  
-  
+
   setCheck('modTmShowBadge', config.overlay_timer_show_badge, true);
   setCheck('modTmShowTitle', config.overlay_timer_show_title, true);
   setCheck('modTmShowClock', config.overlay_timer_show_clock, true);

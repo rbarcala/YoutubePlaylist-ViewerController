@@ -156,13 +156,14 @@ class SpotifyManager:
             return self._state_cache
             
         res = self._api_request("me/player")
-        if "error" in res or not res:
-            # Intentar leer desde MPRIS en Ubuntu
+        # Si la API da error, está vacía, o devuelve 204 No Content (sin 'item')
+        if "error" in res or not res or not res.get("item"):
+            # Intentar leer desde MPRIS en Ubuntu (Spotify app local abierta)
             mpris_state = self._get_mpris_state()
             if mpris_state.get("available"):
                 return mpris_state
 
-        if res and "item" in res and res["item"]:
+        if res and res.get("item"):
             item = res["item"]
             artists = ", ".join([a["name"] for a in item.get("artists", [])])
             album_art = ""
