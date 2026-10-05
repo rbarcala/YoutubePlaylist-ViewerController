@@ -281,13 +281,21 @@ def open_myinstants_login_window():
         header.props.subtitle = "Inicia sesión con Google o tu usuario para guardar favoritos en la nube"
         win.set_titlebar(header)
 
-        status_lbl = Gtk.Label(label="Esperando inicio de sesión en MyInstants...")
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        btn_refresh = Gtk.Button.new_with_label("🔄 Reintentar / Actualizar")
+        btn_refresh.connect("clicked", lambda w: view.reload())
+        btn_box.pack_start(btn_refresh, False, False, 0)
+        
+        btn_direct_login = Gtk.Button.new_with_label("🔑 Ir a Login")
+        btn_direct_login.connect("clicked", lambda w: view.load_uri("https://www.myinstants.com/accounts/login/"))
+        btn_box.pack_start(btn_direct_login, False, False, 0)
+        header.pack_end(btn_box)
+
+        status_lbl = Gtk.Label(label="Inicia sesión con tu cuenta en la ventana...")
         header.pack_start(status_lbl)
 
         view = WebKit2.WebView()
         st = view.get_settings()
-        # Usar User-Agent de Chrome de escritorio moderno para compatibilidad con Google OAuth
-        # st.set_user_agent(...) Eliminado para pasar Cloudflare
         st.set_enable_javascript(True)
         st.set_enable_webgl(True)
         st.set_enable_developer_extras(True)
@@ -317,37 +325,70 @@ def open_myinstants_login_window():
                         user = v
 
                 if sess and not captured["done"]:
-                    captured["done"] = True
-                    print(f"[soundboard] ¡Sesión de MyInstants detectada exitosamente! Usuario: {user}")
-                    from config_manager import save_config
-                    from server import broadcast_event, soundboard_mgr
-                    update_dict = {
-                        "soundboard_session_cookie": sess
-                    }
-                    if csrf:
-                        update_dict["soundboard_csrf_token"] = csrf
-                    if user:
-                        update_dict["soundboard_username"] = user
-                    save_config(update_dict)
+                    def on_js_finished(v, async_res):
+                        try:
+                            js_val = v.run_javascript_finish(async_res)
+                            data_str = js_val.get_js_value().to_string() if js_val else ""
+                            # Formato retornado: loggedIn:username
+                            if data_str and data_str.startswith("1:"):
+                                real_user = data_str.split(":", 1)[1].strip() or user or ""
+                                captured["done"] = True
+                                print(f"[soundboard] ¡Sesión de MyInstants confirmada! Usuario: {real_user}")
+                                from config_manager import save_config
+                                from server import broadcast_event, soundboard_mgr
+                                update_dict = {
+                                    "soundboard_session_cookie": sess
+                                }
+                                if csrf:
+                                    update_dict["soundboard_csrf_token"] = csrf
+                                if real_user:
+                                    update_dict["soundboard_username"] = real_user
+                                save_config(update_dict)
 
-                    if user:
-                        threading.Thread(target=soundboard_mgr.sync_account, args=(user,), daemon=True).start()
+                                if real_user:
+                                    threading.Thread(target=soundboard_mgr.sync_account, args=(real_user,), daemon=True).start()
 
-                    broadcast_event("soundboard_auth_success", {
-                        "username": user or "",
-                        "has_session": True
-                    })
-                    status_lbl.set_text("✅ ¡Sesión vinculada con éxito! Cerrando...")
-                    GLib.timeout_add_seconds(2, win.destroy)
+                                broadcast_event("soundboard_auth_success", {
+                                    "username": real_user or "",
+                                    "has_session": True
+                                })
+                                status_lbl.set_text("✅ ¡Sesión vinculada con éxito! Cerrando...")
+                                GLib.timeout_add_seconds(2, win.destroy)
+                        except Exception as e_js:
+                            print(f"[app] Error verificando login JS: {e_js}")
+
+                    # Verificar si la página tiene usuario autenticado
+                    check_code = """
+                    (function() {
+                        var profLink = document.querySelector('a[href*="/profile/"]');
+                        if (profLink) {
+                            var m = profLink.href.match(/\\/profile\\/([^\\/\\?#]+)/);
+                            var u = m ? m[1] : profLink.textContent.trim();
+                            return '1:' + (u || '');
+                        }
+                        var logoutLink = document.querySelector('a[href*="/accounts/logout/"]');
+                        if (logoutLink) {
+                            return '1:';
+                        }
+                        var userEl = document.querySelector('.username, #username, .user-name');
+                        if (userEl && userEl.textContent.trim()) {
+                            return '1:' + userEl.textContent.trim();
+                        }
+                        return '0:';
+                    })()
+                    """
+                    view.run_javascript(check_code, None, on_js_finished)
             except Exception as ex:
                 print(f"[app] Error procesando cookies: {ex}")
 
         def on_load_changed(v, event):
             if event == WebKit2.LoadEvent.FINISHED:
+                cur_uri = v.get_uri() or ""
+                # Si está en favorites o index con sesión, verificar
                 cm.get_cookies("https://www.myinstants.com/", None, on_cookies_ready, None)
 
         view.connect("load-changed", on_load_changed)
-        view.load_uri("https://www.myinstants.com/en/favorites/")
+        view.load_uri("https://www.myinstants.com/accounts/login/")
         win.show_all()
 
     try:
@@ -424,6 +465,12 @@ def launch_native_window(url: str, title: str = "YouTube Stream Controller", por
                     self.setFeaturePermission(sec_url, feature, QWebEnginePage.PermissionGrantedByUser)
                 else:
                     self.setFeaturePermission(sec_url, feature, QWebEnginePage.PermissionDeniedByUser)
+            def acceptNavigationRequest(self, url, nav_type, is_main_frame):
+                url_str = url.toString()
+                if url_str and not (url_str.startswith("http://localhost") or url_str.startswith("http://127.0.0.1") or url_str.startswith("file://")):
+                    webbrowser.open(url_str)
+                    return False
+                return super().acceptNavigationRequest(url, nav_type, is_main_frame)
 
         window = QMainWindow()
         window.setWindowTitle(title)

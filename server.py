@@ -329,6 +329,8 @@ def manage_config():
     raw_key = safe_cfg.get("youtube_api_key", "")
     safe_cfg["has_api_key"] = bool(raw_key)
     safe_cfg["youtube_api_key_masked"] = (raw_key[:4] + "..." + raw_key[-4:]) if len(raw_key) > 8 else ("***" if raw_key else "")
+    safe_cfg["has_spotify_secret"] = bool(safe_cfg.get("spotify_client_secret", ""))
+    safe_cfg["has_spotify_token"] = bool(safe_cfg.get("spotify_access_token", ""))
     return jsonify(safe_cfg)
 
 # ─── API DE RED Y CÓDIGO QR PARA CELULAR ───
@@ -505,7 +507,17 @@ def spotify_callback():
     redirect_uri = request.host_url.rstrip('/') + '/api/spotify/callback'
     res = spotify_mgr.exchange_code(code, redirect_uri)
     if res.get("success"):
-        return redirect("/controller.html#spotify")
+        broadcast_event("spotify_action", {"action": "auth_success"})
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"><title>Spotify Conectado</title></head>
+        <body style="background:#121212; color:#fff; font-family:sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; height:90vh;">
+            <h2 style="color:#1db954;">¡Spotify vinculado con éxito! 🎉</h2>
+            <p>Ya puedes cerrar esta pestaña y volver a la aplicación.</p>
+        </body>
+        </html>
+        """
     return f"<h3>Error canjeando código: {res.get('error')}</h3>", 400
 
 @app.route('/api/spotify/seek', methods=['POST'])

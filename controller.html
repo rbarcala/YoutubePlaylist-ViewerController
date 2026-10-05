@@ -2682,8 +2682,11 @@ Warm smell of colitas, rising up through the air...</div>
       <input type="text" id="cfgSpotifyClientId" class="form-input" placeholder="Tu Client ID de Spotify Developer">
     </div>
     <div class="form-group">
-      <label class="form-label">Spotify Client Secret</label>
-      <input type="password" id="cfgSpotifyClientSecret" class="form-input" placeholder="Tu Client Secret">
+      <label class="form-label" style="display:flex; justify-content:space-between;">
+        <span>Spotify Client Secret</span>
+        <span id="cfgSpotifySecretSavedStatus" style="font-size:11px; color:#34C759; display:none;">✓ Guardado en el sistema</span>
+      </label>
+      <input type="password" id="cfgSpotifyClientSecret" class="form-input" placeholder="Tu Client Secret (déjalo vacío si ya está guardado)">
       <div style="margin-top:6px;">
         <button class="btn btn-spotify" type="button" onclick="loginSpotifyOAuth()">🔗 Vincular Cuenta de Spotify</button>
       </div>
@@ -3150,8 +3153,15 @@ function initSSE() {
   evtSource.addEventListener('soundboard_auth_success', (e) => {
     try {
       const data = JSON.parse(e.data).data;
+      if (data && data.username) {
+        config.soundboard_username = data.username;
+      }
       showToast(`¡Sesión de MyInstants vinculada como @${data.username || 'usuario'}! 🎉`);
       updateSoundboardAccountDisplay();
+      loadSoundboardAuthStatus();
+      if (currentSbTab === 'favorites') {
+        loadSoundboardTab('favorites', 1);
+      }
     } catch(err) {}
   });
 
@@ -4114,6 +4124,30 @@ async function spotifyAddQueue(uri) {
 }
 
 async function loginSpotifyOAuth() {
+  const inputId = document.getElementById('cfgSpotifyClientId');
+  const inputSecret = document.getElementById('cfgSpotifyClientSecret');
+  const clientId = inputId ? inputId.value.trim() : (config.spotify_client_id || '');
+  const clientSecret = inputSecret ? inputSecret.value.trim() : (config.spotify_client_secret || '');
+
+  if (!clientId || !clientSecret) {
+    showToast('Ingresa tanto el Client ID como el Client Secret de Spotify');
+    return;
+  }
+
+  // Guardar credenciales automáticamente en el backend si fueron ingresadas en el modal
+  try {
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        spotify_client_id: clientId,
+        spotify_client_secret: clientSecret
+      })
+    });
+    config.spotify_client_id = clientId;
+    config.spotify_client_secret = clientSecret;
+  } catch(e) {}
+
   try {
     const res = await fetch('/api/spotify/auth_url');
     const data = await res.json();
@@ -4121,7 +4155,12 @@ async function loginSpotifyOAuth() {
       showToast('Configura Client ID y Client Secret de Spotify primero');
       return;
     }
-    window.location.href = data.auth_url;
+    // Abrir en el navegador predeterminado del sistema operativo
+    fetch(`/api/open_browser?url=${encodeURIComponent(data.auth_url)}`, { method: 'POST' }).catch(() => {});
+    try {
+      window.open(data.auth_url, '_blank');
+    } catch(e) {}
+    showToast('Abriendo autorización de Spotify en tu navegador...');
   } catch(e) {
     showToast('No se pudo iniciar la vinculación con Spotify');
   }
@@ -4825,8 +4864,38 @@ async function loadSoundboardAuthStatus() {
   } catch(e) {}
 }
 
+let sbLoginPollInterval = null;
+
 async function startDesktopLoginWindow() {
   showToast('Abriendo ventana de inicio de sesión de MyInstants...');
+  if (sbLoginPollInterval) clearInterval(sbLoginPollInterval);
+
+  // Consultar periódicamente mientras el usuario se loguea en la ventana
+  sbLoginPollInterval = setInterval(async () => {
+    try {
+      const res = await fetch('/api/soundboard/auth');
+      const data = await res.json();
+      if (data && (data.has_session || data.username)) {
+        clearInterval(sbLoginPollInterval);
+        sbLoginPollInterval = null;
+        config.soundboard_username = data.username;
+        loadSoundboardAuthStatus();
+        updateSoundboardAccountDisplay();
+        if (currentSbTab === 'favorites') {
+          loadSoundboardTab('favorites', 1);
+        }
+      }
+    } catch(e) {}
+  }, 1200);
+
+  // Detener el polling tras 3 minutos si no hubo respuesta
+  setTimeout(() => {
+    if (sbLoginPollInterval) {
+      clearInterval(sbLoginPollInterval);
+      sbLoginPollInterval = null;
+    }
+  }, 180000);
+
   try {
     const res = await fetch('/api/soundboard/login_window', { method: 'POST' });
     const data = await res.json();
@@ -4834,7 +4903,7 @@ async function startDesktopLoginWindow() {
       showToast('Inicia sesión en tu navegador y copia tu usuario o cookie.');
       openMyInstantsInBrowser();
     } else {
-      showToast('Completa el inicio de sesión con Google en la ventana en pantalla.');
+      showToast('Completa el inicio de sesión en la ventana en pantalla.');
     }
   } catch(e) {
     openMyInstantsInBrowser();
@@ -4974,6 +5043,10 @@ function openSettingsModal() {
   document.getElementById('cfgShowLyrics').checked = config.overlay_show_lyrics !== false;
   document.getElementById('cfgSpotifyClientId').value = config.spotify_client_id || '';
   document.getElementById('cfgSpotifyClientSecret').value = config.spotify_client_secret || '';
+  const secretSavedBadge = document.getElementById('cfgSpotifySecretSavedStatus');
+  if (secretSavedBadge) {
+    secretSavedBadge.style.display = (config.has_spotify_secret || config.spotify_client_secret) ? 'inline' : 'none';
+  }
 
   document.getElementById('cfgObsEnabled').checked = Boolean(config.obs_enabled);
   document.getElementById('cfgAutoOpenObs').checked = config.auto_open_obs !== false;
@@ -5010,7 +5083,6 @@ async function saveSettings() {
     overlay_enabled: document.getElementById('cfgOverlayEnabled').checked,
     overlay_show_lyrics: document.getElementById('cfgShowLyrics').checked,
     spotify_client_id: document.getElementById('cfgSpotifyClientId').value.trim(),
-    spotify_client_secret: document.getElementById('cfgSpotifyClientSecret').value.trim(),
     obs_enabled: document.getElementById('cfgObsEnabled').checked,
     auto_open_obs: document.getElementById('cfgAutoOpenObs').checked,
     obs_host: document.getElementById('cfgObsHost').value.trim(),
@@ -5019,6 +5091,11 @@ async function saveSettings() {
     soundboard_username: document.getElementById('cfgSoundboardUsername').value.trim(),
     soundboard_volume: isNaN(parseInt(document.getElementById('cfgSoundboardVolume').value, 10)) ? 80 : Math.max(0, Math.min(100, parseInt(document.getElementById('cfgSoundboardVolume').value, 10)))
   };
+
+  const secretVal = document.getElementById('cfgSpotifyClientSecret').value.trim();
+  if (secretVal) {
+    payload.spotify_client_secret = secretVal;
+  }
 
   const res = await fetch('/api/config', {
     method: 'POST',
