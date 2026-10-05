@@ -1037,6 +1037,13 @@ def timer_start():
 
     return jsonify({"success": True, "state": state})
 
+@app.route('/api/timer/add', methods=['POST'])
+def timer_add():
+    data = request.json or {}
+    duration = int(data.get('duration', 60))
+    state = overlay_mgr.add_timer(duration)
+    return jsonify({"success": True, "state": state})
+
 @app.route('/api/timer/pause', methods=['POST'])
 def timer_pause():
     state = overlay_mgr.pause_timer()

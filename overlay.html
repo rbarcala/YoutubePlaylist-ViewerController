@@ -401,7 +401,7 @@
 <!-- ─── 2. OVERLAY TEMPORIZADOR "YA VUELVO / RECREO" ─── -->
 <div class="break-overlay" id="breakOverlay">
   <div class="break-card" id="breakCard">
-    <img id="breakTimerImage" src="" style="position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); display:none; pointer-events:none; z-index:-1; object-fit:contain;">
+    <div id="breakTimerImagesContainer" style="position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:-1; overflow:visible;"></div>
     <div class="break-header-pill" id="breakHeaderPill">
       <span>⏱️</span> <span id="breakBadgeText">PAUSA DE STREAM &amp; CLASE</span>
     </div>
@@ -483,535 +483,139 @@
     
     const lyricsText = document.getElementById('lyricsText');
     const lyricsEl = document.getElementById('lyricsContainer');
+    if (!lyricsText || !lyricsEl) return false;
+
     const mode = overlayConfig.overlay_lyrics_mode || 'single';
     const hlColor = overlayConfig.overlay_lyrics_highlight_color || '#e8ff47';
+    const containerWidth = lyricsEl.offsetWidth;
 
+    // 1. Ensure DOM is populated correctly for the current mode
+    if (mode === 'single') {
+        lyricsText.className = 'lyrics-text';
+        lyricsText.style.overflow = 'visible';
+        lyricsText.style.whiteSpace = 'normal';
+    } else if (mode === 'marquee') {
+        if (lyricsText.children.length !== currentSyncedLyrics.length || !lyricsText.classList.contains('mode-marquee')) {
+            lyricsText.innerHTML = currentSyncedLyrics.map((c, i) => `<div class="lyric-line-h" id="lyr-${i}">${c.text}</div>`).join('');
+            lyricsText.className = 'lyrics-text mode-marquee';
+            lyricsText.style.overflow = 'visible';
+        }
+    } else {
+        if (lyricsText.children.length !== currentSyncedLyrics.length || !lyricsText.classList.contains('lyrics-text') || lyricsText.classList.contains('mode-marquee')) {
+            lyricsText.innerHTML = currentSyncedLyrics.map((c, i) => `<div class="lyric-line" id="lyr-${i}">${c.text}</div>`).join('');
+            lyricsText.className = 'lyrics-text';
+            lyricsText.style.overflow = 'visible';
+            lyricsText.style.whiteSpace = 'normal';
+        }
+    }
+
+    // 2. Determine active line
     let activeIdx = -1;
     for (let i = 0; i < currentSyncedLyrics.length; i++) {
       if (currentSyncedLyrics[i].time > progressMs) break;
       activeIdx = i;
     }
 
-    if (activeIdx === -1) {
-      if (mode === 'single') {
-        if (lyricsText) {
-          lyricsText.className = 'lyrics-text';
+    // 3. Render based on mode
+    if (mode === 'single') {
+      if (activeIdx === -1) {
           lyricsText.textContent = '';
-          lyricsText.style.transform = 'translateY(0px)';
-        }
-      } else if (mode === 'marquee') {
-        if (lyricsText) {
-          lyricsText.className = 'lyrics-text mode-marquee';
-          lyricsText.style.transform = 'translateX(0px)';
-          Array.from(lyricsText.children).forEach(c => {
-             c.classList.remove('active');
-             c.style.color = '';
-             c.style.opacity = '0.4';
-          });
-        }
       } else {
-        if (lyricsText) {
-          lyricsText.className = 'lyrics-text';
-          lyricsText.style.transform = `translateY(0px)`;
-          Array.from(lyricsText.children).forEach(c => {
-             c.classList.remove('active');
-             c.style.color = '';
-             c.style.opacity = '0.4';
-          });
-        }
+          lyricsText.textContent = currentSyncedLyrics[activeIdx].text;
       }
+      lyricsText.style.transform = 'translateY(0px)';
       return true;
     }
 
-    const activeCue = currentSyncedLyrics[activeIdx];
-
-    if (mode === 'single') {
-      if (lyricsText) {
-        lyricsText.className = 'lyrics-text';
-        lyricsText.textContent = activeCue.text;
-        lyricsText.style.transform = 'translateY(0px)';
-        lyricsText.style.overflow = 'visible';
-        lyricsText.style.whiteSpace = 'normal';
-      }
-    } else if (mode === 'marquee') {
-      if (lyricsText) {
-        if (lyricsText.children.length !== currentSyncedLyrics.length || !lyricsText.classList.contains('mode-marquee')) {
-          lyricsText.innerHTML = currentSyncedLyrics.map((c, i) => `<div class="lyric-line-h" id="lyr-${i}">${c.text}</div>`).join('');
-          lyricsText.className = 'lyrics-text mode-marquee';
-          lyricsText.style.transform = 'translateX(0px)';
-          lyricsText.style.overflow = 'visible';
-        }
-        
-        const lines = Array.from(lyricsText.children);
-        let activeEl = null;
-        lines.forEach((line, i) => {
-          if (i === activeIdx) {
+    const lines = Array.from(lyricsText.children);
+    
+    // Reset all lines styles
+    lines.forEach((line, i) => {
+        if (i === activeIdx) {
             line.classList.add('active');
             line.style.color = hlColor;
             line.style.opacity = '1';
-            activeEl = line;
-          } else {
-            line.classList.remove('active');
-            line.style.color = '';
-            line.style.opacity = '0.4';
-          }
-        });
-
-        if (activeEl && lyricsEl) {
-          const containerWidth = lyricsEl.offsetWidth;
-          let currentPos = activeEl.offsetLeft + activeEl.offsetWidth / 2;
-          let nextPos = currentPos;
-          let timeDiff = 0;
-          let timeElapsed = 0;
-          
-          if (activeIdx < lines.length - 1) {
-             const nextEl = lines[activeIdx + 1];
-             nextPos = nextEl.offsetLeft + nextEl.offsetWidth / 2;
-             timeDiff = currentSyncedLyrics[activeIdx + 1].time - activeCue.time;
-             timeElapsed = progressMs - activeCue.time;
-          }
-          
-          let interpolatedPos = currentPos;
-          if (timeDiff > 0 && timeElapsed >= 0) {
-             let ratio = timeElapsed / timeDiff;
-             if (ratio > 1) ratio = 1;
-             interpolatedPos = currentPos + (nextPos - currentPos) * ratio;
-          }
-          
-          const offset = (containerWidth / 2) - interpolatedPos;
-          lyricsText.style.transition = 'transform 0.2s linear';
-          lyricsText.style.transform = `translateX(${offset}px)`;
-        }
-      }
-    } else {
-      if (lyricsText) {
-        lyricsText.className = 'lyrics-text';
-        lyricsText.style.overflow = 'visible';
-        lyricsText.style.whiteSpace = 'normal';
-        if (lyricsText.children.length !== currentSyncedLyrics.length || !lyricsText.children[0].classList.contains('lyric-line')) {
-          lyricsText.innerHTML = currentSyncedLyrics.map((c, i) => `<div class="lyric-line" id="lyr-${i}">${c.text}</div>`).join('');
-        }
-        
-        const lines = Array.from(lyricsText.children);
-        let activeEl = null;
-        lines.forEach((line, i) => {
-          if (i === activeIdx) {
-            line.classList.add('active');
-            line.style.color = hlColor;
-            line.style.opacity = '1';
-            activeEl = line;
-          } else {
-            line.classList.remove('active');
-            line.style.color = '';
-            line.style.opacity = '0.4';
-          }
-        });
-
-        if (activeEl && lyricsEl) {
-          const containerHeight = lyricsEl.offsetHeight;
-          let currentPos = activeEl.offsetTop + activeEl.offsetHeight / 2;
-          let nextPos = currentPos;
-          let timeDiff = 0;
-          let timeElapsed = 0;
-          
-          if (activeIdx < lines.length - 1) {
-             const nextEl = lines[activeIdx + 1];
-             nextPos = nextEl.offsetTop + nextEl.offsetHeight / 2;
-             timeDiff = currentSyncedLyrics[activeIdx + 1].time - activeCue.time;
-             timeElapsed = progressMs - activeCue.time;
-          }
-          
-          let interpolatedPos = currentPos;
-          if (timeDiff > 0 && timeElapsed >= 0) {
-             // Instead of constant scroll, let's ease it so it rests on the line, then scrolls
-             // But the user complained about "de un saque". Let's do linear continuous scroll for both!
-             let ratio = timeElapsed / timeDiff;
-             if (ratio > 1) ratio = 1;
-             interpolatedPos = currentPos + (nextPos - currentPos) * ratio;
-          }
-          
-          const offset = (containerHeight / 2) - interpolatedPos;
-          lyricsText.style.transition = 'transform 0.2s linear';
-          lyricsText.style.transform = `translateY(${offset}px)`;
-        }
-      }
-    }
-
-    if (lyricsEl) lyricsEl.classList.add('visible');
-    return true;
-  }
-
-  function hexToRgba(hex, alpha) {
-    if (!hex) return `rgba(10, 10, 10, ${alpha})`;
-    if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
-    hex = hex.replace('#', '');
-    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
-    const r = parseInt(hex.substring(0, 2), 16) || 10;
-    const g = parseInt(hex.substring(2, 4), 16) || 10;
-    const b = parseInt(hex.substring(4, 6), 16) || 10;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  }
-
-  function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  function renderCustomTexts(texts) {
-    const container = document.getElementById('customTextsContainer');
-    if (!container) return;
-    if (!Array.isArray(texts) || texts.length === 0) {
-      container.innerHTML = '';
-      return;
-    }
-    container.innerHTML = texts.map(t => {
-      if (!t || !t.text) return '';
-      const posX = t.x !== undefined ? t.x : 100;
-      const posY = t.y !== undefined ? t.y : 100;
-      const scale = t.scale !== undefined ? t.scale : 1.0;
-      const bgOpacity = (t.bg_opacity !== undefined ? t.bg_opacity : 60) / 100;
-      const bgColor = t.bg_color ? hexToRgba(t.bg_color, bgOpacity) : 'transparent';
-      const border = t.border_color ? `1px solid ${t.border_color}` : 'none';
-      const radius = (t.border_radius !== undefined ? t.border_radius : 8) + 'px';
-      const padding = (t.padding !== undefined ? t.padding : 8) + 'px 14px';
-      const color = t.color || '#ffffff';
-      const font = t.font_family || 'system-ui';
-      const size = (t.font_size || 16) + 'px';
-      const animClass = (t.animation && t.animation !== 'none') ? ` ${t.animation}` : '';
-
-      const zIndex = t.z_index !== undefined ? t.z_index : 25;
-
-      return `
-        <div class="overlay-custom-text${animClass}" id="customText_${t.id}" style="
-          position: fixed;
-          left: ${posX}px;
-          top: ${posY}px;
-          z-index: ${zIndex};
-          --scale: ${scale};
-          transform: scale(${scale});
-          transform-origin: top left;
-          background: ${bgColor};
-          border: ${border};
-          border-radius: ${radius};
-          padding: ${padding};
-          color: ${color};
-          font-family: ${font};
-          font-size: ${size};
-          font-weight: 700;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-        ">${escapeHtml(t.text)}</div>
-      `;
-    }).join('');
-  }
-
-  function applyConfigToOverlay(cfg) {
-    if (!cfg) return;
-    overlayConfig = Object.assign({}, overlayConfig, cfg);
-
-    const root = document.documentElement;
-    const container = document.getElementById('nowPlayingContainer');
-    const lyricsEl = document.getElementById('lyricsContainer');
-    const breakCard = document.getElementById('breakCard');
-    const breakOverlay = document.getElementById('breakOverlay');
-
-    // ─── 1. MODULO NOW PLAYING ───
-    if (container) {
-      const npZ = cfg.overlay_now_playing_z_index !== undefined ? cfg.overlay_now_playing_z_index : (overlayConfig.overlay_now_playing_z_index !== undefined ? overlayConfig.overlay_now_playing_z_index : 30);
-      container.style.zIndex = npZ;
-
-      const npScale = parseFloat(cfg.overlay_now_playing_scale !== undefined ? cfg.overlay_now_playing_scale : (overlayConfig.overlay_scale || 1.0));
-      const npFont = cfg.overlay_now_playing_font || overlayConfig.overlay_font_family || 'system-ui';
-      const npBg = cfg.overlay_now_playing_bg_color || overlayConfig.overlay_bg_color || '#0a0a0a';
-      const npOp = (cfg.overlay_now_playing_bg_opacity !== undefined ? cfg.overlay_now_playing_bg_opacity : (overlayConfig.overlay_bg_opacity !== undefined ? overlayConfig.overlay_bg_opacity : 78)) / 100;
-      const npBorder = cfg.overlay_now_playing_border_color || overlayConfig.overlay_border_color || 'rgba(255, 255, 255, 0.08)';
-      const npRadius = (cfg.overlay_now_playing_border_radius !== undefined ? cfg.overlay_now_playing_border_radius : (overlayConfig.overlay_border_radius !== undefined ? overlayConfig.overlay_border_radius : 12)) + 'px';
-      const npTextCol = cfg.overlay_now_playing_text_color || overlayConfig.overlay_text_color || '#ffffff';
-
-      root.style.setProperty('--overlay-scale', npScale);
-      root.style.setProperty('--overlay-font', npFont);
-      root.style.setProperty('--bg-card', hexToRgba(npBg, npOp));
-      root.style.setProperty('--border', npBorder);
-      root.style.setProperty('--border-radius', npRadius);
-      root.style.setProperty('--text', npTextCol);
-
-      // Posición libre por coordenadas X/Y
-      if (cfg.overlay_now_playing_x !== undefined && cfg.overlay_now_playing_y !== undefined) {
-        container.style.top = '';
-        container.style.right = '';
-        container.style.bottom = cfg.overlay_now_playing_y + 'px';
-        container.style.left = cfg.overlay_now_playing_x + 'px';
-        container.style.transformOrigin = 'bottom left';
-      } else {
-        const posX = (overlayConfig.overlay_pos_x !== undefined ? overlayConfig.overlay_pos_x : 28) + 'px';
-        const posY = (overlayConfig.overlay_pos_y !== undefined ? overlayConfig.overlay_pos_y : 28) + 'px';
-        const pos = overlayConfig.overlay_position || 'bottom-left';
-        container.style.top = ''; container.style.bottom = ''; container.style.left = ''; container.style.right = '';
-        if (pos === 'bottom-left') { container.style.bottom = posY; container.style.left = posX; container.style.transformOrigin = 'bottom left'; }
-        else if (pos === 'bottom-right') { container.style.bottom = posY; container.style.right = posX; container.style.transformOrigin = 'bottom right'; }
-        else if (pos === 'top-left') { container.style.top = posY; container.style.left = posX; container.style.transformOrigin = 'top left'; }
-        else if (pos === 'top-right') { container.style.top = posY; container.style.right = posX; container.style.transformOrigin = 'top right'; }
-        else if (pos === 'bottom-center') { container.style.bottom = posY; container.style.left = '50%'; container.style.marginLeft = '-200px'; container.style.transformOrigin = 'bottom center'; }
-        else if (pos === 'top-center') { container.style.top = posY; container.style.left = '50%'; container.style.marginLeft = '-200px'; container.style.transformOrigin = 'top center'; }
-      }
-
-      if (cfg.overlay_now_playing_width) {
-        container.style.width = cfg.overlay_now_playing_width + 'px';
-        container.style.maxWidth = cfg.overlay_now_playing_width + 'px';
-      }
-
-      // Onda / wave en título
-      const wave = parseInt(cfg.overlay_now_playing_wave !== undefined ? cfg.overlay_now_playing_wave : (overlayConfig.overlay_text_wave || 0), 10);
-      const titleEl = document.getElementById('npTitle');
-      if (wave > 0) {
-        const amp = (wave * 0.9) + 'px';
-        const spd = Math.max(0.6, 2.6 - (wave * 0.18)) + 's';
-        root.style.setProperty('--wave-amp', amp);
-        root.style.setProperty('--wave-speed', spd);
-        if (titleEl) titleEl.classList.add('wave-active');
-      } else {
-        root.style.setProperty('--wave-amp', '0px');
-        if (titleEl) titleEl.classList.remove('wave-active');
-      }
-
-      // Toggles y tamaños de sub-elementos Now Playing
-      const npTitleSize = (cfg.overlay_now_playing_title_size !== undefined ? cfg.overlay_now_playing_title_size : (overlayConfig.overlay_now_playing_title_size || 13)) + 'px';
-      const npArtistSize = (cfg.overlay_now_playing_artist_size !== undefined ? cfg.overlay_now_playing_artist_size : (overlayConfig.overlay_now_playing_artist_size || 11)) + 'px';
-      const npBadgeSize = (cfg.overlay_now_playing_badge_size !== undefined ? cfg.overlay_now_playing_badge_size : (overlayConfig.overlay_now_playing_badge_size || 9)) + 'px';
-
-      if (titleEl) titleEl.style.fontSize = npTitleSize;
-      const badgeEl = document.getElementById('npBadge');
-      if (badgeEl) {
-        badgeEl.style.display = (overlayConfig.overlay_show_badge !== false) ? 'flex' : 'none';
-        badgeEl.style.fontSize = npBadgeSize;
-      }
-      const subEl = document.getElementById('npSubtitle');
-      if (subEl) {
-        subEl.style.display = (overlayConfig.overlay_show_artist !== false) ? 'block' : 'none';
-        subEl.style.fontSize = npArtistSize;
-      }
-      const coverEl = document.getElementById('npCover');
-      if (coverEl) coverEl.style.display = (overlayConfig.overlay_show_cover !== false) ? 'block' : 'none';
-      const eqEl = document.querySelector('.np-eq');
-      if (eqEl) eqEl.style.display = (overlayConfig.overlay_show_equalizer !== false) ? 'flex' : 'none';
-    }
-
-    // ─── 2. MODULO TEMPORIZADOR ("YA VUELVO / RECREO") ───
-    const tmZ = cfg.overlay_timer_z_index !== undefined ? cfg.overlay_timer_z_index : (overlayConfig.overlay_timer_z_index !== undefined ? overlayConfig.overlay_timer_z_index : 20);
-    if (breakOverlay) breakOverlay.style.zIndex = tmZ;
-    if (breakCard) {
-      breakCard.style.zIndex = tmZ;
-      const tmScale = parseFloat(cfg.overlay_timer_scale || 1.0);
-      const tmWidth = parseInt(cfg.overlay_timer_width || 560, 10);
-      const tmBg = cfg.overlay_timer_bg_color || '#0a0a0a';
-      const tmOp = (cfg.overlay_timer_bg_opacity !== undefined ? cfg.overlay_timer_bg_opacity : 85) / 100;
-      const tmBorder = cfg.overlay_timer_border_color || 'rgba(232, 255, 71, 0.35)';
-      const tmRadius = (cfg.overlay_timer_border_radius !== undefined ? cfg.overlay_timer_border_radius : 20) + 'px';
-      const tmFont = cfg.overlay_timer_font || 'system-ui';
-
-      breakCard.style.width = tmWidth + 'px';
-      breakCard.style.background = hexToRgba(tmBg, tmOp);
-      breakCard.style.borderColor = tmBorder;
-      breakCard.style.borderRadius = tmRadius;
-      breakCard.style.fontFamily = tmFont;
-
-      // Coordenadas X/Y de Temporizador
-      const tmX = cfg.overlay_timer_x !== undefined ? cfg.overlay_timer_x : 50;
-      const tmY = cfg.overlay_timer_y !== undefined ? cfg.overlay_timer_y : 50;
-      if (tmX === 50 && tmY === 50) {
-        breakCard.style.left = '50%';
-        breakCard.style.top = '50%';
-        breakCard.style.transform = `translate(-50%, -50%) scale(${tmScale})`;
-        breakCard.style.transformOrigin = 'center center';
-      } else {
-        breakCard.style.left = tmX + 'px';
-        breakCard.style.top = tmY + 'px';
-        breakCard.style.transform = `scale(${tmScale})`;
-        breakCard.style.transformOrigin = 'top left';
-      }
-
-      // Sub-elementos de Temporizador y tamaños configurables
-      const tmClockSize = (cfg.overlay_timer_clock_size !== undefined ? cfg.overlay_timer_clock_size : (overlayConfig.overlay_timer_clock_size || 72)) + 'px';
-      const tmTitleSize = (cfg.overlay_timer_title_size !== undefined ? cfg.overlay_timer_title_size : (overlayConfig.overlay_timer_title_size || 30)) + 'px';
-      const tmBadgeSize = (cfg.overlay_timer_badge_size !== undefined ? cfg.overlay_timer_badge_size : (overlayConfig.overlay_timer_badge_size || 12)) + 'px';
-      const tmPhraseSize = (cfg.overlay_timer_phrase_size !== undefined ? cfg.overlay_timer_phrase_size : (overlayConfig.overlay_timer_phrase_size || 14)) + 'px';
-      const tmImgEl = document.getElementById('breakTimerImage');
-      if (tmImgEl) {
-        if (cfg.overlay_timer_image_enabled && cfg.overlay_timer_image_url) {
-          tmImgEl.style.display = 'block';
-          tmImgEl.src = cfg.overlay_timer_image_url;
-          const ix = cfg.overlay_timer_image_x !== undefined ? cfg.overlay_timer_image_x : 0;
-          const iy = cfg.overlay_timer_image_y !== undefined ? cfg.overlay_timer_image_y : -100;
-          const iscale = cfg.overlay_timer_image_scale || 1.0;
-          tmImgEl.style.left = `calc(50% + ${ix}px)`;
-          tmImgEl.style.top = `calc(50% + ${iy}px)`;
-          tmImgEl.style.transform = `translate(-50%, -50%) scale(${iscale})`;
-          tmImgEl.style.borderRadius = (cfg.overlay_timer_image_radius !== undefined ? cfg.overlay_timer_image_radius : 10) + 'px';
         } else {
-          tmImgEl.style.display = 'none';
-          tmImgEl.src = '';
+            line.classList.remove('active');
+            line.style.color = '';
+            line.style.opacity = '0.4';
         }
-      }
+    });
 
-      const badgePill = document.getElementById('breakHeaderPill');
-      const badgeText = document.getElementById('breakBadgeText');
-      if (badgePill) {
-        badgePill.style.display = (cfg.overlay_timer_show_badge !== false) ? 'inline-flex' : 'none';
-        badgePill.style.fontSize = tmBadgeSize;
-        if (cfg.overlay_timer_badge_font) badgePill.style.fontFamily = cfg.overlay_timer_badge_font;
-        if (cfg.overlay_timer_badge_text && badgeText) badgeText.textContent = cfg.overlay_timer_badge_text;
-        if (cfg.overlay_timer_badge_color) {
-          badgePill.style.color = cfg.overlay_timer_badge_color;
-          badgePill.style.borderColor = cfg.overlay_timer_badge_color;
+    if (mode === 'marquee') {
+        let currentPos = 0;
+        let nextPos = 0;
+        let timeDiff = 0;
+        let timeElapsed = 0;
+        let interpolatedPos = 0;
+
+        if (activeIdx === -1) {
+            // Before first lyric: lock onto the first lyric, keep it centered
+            if (lines.length > 0) {
+                interpolatedPos = lines[0].offsetLeft + lines[0].offsetWidth / 2;
+            }
+        } else {
+            const activeEl = lines[activeIdx];
+            currentPos = activeEl.offsetLeft + activeEl.offsetWidth / 2;
+            nextPos = currentPos;
+            
+            if (activeIdx < lines.length - 1) {
+                const nextEl = lines[activeIdx + 1];
+                nextPos = nextEl.offsetLeft + nextEl.offsetWidth / 2;
+                timeDiff = currentSyncedLyrics[activeIdx + 1].time - currentSyncedLyrics[activeIdx].time;
+                timeElapsed = progressMs - currentSyncedLyrics[activeIdx].time;
+            }
+            
+            interpolatedPos = currentPos;
+            if (timeDiff > 0 && timeElapsed >= 0) {
+                let ratio = timeElapsed / timeDiff;
+                if (ratio > 1) ratio = 1;
+                interpolatedPos = currentPos + (nextPos - currentPos) * ratio;
+            }
         }
-      }
-
-      const titleEl = document.getElementById('breakTitleText');
-      if (titleEl) {
-        titleEl.style.display = (cfg.overlay_timer_show_title !== false) ? 'block' : 'none';
-        titleEl.style.fontSize = tmTitleSize;
-        if (cfg.overlay_timer_title_font) titleEl.style.fontFamily = cfg.overlay_timer_title_font;
-        if (cfg.overlay_timer_title_text && (!currentTimerState || !currentTimerState.title)) {
-          titleEl.textContent = cfg.overlay_timer_title_text;
-        }
-        if (cfg.overlay_timer_title_color) titleEl.style.color = cfg.overlay_timer_title_color;
-      }
-
-      const clockEl = document.getElementById('breakTimerText');
-      if (clockEl) {
-        clockEl.style.display = (cfg.overlay_timer_show_clock !== false) ? 'block' : 'none';
-        clockEl.style.fontSize = tmClockSize;
-        if (cfg.overlay_timer_clock_font) clockEl.style.fontFamily = cfg.overlay_timer_clock_font;
-        if (cfg.overlay_timer_clock_color) {
-          clockEl.style.color = cfg.overlay_timer_clock_color;
-          clockEl.style.textShadow = `0 0 24px ${hexToRgba(cfg.overlay_timer_clock_color, 0.5)}`;
-        }
-      }
-
-      const progressTrack = document.getElementById('breakProgressTrack');
-      const progressBar = document.getElementById('breakProgressBar');
-      if (progressTrack) progressTrack.style.display = (cfg.overlay_timer_show_progress !== false) ? 'block' : 'none';
-      if (progressBar && cfg.overlay_timer_progress_color) progressBar.style.background = cfg.overlay_timer_progress_color;
-
-      const phraseBox = document.getElementById('breakPhraseBox');
-      const phraseText = document.getElementById('breakPhraseText');
-      if (phraseBox) {
-        phraseBox.style.display = (cfg.overlay_timer_show_phrase !== false) ? 'block' : 'none';
-        phraseBox.style.fontSize = tmPhraseSize;
-      }
-      if (phraseText) {
-        if (cfg.overlay_timer_phrase_color) phraseText.style.color = cfg.overlay_timer_phrase_color;
-        if (cfg.overlay_timer_phrase_font) phraseText.style.fontFamily = cfg.overlay_timer_phrase_font;
-      }
-    }
-
-    // ─── 3. MODULO LYRICS (LETRAS) ───
-    if (lyricsEl) {
-      const lyZ = cfg.overlay_lyrics_z_index !== undefined ? cfg.overlay_lyrics_z_index : (overlayConfig.overlay_lyrics_z_index !== undefined ? overlayConfig.overlay_lyrics_z_index : 15);
-      lyricsEl.style.zIndex = lyZ;
-
-      const lyScale = parseFloat(cfg.overlay_lyrics_scale || 1.0);
-      const lyWidth = parseInt(cfg.overlay_lyrics_width || 440, 10);
-      const lyMaxH = parseInt(cfg.overlay_lyrics_max_height || 150, 10);
-      const lyBg = cfg.overlay_lyrics_bg_color || '#0a0a0a';
-      const lyOp = (cfg.overlay_lyrics_bg_opacity !== undefined ? cfg.overlay_lyrics_bg_opacity : 75) / 100;
-      const lyBorder = cfg.overlay_lyrics_border_color || 'rgba(255, 255, 255, 0.08)';
-      const lyRadius = (cfg.overlay_lyrics_border_radius !== undefined ? cfg.overlay_lyrics_border_radius : 12) + 'px';
-      const lyTextCol = cfg.overlay_lyrics_text_color || '#e0e0e0';
-      const lyFont = cfg.overlay_lyrics_font || 'system-ui';
-      const lyFontSize = (cfg.overlay_lyrics_font_size || 13) + 'px';
-
-      lyricsEl.style.width = lyWidth + 'px';
-      lyricsEl.style.maxHeight = lyMaxH + 'px';
-      lyricsEl.style.background = hexToRgba(lyBg, lyOp);
-      lyricsEl.style.borderColor = lyBorder;
-      lyricsEl.style.borderRadius = lyRadius;
-      lyricsEl.style.fontFamily = lyFont;
-      lyricsEl.style.transform = `scale(${lyScale})`;
-      lyricsEl.style.transformOrigin = 'bottom left';
-
-      const lt = document.getElementById('lyricsText');
-      if (lt) {
-        lt.style.color = lyTextCol;
-        lt.style.fontSize = lyFontSize;
-      }
-
-      if (cfg.overlay_lyrics_x !== undefined && cfg.overlay_lyrics_y !== undefined) {
-        lyricsEl.style.left = cfg.overlay_lyrics_x + 'px';
-        lyricsEl.style.bottom = cfg.overlay_lyrics_y + 'px';
-      }
-    }
-
-    // ─── 4. TEXTOS PERSONALIZADOS MODULARES ───
-    renderCustomTexts(cfg.overlay_custom_texts || overlayConfig.overlay_custom_texts || []);
-
-    updateNowPlayingUI();
-    fetchAndUpdateLyrics();
-  }
-
-  // Audio chime
-  function playSchoolBellChime() {
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const notes = [523.25, 659.25, 783.99, 1046.50];
-      notes.forEach((freq, idx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.value = freq;
-        const startTime = ctx.currentTime + (idx * 0.22);
-        gain.gain.setValueAtTime(0.01, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.35, startTime + 0.04);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.8);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(startTime);
-        osc.stop(startTime + 0.85);
-      });
-    } catch(e) {}
-  }
-
-  function updateTimerUI(data) {
-    if (!data) return;
-    currentTimerState = data;
-    const overlay = document.getElementById('breakOverlay');
-    const timerText = document.getElementById('breakTimerText');
-    const titleText = document.getElementById('breakTitleText');
-    const phraseText = document.getElementById('breakPhraseText');
-    const bar = document.getElementById('breakProgressBar');
-
-    if (!data.active || overlayConfig.overlay_enabled === false || overlayConfig.overlay_timer_enabled === false) {
-      overlay.classList.remove('visible');
-      timerText.classList.remove('finished');
-      return;
-    }
-
-    overlay.classList.add('visible');
-    const rem = Math.max(0, data.remaining_seconds || 0);
-    const m = Math.floor(rem / 60);
-    const s = rem % 60;
-    timerText.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-
-    if (data.title) titleText.textContent = data.title;
-    if (data.phrase) phraseText.textContent = data.phrase;
-
-    const total = data.total_seconds || 300;
-    const pct = Math.max(0, Math.min(100, (rem / total) * 100));
-    bar.style.width = pct + '%';
-
-    if (rem <= 0) {
-      timerText.classList.add('finished');
-      timerText.textContent = '00:00';
-      bar.style.width = '0%';
-      const now = Date.now();
-      if (data.play_sound && (now - lastChimePlayedFor > 8000)) {
-        lastChimePlayedFor = now;
-        playSchoolBellChime();
-      }
+        
+        const offset = (containerWidth / 2) - interpolatedPos;
+        lyricsText.style.transition = 'transform 0.2s linear';
+        lyricsText.style.transform = `translateX(${offset}px)`;
     } else {
-      timerText.classList.remove('finished');
+        // Vertical Scroll
+        let currentPos = 0;
+        let nextPos = 0;
+        let timeDiff = 0;
+        let timeElapsed = 0;
+        let interpolatedPos = 0;
+
+        if (activeIdx === -1) {
+            if (lines.length > 0) {
+                interpolatedPos = lines[0].offsetTop + lines[0].offsetHeight / 2;
+            }
+        } else {
+            const activeEl = lines[activeIdx];
+            currentPos = activeEl.offsetTop + activeEl.offsetHeight / 2;
+            nextPos = currentPos;
+            
+            if (activeIdx < lines.length - 1) {
+                const nextEl = lines[activeIdx + 1];
+                nextPos = nextEl.offsetTop + nextEl.offsetHeight / 2;
+                timeDiff = currentSyncedLyrics[activeIdx + 1].time - currentSyncedLyrics[activeIdx].time;
+                timeElapsed = progressMs - currentSyncedLyrics[activeIdx].time;
+            }
+            
+            interpolatedPos = currentPos;
+            if (timeDiff > 0 && timeElapsed >= 0) {
+                let ratio = timeElapsed / timeDiff;
+                if (ratio > 1) ratio = 1;
+                interpolatedPos = currentPos + (nextPos - currentPos) * ratio;
+            }
+        }
+        
+        const containerHeight = lyricsEl.offsetHeight;
+        const offset = (containerHeight / 2) - interpolatedPos;
+        lyricsText.style.transition = 'transform 0.2s linear';
+        lyricsText.style.transform = `translateY(${offset}px)`;
     }
+    
+    return true;
   }
 
   function updateNowPlayingUI() {
@@ -1041,7 +645,7 @@
       
       if (overlayConfig.overlay_now_playing_marquee === true) {
         if (!title.querySelector('.ticker-wrap')) {
-          title.innerHTML = `<div class="ticker-wrap" style="width:100%; overflow:hidden; white-space:nowrap; mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%); -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);"><div class="ticker-move" style="display:inline-block; animation:ticker 10s linear infinite;"><span class="ticker-item" style="display:inline-block; padding-right:50px;"></span><span class="ticker-item" style="display:inline-block; padding-right:50px;"></span></div></div>`;
+          title.innerHTML = `<div class="ticker-wrap" style="width:100%; overflow:hidden; white-space:nowrap; -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 85%, rgba(0,0,0,0) 100%); mask-image: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 85%, rgba(0,0,0,0) 100%);"><div class="ticker-move" style="display:inline-block; animation:ticker 10s linear infinite;"><span class="ticker-item" style="display:inline-block; padding-right:50px;"></span><span class="ticker-item" style="display:inline-block; padding-right:50px;"></span></div></div>`;
         }
         const items = title.querySelectorAll('.ticker-item');
         if (items[0] && items[0].textContent !== currentSpotify.title) {

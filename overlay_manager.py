@@ -72,6 +72,20 @@ class OverlayManager:
         self._emit_update()
         return self.get_state()
 
+    def add_timer(self, seconds: int) -> dict:
+        with self.lock:
+            if not self.timer_state.get("active"):
+                return self.start_timer(seconds=seconds)
+            
+            self.timer_state["remaining_seconds"] += seconds
+            self.timer_state["remaining"] += seconds
+            self.timer_state["total_seconds"] += seconds
+            self.timer_state["duration"] += seconds
+            self.timer_state["last_updated"] = time.time()
+            self._save_timer_state()
+            self._trigger_event()
+            return self.get_status()
+
     def pause_timer(self) -> dict:
         with self.lock:
             if not self.timer_state["active"]:

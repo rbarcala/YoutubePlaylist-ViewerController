@@ -2422,35 +2422,10 @@ Warm smell of colitas, rising up through the air...</div>
 
             <div class="inspector-section">
               <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span class="inspector-section-title">🖼️ Imagen Decorativa</span>
-                <label style="display:inline-flex; align-items:center; gap:6px; font-size:11px; cursor:pointer;">
-                  <input type="checkbox" id="modTmImgEnabled" onchange="updateModularProp('timer', 'img_enabled', this.checked)"> Habilitar
-                </label>
+                <span class="inspector-section-title">🖼️ Imágenes Decorativas</span>
+                <button class="btn btn-accent" style="padding:2px 6px; font-size:10px;" onclick="addTimerImage()">+ Añadir</button>
               </div>
-              <div style="margin-top:6px;">
-                <label class="form-label" style="font-size:11px;">URL de la Imagen</label>
-                <input type="text" id="modTmImgUrl" class="form-input" placeholder="https://ejemplo.com/foto.png" oninput="updateModularProp('timer', 'img_url', this.value)">
-              </div>
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
-                <div>
-                  <label class="form-label" style="font-size:11px;">Posición X (px)</label>
-                  <input type="number" id="modTmImgX" class="form-input" value="0" oninput="updateModularProp('timer', 'img_x', parseInt(this.value, 10))" title="Usa la ruedita del mouse">
-                </div>
-                <div>
-                  <label class="form-label" style="font-size:11px;">Posición Y (px)</label>
-                  <input type="number" id="modTmImgY" class="form-input" value="-100" oninput="updateModularProp('timer', 'img_y', parseInt(this.value, 10))" title="Usa la ruedita del mouse">
-                </div>
-              </div>
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
-                <div>
-                  <label class="form-label" style="font-size:11px;">Escala: <span id="modTmImgScaleVal" style="color:var(--accent);">1.0x</span></label>
-                  <input type="range" id="modTmImgScale" min="0.1" max="3.0" step="0.05" value="1.0" oninput="updateModularProp('timer', 'img_scale', parseFloat(this.value))" style="width:100%; accent-color:var(--accent);">
-                </div>
-                <div>
-                  <label class="form-label" style="font-size:11px;">Redondeo (px)</label>
-                  <input type="number" id="modTmImgRadius" class="form-input" min="0" max="200" value="10" oninput="updateModularProp('timer', 'img_radius', parseInt(this.value, 10))" title="Usa la ruedita del mouse">
-                </div>
-              </div>
+              <div id="timerImagesList" style="margin-top:8px; display:flex; flex-direction:column; gap:8px;"></div>
             </div>
 
             <div class="inspector-section">
@@ -2603,12 +2578,12 @@ Warm smell of colitas, rising up through the air...</div>
           <div style="width:100%; text-align:center; margin-top:8px;">
             <div class="form-label" style="margin-bottom:8px;">Duración rápida</div>
             <div class="timer-quick-grid">
-              <button class="timer-quick-btn" onclick="startTimerWithMinutes(1)">+1 min</button>
-              <button class="timer-quick-btn" onclick="startTimerWithMinutes(3)">+3 min</button>
-              <button class="timer-quick-btn" onclick="startTimerWithMinutes(5)">+5 min</button>
-              <button class="timer-quick-btn" onclick="startTimerWithMinutes(10)">+10 min</button>
-              <button class="timer-quick-btn" onclick="startTimerWithMinutes(15)">+15 min</button>
-              <button class="timer-quick-btn" onclick="startTimerWithMinutes(20)">+20 min</button>
+              <button class="timer-quick-btn" onclick="addTimerMinutes(1)">+1 min</button>
+              <button class="timer-quick-btn" onclick="addTimerMinutes(3)">+3 min</button>
+              <button class="timer-quick-btn" onclick="addTimerMinutes(5)">+5 min</button>
+              <button class="timer-quick-btn" onclick="addTimerMinutes(10)">+10 min</button>
+              <button class="timer-quick-btn" onclick="addTimerMinutes(15)">+15 min</button>
+              <button class="timer-quick-btn" onclick="addTimerMinutes(20)">+20 min</button>
             </div>
           </div>
 
@@ -3234,14 +3209,7 @@ function initSSE() {
     } catch(err) {}
     showToast('⏰ ¡El temporizador de recreo ha finalizado!');
     
-    // A los 4 segundos, desactivar el módulo del temporizador en el HTML
-    setTimeout(() => {
-      const toggle = document.getElementById('modTmEnabled');
-      if (toggle && toggle.checked) {
-        toggle.checked = false;
-        updateModularProp('timer', 'enabled', false);
-      }
-    }, 4000);
+
   });
 }
 
@@ -5254,6 +5222,35 @@ async function startTimerWithMinutes(mins) {
   }
 }
 
+
+async function addTimerMinutes(mins) {
+  if (currentTimerState && currentTimerState.active) {
+    // Si ya está activo, le sumamos tiempo en vivo
+    try {
+      const res = await fetch('/api/timer/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duration: mins * 60 })
+      });
+      const data = await res.json();
+      if (data.state) updateTimerUI(data.state);
+      showToast(`⏱ Añadidos ${mins} min al temporizador`);
+    } catch(e) {
+      showToast('Error al añadir tiempo');
+    }
+  } else {
+    // Si está inactivo, solo cambiamos el selector
+    let currentMins = 0;
+    const clockText = document.getElementById('timerClockDisplay').textContent;
+    const parts = clockText.split(':');
+    if (parts.length === 2) {
+      currentMins = parseInt(parts[0], 10) || 0;
+    }
+    const newMins = currentMins + mins;
+    document.getElementById('timerClockDisplay').textContent = `${String(newMins).padStart(2, '0')}:00`;
+  }
+}
+
 async function startCustomTimer() {
   const clockText = document.getElementById('timerClockDisplay').textContent;
   const parts = clockText.split(':');
@@ -6670,14 +6667,14 @@ function initOverlayStudio() {
   setVal('modTmTitleFont', config.overlay_timer_title_font || '');
   setVal('modTmBadgeFont', config.overlay_timer_badge_font || '');
   setVal('modTmPhraseFont', config.overlay_timer_phrase_font || '');
-  setCheck('modTmImgEnabled', config.overlay_timer_image_enabled, false);
-  setVal('modTmImgUrl', config.overlay_timer_image_url || '');
-  setVal('modTmImgX', config.overlay_timer_image_x !== undefined ? config.overlay_timer_image_x : 0);
-  setVal('modTmImgY', config.overlay_timer_image_y !== undefined ? config.overlay_timer_image_y : -100);
-  const tmImgScale = parseFloat(config.overlay_timer_image_scale || 1.0);
-  setVal('modTmImgScale', tmImgScale);
-  setText('modTmImgScaleVal', tmImgScale.toFixed(2) + 'x');
-  setVal('modTmImgRadius', config.overlay_timer_image_radius !== undefined ? config.overlay_timer_image_radius : 10);
+  renderTimerImages();
+  
+  
+  
+  
+  
+  
+  
   setCheck('modTmShowBadge', config.overlay_timer_show_badge, true);
   setCheck('modTmShowTitle', config.overlay_timer_show_title, true);
   setCheck('modTmShowClock', config.overlay_timer_show_clock, true);
