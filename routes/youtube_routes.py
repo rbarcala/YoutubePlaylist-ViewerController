@@ -1,0 +1,251 @@
+import json
+from flask import Blueprint, request, jsonify
+import threading
+
+youtube_bp = Blueprint('youtube', __name__)
+
+# Variables que se inyectan desde server.py
+load_config = None
+save_config = None
+broadcast_event = None
+current_state = None
+video_manager = None
+
+
+def init_youtube_routes(config_loader, config_saver, broadcast_fn, state, video_mgr_inst):
+    global load_config, save_config, broadcast_event, current_state, video_manager
+    load_config = config_loader
+    save_config = config_saver
+    broadcast_event = broadcast_fn
+    current_state = state
+    video_manager = video_mgr_inst
+
+
+@youtube_bp.route('/api/youtube/playlist')
+def get_youtube_playlist():
+    cfg = load_config()
+    api_key = cfg.get('youtube_api_key', '')
+    playlist_id = cfg.get('playlist_id', '')
+    
+    if not api_key or not playlist_id:
+        return jsonify({'videos': [], 'error': 'API Key o Playlist ID no configurados'})
+    
+    import urllib.request
+    import urllib.parse
+    
+    videos = []
+    next_page_token = None
+    max_results = 50
+    
+    while True:
+        params = {
+            'part': 'snippet,contentDetails',
+            'playlistId': playlist_id,
+            'maxResults': max_results,
+            'key': api_key
+        }
+        if next_page_token:
+            params['pageToken'] = next_page_token
+        
+        url = f'https://www.googleapis.com/youtube/v3/playlistItems?{urllib.parse.urlencode(params)}'
+        
+        try:
+            with urllib.request.urlopen(url, timeout=10) as response:
+                data = json.loads(response.read().decode())
+        except Exception as e:
+            return jsonify({'videos': [], 'error': str(e)})
+        
+        for item in data.get('items', []):
+            snippet = item.get('snippet', {})
+            content = item.get('contentDetails', {})
+            video_id = content.get('videoId')
+            if video_id:
+                videos.append({
+                    'id': video_id,
+                    'title': snippet.get('title', ''),
+                    'thumbnail': snippet.get('thumbnails', {}).get('high', {}).get('url', ''),
+                    'channel': snippet.get('channelTitle', ''),
+                    'published': snippet.get('publishedAt', '')
+                })
+        
+        next_page_token = data.get('nextPageToken')
+        if not next_page_token:
+            break
+    
+    return jsonify({'videos': videos})
+
+
+@youtube_bp.route('/api/youtube/live')
+def youtube_live():
+    cfg = load_config()
+    channel_id = cfg.get('youtube_channel_id', '')
+    api_key = cfg.get('youtube_api_key', '')
+    
+    if not channel_id or not api_key:
+        return jsonify({'live': None, 'error': 'Canal o API Key no configurados'})
+    
+    import urllib.request
+    import urllib.parse
+    import json
+    
+    # Buscar transmisión en vivo activa
+    params = {
+        'part': 'snippet',
+        'channelId': channel_id,
+        'eventType': 'live',
+        'type': 'video',
+        'key': api_key
+    }
+    url = f'https://www.googleapis.com/youtube/v3/search?{urllib.parse.urlencode(params)}'
+    
+    try:
+        with urllib.request.urlopen(url, timeout=10) as response:
+            data = json.loads(response.read().decode())
+    except Exception as e:
+        return jsonify({'live': None, 'error': str(e)})
+    
+    items = data.get('items', [])
+    if items:
+        video_id = items[0].get('id', {}).get('videoId')
+        if video_id:
+            return jsonify({'live': {'videoId': video_id}})
+    
+    return jsonify({'live': None})
+
+
+@youtube_bp.route('/api/get_video_url')
+def get_video_url():
+    video_id = request.args.get('v')
+    playback_mode = request.args.get('mode', 'stream')
+    
+    if not video_id:
+        return jsonify({'error': 'Parámetro v requerido'}), 400
+    
+    cfg = load_config()
+    
+    # Verificar cache local primero
+    cached = video_manager.get_cached_path(video_id) if video_manager else None
+    if cached and playback_mode in ('cache', 'adaptive'):
+        return jsonify({
+            'video_url': f'/api/cache/video/{video_id}',
+            'audio_url': f'/api/cache/video/{video_id}',
+            'combined_audio': True,
+            'expires_at': 0
+        })
+    
+    # Obtener URL de streaming via yt-dlp
+    import yt_dlp
+    opts = {
+        'format': 'best[height<=1080][ext=mp4]/best[height<=1080]/best',
+        'quiet': True,
+        'no_warnings': True,
+        'noplaylist': True,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web']
+            }
+        },
+    }
+    
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
+        
+        video_url = None
+        audio_url = None
+        combined_audio = False
+        
+        for fmt in info.get('formats', []):
+            if fmt.get('vcodec') != 'none' and fmt.get('acodec') != 'none':
+                video_url = fmt.get('url')
+                combined_audio = True
+                break
+        
+        if not video_url:
+            for fmt in info.get('formats', []):
+                if fmt.get('vcodec') != 'none' and fmt.get('acodec') == 'none':
+                    video_url = fmt.get('url')
+                    break
+            for fmt in info.get('formats', []):
+                if fmt.get('vcodec') == 'none' and fmt.get('acodec') != 'none':
+                    audio_url = fmt.get('url')
+                    break
+        
+        if not video_url:
+            return jsonify({'error': 'No se encontró formato de video válido'}), 500
+        
+        # Parsear expiración real de la URL
+        import urllib.parse as _up
+        def _parse_expire(u):
+            try:
+                qs = _up.parse_qs(_up.urlparse(u).query)
+                exp = qs.get('expire', qs.get('exp', [None]))[0]
+                if exp:
+                    return int(exp)
+            except Exception:
+                pass
+            return None
+
+        real_expire = _parse_expire(video_url) or _parse_expire(audio_url)
+        import time
+        now = time.time()
+        if real_expire and real_expire > now:
+            cache_until = real_expire - 180
+        else:
+            cache_until = now + 1500
+
+        result = {
+            'video_url': video_url,
+            'audio_url': audio_url,
+            'combined_audio': combined_audio,
+            'expires_at': int(cache_until + 180)
+        }
+        
+        if playback_mode in ('cache', 'adaptive'):
+            _queue_video_download(video_id)
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@youtube_bp.route('/api/prefetch_video_url')
+def prefetch_video_url():
+    video_id = request.args.get('v')
+    if not video_id:
+        return jsonify({'ok': False}), 400
+    
+    # Eliminar del cache para forzar renovación
+    # (el cache está en server.py, se accede vía current_app)
+    from flask import current_app
+    if hasattr(current_app, 'video_cache'):
+        current_app.video_cache.pop(video_id, None)
+    
+    # Lanzar en background
+    def _renew():
+        try:
+            import requests as _req
+            _req.get(f'http://127.0.0.1:{request.environ.get("SERVER_PORT", 5000)}/api/get_video_url?v={video_id}', timeout=30)
+        except Exception:
+            pass
+    threading.Thread(target=_renew, daemon=True).start()
+    return jsonify({'ok': True})
+
+
+@youtube_bp.route('/api/cache/video/<video_id>')
+def serve_cached_video(video_id):
+    from flask import send_from_directory
+    cached_path = _cached_video_path(video_id)
+    if not cached_path:
+        return jsonify({'error': 'Video todavía no está disponible en cache'}), 404
+    return send_from_directory(VIDEO_CACHE_DIR, cached_path.name, conditional=True)
+
+
+@youtube_bp.route('/api/cache/status/<video_id>')
+def cached_video_status(video_id):
+    cached_path = _cached_video_path(video_id)
+    if cached_path:
+        return jsonify({'status': 'ready', 'url': f'/api/cache/video/{video_id}'})
+    with video_download_lock:
+        status = video_download_status.get(video_id, 'idle')
+    return jsonify({'status': status})

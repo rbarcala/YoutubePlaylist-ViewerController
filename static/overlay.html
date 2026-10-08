@@ -469,6 +469,9 @@
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
+  /**
+   * Reproduce una campanilla escolar estilo timbre al finalizar el temporizador.
+   */
   function playSchoolBellChime() {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -492,6 +495,10 @@
     } catch(e) {}
   }
 
+  /**
+   * Actualiza la interfaz del temporizador de pausa / recreo.
+   * @param {Object} data - Datos del temporizador (active, remaining_seconds, total_seconds, title, phrase).
+   */
   function updateTimerUI(data) {
     if (!data) return;
     currentTimerState = data;

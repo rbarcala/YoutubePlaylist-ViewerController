@@ -206,6 +206,9 @@ video.addEventListener('timeupdate', () => {
   }
 });
 
+/**
+ * Aplica el estado actual de reproducción (velocidad, muteo y canales de audio).
+ */
 function applyState() {
   video.playbackRate = currentPlaybackRate;
   audio.playbackRate = currentPlaybackRate;
@@ -225,9 +228,11 @@ function applyState() {
   }
 }
 
+/**
+ * Inicia la reproducción de video y audio garantizando compatibilidad con políticas de autoplay.
+ */
 function startVideoPlayback() {
   if (!video.src) return;
-  // Si está muteado, arrancamos muteado para garantizar compatibilidad con autoplay en navegadores
   if (isMuted) {
     video.muted = true;
     audio.muted = true;
@@ -241,7 +246,7 @@ function startVideoPlayback() {
       audio.play().catch(() => {});
     }
   }).catch(() => {
-    // Si el navegador bloqueó la reproducción automática con sonido, arrancar en mute y luego sincronizar
+    // Fallback: reproducir en mute si el navegador bloquea el autoplay con sonido
     video.muted = true;
     video.play().then(() => {
       applyState();
@@ -249,6 +254,9 @@ function startVideoPlayback() {
   });
 }
 
+/**
+ * Cambia a medio combinado (video + audio en la misma pista) en caso de fallo de sincronización.
+ */
 async function switchToCombinedMedia() {
   if (audioFallbackRequested) return;
   audioFallbackRequested = true;
