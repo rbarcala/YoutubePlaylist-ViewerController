@@ -4,10 +4,9 @@ YouTube Stream Controller — Servidor Flask Modular.
 Registra Blueprints por dominio y gestiona estado compartido.
 """
 
-import os
 import sys
 from pathlib import Path
-from flask import Flask, jsonify
+from flask import Flask
 
 # ─── Configuración inicial ───
 BASE_DIR = Path(__file__).resolve().parent
@@ -17,6 +16,7 @@ from config_manager import load_config, save_config
 from spotify_manager import SpotifyManager
 from soundboard_manager import SoundboardManager
 from browser_manager import BrowserManager
+from overlay_manager import OverlayManager
 
 # Importar Managers Centralizados
 from core.websocket_manager import ws_manager, broadcast_event
@@ -41,133 +41,71 @@ app = Flask(__name__, static_folder='static', static_url_path='')
 VIDEO_CACHE_DIR = Path.home() / '.cache' / 'youtube-playlist-vc' / 'videos'
 video_mgr = VideoManager(VIDEO_CACHE_DIR)
 
-# ─── Estado global compartido ───
-current_state = {
-    "videoId": "",
-    "title": "",
-    "thumb": "",
-    "playbackRate": 1.7,
-    "muted": True,
-    "volume": 1.0,
-    "loop": False,
-    "autoplay": True,
-}
-
-obs_scenes_cache = {"scenes": [], "current_scene": ""}
-obs_scenes_lock = video_mgr.lock # Reusar el lock o crear uno nuevo si es necesario
-
 # ─── Inicializar managers ───
 cfg_initial = load_config()
 spotify_mgr = SpotifyManager(load_config, save_config)
-soundboard_mgr = SoundboardManager(load_config, save_config)
+soundboard_mgr = SoundboardManager(load_config, save_config, on_idle=lambda: broadcast_event("soundboard_stop", {}))
 browser_mgr = BrowserManager()
+overlay_mgr = OverlayManager(broadcast_event, load_config, save_config)
 
-# Actualizar estado inicial desde config
-current_state.update({
+# ─── Estado global compartido ───
+current_state = {
     "videoId": cfg_initial.get("last_played_video_id", ""),
     "title": cfg_initial.get("last_played_title", ""),
+    "thumb": "",
     "playbackRate": float(cfg_initial.get("default_playback_rate", 1.7)),
     "muted": bool(cfg_initial.get("default_muted", True)),
     "volume": float(cfg_initial.get("default_volume", 1.0)),
     "loop": bool(cfg_initial.get("default_loop", False)),
     "autoplay": bool(cfg_initial.get("default_autoplay", True)),
-})
+    "isPlaying": False,
+    "activeViewers": 0,
+    "activeControllers": 0,
+    "soundboard_volume": int(cfg_initial.get("soundboard_volume", 80)),
+}
+
+obs_scenes_cache = {"scenes": [], "current_scene": ""}
+obs_scenes_lock = video_mgr.lock
 
 # ─── Registrar Blueprints y inyectar dependencias ───
-# Static routes (páginas, SSE, estado, red)
 init_static_routes(
     state=current_state,
-    ws_manager=ws_manager,
+    ws_manager_inst=ws_manager,
     obs_cache=obs_scenes_cache,
     obs_lck=obs_scenes_lock,
-    video_manager=video_mgr,
+    video_manager_inst=video_mgr,
     config_loader=load_config,
+    config_saver=save_config,
+    broadcast_fn=broadcast_event,
+    browser_manager_inst=browser_mgr,
 )
 app.register_blueprint(static_bp)
 
-# Config routes
 init_config_routes(broadcast_event)
 app.register_blueprint(config_bp)
 
-# OBS routes
 init_obs_routes(load_config, broadcast_event, obs_scenes_cache, obs_scenes_lock)
 app.register_blueprint(obs_bp)
 
-# Spotify routes
 init_spotify_routes(spotify_mgr, load_config, save_config, broadcast_event)
 app.register_blueprint(spotify_bp)
 
-# Soundboard routes
 init_soundboard_routes(soundboard_mgr, load_config, save_config, broadcast_event, browser_mgr)
 app.register_blueprint(soundboard_bp)
 
-# YouTube routes
-init_youtube_routes(
-    load_config, save_config, broadcast_event, current_state,
-    video_mgr
-)
+init_youtube_routes(load_config, save_config, broadcast_event, current_state, video_mgr)
 app.register_blueprint(youtube_bp)
 
-# Timer routes
-init_timer_routes(load_config, save_config, broadcast_event)
+init_timer_routes(overlay_mgr, load_config, save_config)
 app.register_blueprint(timer_bp)
 
-# Video cache routes (complementario a youtube_bp)
 init_video_routes(video_mgr)
 app.register_blueprint(video_bp)
 
-# ─── Handlers de acciones genéricas para /api/action ───
-def _handle_youtube_action(data):
-    action = data.get('action')
-    if action == 'play':
-        video_id = data.get('videoId')
-        if video_id:
-            current_state['videoId'] = video_id
-            current_state['title'] = data.get('title', '')
-            current_state['thumb'] = data.get('thumb', '')
-            broadcast_event('state_update', current_state)
-            return jsonify({'ok': True})
-    elif action in ('pause', 'seek', 'rate', 'volume', 'mute', 'loop'):
-        if action == 'pause':
-            current_state['paused'] = True
-        elif action == 'seek':
-            current_state['currentTime'] = data.get('time', 0)
-        elif action == 'rate':
-            current_state['playbackRate'] = float(data.get('rate', 1.0))
-        elif action == 'volume':
-            current_state['volume'] = float(data.get('volume', 1.0))
-        elif action == 'mute':
-            current_state['muted'] = bool(data.get('muted', True))
-        elif action == 'loop':
-            current_state['loop'] = bool(data.get('loop', False))
-        
-        broadcast_event('state_update', current_state)
-        return jsonify({'ok': True})
-    elif action == 'next':
-        broadcast_event('playlist_next', {})
-        return jsonify({'ok': True})
-    elif action == 'previous':
-        broadcast_event('playlist_prev', {})
-        return jsonify({'ok': True})
-    return None
-
-# Registrar handlers de acciones en la app para que static_routes los use
-app.action_handlers = {
-    'play': _handle_youtube_action,
-    'pause': _handle_youtube_action,
-    'seek': _handle_youtube_action,
-    'rate': _handle_youtube_action,
-    'volume': _handle_youtube_action,
-    'mute': _handle_youtube_action,
-    'loop': _handle_youtube_action,
-    'next': _handle_youtube_action,
-    'previous': _handle_youtube_action,
-}
-
-# ─── Cache de URLs de video ───
+# Cache de URLs de video
 app.video_cache = video_mgr.video_url_cache
 
-# Iniciar monitores
+# Iniciar monitores en background
 start_spotify_monitor(spotify_mgr, broadcast_event)
 start_obs_monitor(load_config, broadcast_event, obs_scenes_cache, obs_scenes_lock, ws_manager)
 

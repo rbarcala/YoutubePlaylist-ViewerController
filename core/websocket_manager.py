@@ -1,36 +1,48 @@
 import json
+import time
+import queue
 import threading
+
 
 class WebSocketManager:
     """Gestiona la difusión de eventos SSE a múltiples clientes."""
-    def __init__(self):
-        self.listeners = []
-        self.lock = threading.Lock()
 
-    def add_listener(self, queue):
+    def __init__(self):
+        self.listeners = set()
+        self.lock = threading.Lock()
+        self.active_viewers = set()
+        self.viewer_lock = threading.Lock()
+
+    def add_listener(self, q):
         """Añade un nuevo cliente (cola) a la lista de escuchas."""
         with self.lock:
-            self.listeners.append(queue)
+            self.listeners.add(q)
 
-    def remove_listener(self, queue):
+    def remove_listener(self, q):
         """Elimina un cliente de la lista de escuchas."""
         with self.lock:
-            if queue in self.listeners:
-                self.listeners.remove(queue)
+            self.listeners.discard(q)
 
     def broadcast_event(self, event_type: str, data: dict):
-        """Difunde un evento a todos los clientes conectados."""
-        payload = f'event: {event_type}\ndata: {json.dumps(data)}\n\n'
+        """Difunde un evento a todos los clientes conectados con formato SSE esperado por el frontend."""
+        payload = json.dumps({"type": event_type, "data": data, "timestamp": time.time()})
+        sse_message = f"event: {event_type}\ndata: {payload}\n\n"
         with self.lock:
             dead = []
-            for q in self.listeners:
+            for q in list(self.listeners):
                 try:
-                    q.put(payload)
+                    q.put_nowait(sse_message)
+                except queue.Full:
+                    try:
+                        q.get_nowait()
+                        q.put_nowait(sse_message)
+                    except Exception:
+                        pass
                 except Exception:
                     dead.append(q)
             for q in dead:
-                if q in self.listeners:
-                    self.listeners.remove(q)
+                self.listeners.discard(q)
+
 
 # Instancia global para ser usada por toda la aplicación
 ws_manager = WebSocketManager()

@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify, send_from_directory
 import os
 import json
 import threading
+import webbrowser
+from flask import Blueprint, request, jsonify, send_from_directory
 
 soundboard_bp = Blueprint('soundboard', __name__)
 
@@ -12,7 +13,8 @@ save_config = None
 broadcast_event = None
 browser_mgr = None
 
-def init_soundboard_routes(sb_mgr, config_loader, config_saver, broadcast_fn, br_mgr):
+
+def init_soundboard_routes(sb_mgr, config_loader, config_saver, broadcast_fn, br_mgr=None):
     global soundboard_mgr, load_config, save_config, broadcast_event, browser_mgr
     soundboard_mgr = sb_mgr
     load_config = config_loader
@@ -23,7 +25,7 @@ def init_soundboard_routes(sb_mgr, config_loader, config_saver, broadcast_fn, br
 
 @soundboard_bp.route('/api/soundboard/regional')
 def soundboard_regional():
-    region = request.args.get('region', 'ES')
+    region = request.args.get('region', 'ar')
     page = int(request.args.get('page', 1))
     result = soundboard_mgr.get_regional(region, page)
     return jsonify(result)
@@ -31,7 +33,8 @@ def soundboard_regional():
 
 @soundboard_bp.route('/api/soundboard/trending')
 def soundboard_trending():
-    result = soundboard_mgr.get_regional('trending', 1)
+    page = int(request.args.get('page', 1))
+    result = soundboard_mgr.get_regional('trending', page)
     return jsonify(result)
 
 
@@ -41,7 +44,6 @@ def soundboard_search():
     page = int(request.args.get('page', 1))
     if not query:
         return jsonify({'sounds': []})
-    
     result = soundboard_mgr.search(query, page)
     return jsonify(result)
 
@@ -51,93 +53,138 @@ def open_browser():
     if browser_mgr:
         browser_mgr.open_myinstants_tab()
         return jsonify({'ok': True})
-    return jsonify({'ok': False, 'error': 'Gestor de navegador no disponible'}), 500
+    webbrowser.open("https://www.myinstants.com")
+    return jsonify({'ok': True, 'fallback': 'browser'})
 
 
 @soundboard_bp.route('/api/soundboard/auth', methods=['GET', 'POST'])
 def soundboard_auth():
     if request.method == 'GET':
-        cfg = load_config()
-        cookie = cfg.get('soundboard_session_cookie', '')
-        return jsonify({'authenticated': bool(cookie)})
-    
-    data = request.get_json() or {}
-    cookie = data.get('cookie')
-    if not cookie:
-        return jsonify({'ok': False, 'error': 'Cookie requerida'}), 400
-    
-    cfg = load_config()
-    cfg['soundboard_session_cookie'] = cookie
-    save_config(cfg)
-    
+        return jsonify(soundboard_mgr.get_auth_status())
+
+    data = request.get_json(force=True, silent=True) or {}
+    username = data.get("username", "").strip()
+    session_cookie = data.get("session_cookie") or data.get("cookie", "")
+    csrf_token = data.get("csrf_token", "")
+    client_id = data.get("clientId") or data.get("client_id")
+
+    res = soundboard_mgr.save_auth(username, session_cookie, csrf_token)
     if broadcast_event:
-        broadcast_event('soundboard_auth', {'authenticated': True})
-    
-    return jsonify({'ok': True})
+        broadcast_event("soundboard_auth_success", {
+            "username": res.get("username", ""),
+            "has_session": res.get("has_session", False),
+            "clientId": client_id
+        })
+        favs = soundboard_mgr.get_saved_favorites()
+        broadcast_event("soundboard_favorites_updated", {"favorites": favs, "clientId": client_id})
+    return jsonify(res)
 
 
 @soundboard_bp.route('/api/soundboard/login_window', methods=['POST'])
 def soundboard_login_window():
-    # Abrir ventana de login para MyInstants
-    if browser_mgr:
+    """Abre la ventana nativa de escritorio o navegador para iniciar sesión en MyInstants."""
+    try:
+        import importlib
+        app_mod = importlib.import_module("app")
+        if hasattr(app_mod, "open_myinstants_login_window"):
+            success = app_mod.open_myinstants_login_window()
+            return jsonify({"success": success})
+    except Exception:
+        pass
+
+    if browser_mgr and hasattr(browser_mgr, "open_myinstants_login"):
         threading.Thread(target=browser_mgr.open_myinstants_login, daemon=True).start()
-        return jsonify({'ok': True})
-    return jsonify({'ok': False, 'error': 'Gestor de navegador no disponible'}), 500
+        return jsonify({"success": True})
+
+    webbrowser.open("https://www.myinstants.com/en/favorites/")
+    return jsonify({"success": True, "fallback": "browser"})
 
 
-@soundboard_bp.route('/api/soundboard/favorites', methods=['GET'])
+@soundboard_bp.route('/api/soundboard/favorites', methods=['GET', 'POST'])
 def soundboard_favorites():
-    cfg = load_config()
-    username = cfg.get('soundboard_username', '')
-    if username:
-        favorites = soundboard_mgr.get_user_favorites(username)
-        return jsonify({'favorites': favorites})
-    return jsonify({'favorites': []})
+    """Obtiene o agrega a la lista persistida de favoritos con sincronización en la nube."""
+    if request.method == 'POST':
+        data = request.get_json(force=True, silent=True) or {}
+        res = soundboard_mgr.add_favorite(data)
+        favs = res.get('favorites', res) if isinstance(res, dict) else res
+        client_id = data.get('clientId') or data.get('client_id')
+        if broadcast_event:
+            broadcast_event("soundboard_favorites_updated", {"favorites": favs, "clientId": client_id})
+        return jsonify(res)
+    return jsonify(soundboard_mgr.get_saved_favorites())
+
+
+@soundboard_bp.route('/api/soundboard/favorites/remove', methods=['POST'])
+def soundboard_favorites_remove():
+    """Elimina un sonido de los favoritos."""
+    data = request.get_json(force=True, silent=True) or {}
+    sound_id = data.get('id') or data.get('title') or data.get('mp3')
+    favs = soundboard_mgr.remove_favorite(sound_id)
+    client_id = data.get('clientId') or data.get('client_id')
+    if broadcast_event:
+        broadcast_event("soundboard_favorites_updated", {"favorites": favs, "clientId": client_id})
+    return jsonify(favs)
 
 
 @soundboard_bp.route('/api/soundboard/play', methods=['POST'])
 def soundboard_play():
-    data = request.get_json() or {}
-    url = data.get('url')
-    
-    if not url:
-        return jsonify({'ok': False, 'error': 'URL requerida'}), 400
-    
-    # Extraer info del sound desde la URL de MyInstants
-    sound_info = {'url': url, 'name': 'Unknown'}
-    ok = soundboard_mgr.play(sound_info)
-    return jsonify({'ok': ok})
+    """Reproduce el audio en la PC anfitriona (Linux PipeWire/ALSA)."""
+    data = request.get_json(force=True, silent=True) or {}
+    mp3_url = data.get('mp3') or data.get('url', '')
+    title = data.get('title', '')
+    cfg = load_config() if load_config else {}
+    vol = data.get('volume')
+    if vol is None:
+        vol = cfg.get('soundboard_volume', 80)
+    res = soundboard_mgr.play(mp3_url, title, vol)
+    client_id = data.get('clientId') or data.get('client_id')
+    if broadcast_event:
+        broadcast_event("soundboard_play", {"title": title, "mp3": mp3_url, "volume": vol, "clientId": client_id})
+    return jsonify(res)
 
 
 @soundboard_bp.route('/api/soundboard/volume', methods=['POST'])
 def soundboard_volume():
-    data = request.get_json() or {}
-    volume = data.get('volume')
-    if volume is None:
-        return jsonify({'ok': False, 'error': 'volume requerido'}), 400
-    
-    cfg = load_config()
-    cfg['soundboard_volume'] = volume
-    save_config(cfg)
-    soundboard_mgr.current_volume = volume
-    return jsonify({'ok': True})
+    """Actualiza y persiste el volumen predeterminado de la botonera."""
+    data = request.get_json(force=True, silent=True) or {}
+    vol = data.get('volume', 80)
+    res = soundboard_mgr.set_volume(vol)
+    vol_val = res.get("volume", vol)
+    client_id = data.get('clientId') or data.get('client_id')
+    if broadcast_event:
+        broadcast_event("soundboard_volume", {"volume": vol_val, "clientId": client_id})
+    return jsonify(res)
 
 
 @soundboard_bp.route('/api/soundboard/stop', methods=['POST'])
 def soundboard_stop():
-    soundboard_mgr.stop_all()
-    return jsonify({'ok': True})
+    """Detiene cualquier sonido en reproducción en la PC."""
+    data = request.get_json(force=True, silent=True) or {}
+    res = soundboard_mgr.stop_all()
+    client_id = data.get('clientId') or data.get('client_id')
+    if broadcast_event:
+        broadcast_event("soundboard_stop", {"clientId": client_id})
+    return jsonify(res)
 
 
 @soundboard_bp.route('/api/soundboard/sync_account', methods=['POST'])
 def soundboard_sync_account():
-    data = request.get_json() or {}
-    username = data.get('username')
-    
+    """Sincroniza favoritos de la cuenta o perfil de MyInstants."""
+    data = request.get_json(force=True, silent=True) or {}
+    username = data.get('username', '').strip()
+    if not username and load_config:
+        cfg = load_config()
+        username = cfg.get('soundboard_username', '')
+
     if not username:
         return jsonify({'ok': False, 'error': 'Usuario requerido'}), 400
-    
-    threading.Thread(target=soundboard_mgr.sync_account, args=(username,), daemon=True).start()
+
+    def _sync():
+        res = soundboard_mgr.sync_account(username)
+        if broadcast_event:
+            favs = soundboard_mgr.get_saved_favorites()
+            broadcast_event("soundboard_favorites_updated", {"favorites": favs})
+    threading.Thread(target=_sync, daemon=True).start()
     return jsonify({'ok': True})
 
 
