@@ -1,0 +1,36 @@
+  :root {
+    --header-h: 52px;
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface-hover: #1e1e1e;
+    --border: #242424;
+    --border-bright: #3a3a3a;
+    --accent: #e8ff47;
+    --accent-hover: #f3ff7a;
+    --accent2: #ff4757;
+    --accent-blue: #00d2d3;
+    --accent-spotify: #1db954;
+    --text: #eeeeee;
+    --muted: #777777;
+    --radius: 8px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    height: 100%;
+    overflow: hidden;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+

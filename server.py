@@ -12,16 +12,19 @@ from flask import Flask
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
-from config_manager import load_config, save_config
-from spotify_manager import SpotifyManager
-from soundboard_manager import SoundboardManager
-from browser_manager import BrowserManager
-from overlay_manager import OverlayManager
+# Importar Servicios Centralizados
+from services import (
+    load_config, save_config,
+    SpotifyManager, SoundboardManager,
+    BrowserManager, OverlayManager,
+    start_mdns_publisher
+)
 
-# Importar Managers Centralizados
-from core.websocket_manager import ws_manager, broadcast_event
-from core.video_manager import VideoManager
-from core.monitors import start_spotify_monitor, start_obs_monitor
+# Importar Managers de Core
+from core import (
+    ws_manager, broadcast_event, VideoManager,
+    start_spotify_monitor, start_obs_monitor
+)
 
 # Importar Blueprints y sus funciones de inicialización
 from routes import (
@@ -116,7 +119,6 @@ if __name__ == '__main__':
     host = cfg.get("host", "0.0.0.0")
     print(f"[fondos-stream] Iniciando servidor en http://{host}:{puerto}")
     try:
-        from mdns_service import start_mdns_publisher
         start_mdns_publisher(puerto)
     except Exception as e:
         print(f"[mDNS] No se pudo iniciar publicador mDNS: {e}")

@@ -72,9 +72,33 @@ class TestRoutes(unittest.TestCase):
     def test_static_html_served(self):
         for page in ['/viewer.html', '/controller.html', '/overlay.html']:
             res = self.client.get(page)
+            _ = res.data
             self.assertEqual(res.status_code, 200, f"Error cargando {page}")
+
+    def test_modular_css_served(self):
+        css_files = ['/css/theme.css', '/css/controller.css', '/css/responsive.css']
+        for css in css_files:
+            res = self.client.get(css)
+            _ = res.data
+            self.assertEqual(res.status_code, 200, f"Error cargando {css}")
+            self.assertGreater(len(res.data), 0)
+
+    def test_modular_js_served(self):
+        js_files = [
+            '/js/state.js',
+            '/js/modules/youtube.js',
+            '/js/modules/obs.js',
+            '/js/modules/spotify.js',
+            '/js/modules/soundboard.js',
+            '/js/modules/modals.js',
+            '/js/modules/timer.js',
+        ]
+        for js in js_files:
+            res = self.client.get(js)
+            _ = res.data
+            self.assertEqual(res.status_code, 200, f"Error cargando {js}")
+            self.assertGreater(len(res.data), 0)
 
 
 if __name__ == '__main__':
     unittest.main()
-
