@@ -14,7 +14,7 @@ class TestSpotifyManager(unittest.TestCase):
 
     def setUp(self):
         """Configurar entorno de prueba."""
-        from spotify_manager import SpotifyManager
+        from services.spotify_manager import SpotifyManager
         self.mock_load_config = Mock(return_value={})
         self.mock_save_config = Mock()
         self.manager = SpotifyManager(self.mock_load_config, self.mock_save_config)
@@ -25,7 +25,7 @@ class TestSpotifyManager(unittest.TestCase):
         # Verificar que tiene los métodos necesarios
         self.assertTrue(hasattr(self.manager, 'get_config') or hasattr(self.manager, 'load_config'))
 
-    @patch('spotify_manager.subprocess.run')
+    @patch('services.spotify_manager.subprocess.run')
     def test_spotify_command_execution(self, mock_run):
         """Probar ejecución de comandos de Spotify."""
         mock_run.return_value = Mock(returncode=0)
@@ -44,7 +44,7 @@ class TestSoundboardManager(unittest.TestCase):
 
     def setUp(self):
         """Configurar entorno de prueba."""
-        from soundboard_manager import SoundboardManager
+        from services.soundboard_manager import SoundboardManager
         self.mock_load_config = Mock(return_value={
             "soundboard_session_cookie": None,
             "soundboard_csrf_token": None,

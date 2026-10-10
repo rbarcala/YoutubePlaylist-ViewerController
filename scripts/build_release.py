@@ -39,11 +39,7 @@ def build_deb():
 
     # 1. Copiar código de la app
     app_files = [
-        "app.py", "server.py", "config_manager.py", "obs_client.py",
-        "spotify_manager.py", "soundboard_manager.py", "browser_manager.py", "qr_svg.py",
-        "overlay_manager.py", "mdns_service.py",
-        "controller.html", "viewer.html", "overlay.html",
-        "manifest.json", "sw.js", "config.example.json", "requirements.txt"
+        "app.py", "server.py", "config.example.json", "requirements.txt"
     ]
     for f in app_files:
         src = BASE_DIR / f

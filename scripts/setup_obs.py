@@ -138,7 +138,7 @@ def configure_obs_global_ini(obs_dir: Path) -> tuple[int, str]:
 def try_add_overlay_via_websocket(port: int, password: str, overlay_url: str) -> bool:
     """Intenta conectarse a OBS si está en ejecución y agrega el overlay en vivo."""
     try:
-        from obs_client import OBSController
+        from services.obs_client import OBSController
         obs = OBSController(host="localhost", port=port, password=password)
         sock = obs._connect_and_identify()
         if not sock:

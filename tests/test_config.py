@@ -9,7 +9,7 @@ import sys
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
-from config_manager import load_config, save_config, LOCAL_CONFIG_PATH, USER_CONFIG_PATH
+from services.config_manager import load_config, save_config, LOCAL_CONFIG_PATH, USER_CONFIG_PATH
 
 
 class TestConfigManager(unittest.TestCase):
@@ -38,13 +38,13 @@ class TestConfigManager(unittest.TestCase):
             json.dump(test_config, f, indent=2)
         
         # Sobrescribir las rutas de config para usar el temporal
-        import config_manager
+        import services.config_manager as config_manager
         config_manager.LOCAL_CONFIG_PATH = self.temp_config
         config_manager.USER_CONFIG_PATH = Path(self.temp_dir) / "user_config.json"
 
     def tearDown(self):
         """Limpiar entorno de prueba."""
-        import config_manager
+        import services.config_manager as config_manager
         config_manager.LOCAL_CONFIG_PATH = self.original_local_config
         config_manager.USER_CONFIG_PATH = self.original_user_config
         
