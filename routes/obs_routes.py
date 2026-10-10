@@ -79,14 +79,15 @@ def obs_switch():
         return jsonify({'success': False, 'error': 'Nombre de escena requerido'}), 400
 
     obs = _get_obs_controller()
-    res = obs.set_current_program_scene(scene_name)
+    res = obs.switch_scene(scene_name)
     if res.get("success"):
         with obs_scenes_lock:
             obs_scenes_cache['current_scene'] = scene_name
         if broadcast_event:
             broadcast_event('obs_scene_changed', {'scene': scene_name})
             broadcast_event('obs_updated', {'scene': scene_name})
-    return jsonify(res)
+        return jsonify(res)
+    return jsonify(res), 400
 
 
 @obs_bp.route('/api/obs/toggle_stream', methods=['POST'])

@@ -175,13 +175,55 @@ def try_add_overlay_via_websocket(port: int, password: str, overlay_url: str) ->
             obs._recv_ws_frame(sock)
             scenes.append({"sceneName": "CLASE"})
 
+        # Obtener lista de inputs existentes para no duplicar si ya existe 'Overlay Stream Hub' o 'Overlay Stream Controller'
+        req_inputs = {
+            "op": 6,
+            "d": {
+                "requestType": "GetInputList",
+                "requestId": "setup-get-inputs"
+            }
+        }
+        obs._send_ws_frame(sock, json.dumps(req_inputs))
+        resp_inputs = json.loads(obs._recv_ws_frame(sock) or "{}")
+        all_inputs = resp_inputs.get("d", {}).get("responseData", {}).get("inputs", [])
+        input_names = [inp.get("inputName") for inp in all_inputs]
+
+        target_input_name = OVERLAY_SOURCE_NAME
+        if "Overlay Stream Hub" in input_names and OVERLAY_SOURCE_NAME not in input_names:
+            target_input_name = "Overlay Stream Hub"
+        elif OVERLAY_SOURCE_NAME in input_names:
+            target_input_name = OVERLAY_SOURCE_NAME
+
         added_count = 0
         for sc in scenes:
             scene_name = sc.get("sceneName")
             if not scene_name or scene_name != "CLASE":
                 continue
 
-            # Crear o verificar la entrada Browser Source
+            # Si el input ya existe en OBS, solo actualizamos sus parámetros
+            if target_input_name in input_names:
+                set_req = {
+                    "op": 6,
+                    "d": {
+                        "requestType": "SetInputSettings",
+                        "requestId": f"update-overlay-{scene_name}",
+                        "requestData": {
+                            "inputName": target_input_name,
+                            "inputSettings": {
+                                "url": overlay_url,
+                                "width": OVERLAY_WIDTH,
+                                "height": OVERLAY_HEIGHT,
+                                "css": OVERLAY_CSS
+                            }
+                        }
+                    }
+                }
+                obs._send_ws_frame(sock, json.dumps(set_req))
+                obs._recv_ws_frame(sock)
+                added_count += 1
+                continue
+
+            # Si no existe, crear la entrada Browser Source
             create_req = {
                 "op": 6,
                 "d": {
@@ -189,7 +231,7 @@ def try_add_overlay_via_websocket(port: int, password: str, overlay_url: str) ->
                     "requestId": f"create-overlay-{scene_name}",
                     "requestData": {
                         "sceneName": scene_name,
-                        "inputName": OVERLAY_SOURCE_NAME,
+                        "inputName": target_input_name,
                         "inputKind": "browser_source",
                         "inputSettings": {
                             "url": overlay_url,
@@ -216,7 +258,7 @@ def try_add_overlay_via_websocket(port: int, password: str, overlay_url: str) ->
                         "requestType": "SetInputSettings",
                         "requestId": f"update-overlay-{scene_name}",
                         "requestData": {
-                            "inputName": OVERLAY_SOURCE_NAME,
+                            "inputName": target_input_name,
                             "inputSettings": {
                                 "url": overlay_url,
                                 "width": OVERLAY_WIDTH,
@@ -231,7 +273,7 @@ def try_add_overlay_via_websocket(port: int, password: str, overlay_url: str) ->
             added_count += 1
 
         sock.close()
-        print(f"  [✓] OBS en ejecución detectado: Capa '{OVERLAY_SOURCE_NAME}' conectada vía WebSocket en vivo.")
+        print(f"  [✓] OBS en ejecución detectado: Capa '{target_input_name}' conectada vía WebSocket en vivo.")
         return True
     except Exception:
         return False
@@ -249,9 +291,10 @@ def inject_overlay_into_scene_json(json_path: Path, overlay_url: str) -> bool:
     
     # Buscar si ya existe la fuente
     source_uuid = None
+    target_source_name = OVERLAY_SOURCE_NAME
     for s in sources:
         if s.get("name") in (OVERLAY_SOURCE_NAME, "Overlay Stream Hub"):
-            s["name"] = OVERLAY_SOURCE_NAME
+            target_source_name = s.get("name")
             source_uuid = s.get("uuid")
             # Actualizar settings
             s.setdefault("settings", {})["url"] = overlay_url
@@ -265,7 +308,7 @@ def inject_overlay_into_scene_json(json_path: Path, overlay_url: str) -> bool:
         source_uuid = str(uuid.uuid4())
         new_source = {
             "prev_ver": 537001984,
-            "name": OVERLAY_SOURCE_NAME,
+            "name": target_source_name,
             "uuid": source_uuid,
             "id": "browser_source",
             "versioned_id": "browser_source",
@@ -332,7 +375,7 @@ def inject_overlay_into_scene_json(json_path: Path, overlay_url: str) -> bool:
                 scene_settings["id_counter"] = next_id
 
                 new_item = {
-                    "name": OVERLAY_SOURCE_NAME,
+                    "name": target_source_name,
                     "source_uuid": source_uuid,
                     "visible": True,
                     "locked": False,

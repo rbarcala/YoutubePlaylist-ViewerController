@@ -337,8 +337,11 @@ async function switchObsScene(scene) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scene })
     });
-    if (!res.ok) {
-      showToast('Error al cambiar de escena', 'error');
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast('Escena cambiada: ' + scene, 'success');
+    } else {
+      showToast(data.error || 'Error al cambiar de escena', 'error');
     }
   } catch(e) {
     showToast('Error de conexión con OBS', 'error');

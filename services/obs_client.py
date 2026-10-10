@@ -134,9 +134,16 @@ class OBSController:
             self._send_ws_frame(sock, json.dumps(req_payload))
             resp_str = self._recv_ws_frame(sock)
             sock.close()
-            return {"success": True, "scene": scene_name}
+            resp = json.loads(resp_str or "{}")
+            status = resp.get("d", {}).get("requestStatus", {})
+            if status.get("result", False):
+                return {"success": True, "scene": scene_name}
+            comment = status.get("comment", "Error al cambiar de escena en OBS")
+            return {"success": False, "error": comment}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    set_current_program_scene = switch_scene
 
     def get_scenes(self) -> dict:
         """Obtiene la lista de escenas y la escena actual activa."""
