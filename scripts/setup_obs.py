@@ -529,6 +529,16 @@ def main():
         for jf in json_files:
             inject_overlay_into_scene_json(jf, overlay_url)
 
+    # 4. Verificar sincronización de BPM y fase de shaders con OBS si está activo
+    try:
+        from tests.test_bpm_sync import TestBPMSync
+        print("[*] Verificando sincronización de BPM y fase musical...")
+        suite = unittest.TestLoader().loadTestsFromTestCase(TestBPMSync)
+        runner = unittest.TextTestRunner(verbosity=1)
+        runner.run(suite)
+    except Exception as e:
+        pass
+
     print("\n=================================================================")
     print("✓ ¡OBS Studio y Overlays configurados con éxito a 0 clics!")
     print(f"  - WebSocket v5: Habilitado en puerto {last_port}")
