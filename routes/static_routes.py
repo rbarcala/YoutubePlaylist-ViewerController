@@ -49,7 +49,7 @@ def init_static_routes(
 
 @static_bp.after_request
 def add_cache_headers(response):
-    if request.path.endswith('.html') or request.path in ['/', '/controller', '/viewer', '/sw.js']:
+    if request.path.endswith(('.html', '.css', '.js')) or request.path in ['/', '/controller', '/viewer', '/sw.js']:
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'

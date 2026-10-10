@@ -1,5 +1,5 @@
 // Service Worker para YouTube Stream Controller
-const CACHE_NAME = 'stream-controller-v2';
+const CACHE_NAME = 'stream-controller-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/controller.html',
