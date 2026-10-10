@@ -245,6 +245,12 @@ def spotify_lyrics():
         artist_candidates.append(re.split(r'\s+feat\.?', artist, flags=re.IGNORECASE)[0].strip())
     if ' ft.' in artist.lower():
         artist_candidates.append(re.split(r'\s+ft\.?', artist, flags=re.IGNORECASE)[0].strip())
+    
+    # Variante sin signos de exclamación o puntuación al final (ej. "Miranda!" -> "Miranda")
+    no_punct_art = re.sub(r'[!¡?¿]+', '', artist).strip()
+    if no_punct_art and no_punct_art != artist:
+        artist_candidates.append(no_punct_art)
+
     if artist and artist not in artist_candidates:
         artist_candidates.insert(0, artist)
 
@@ -253,6 +259,11 @@ def spotify_lyrics():
     clean_title = re.sub(r'\[.*?\]', '', clean_title)
     clean_title = re.sub(r'-\s*(remastered|live|radio edit|bonus track|deluxe).*?$', '', clean_title, flags=re.IGNORECASE).strip()
     title_candidates = [clean_title] if clean_title != title else [title]
+
+    no_punct_title = re.sub(r'[!¡?¿]+', '', clean_title).strip()
+    if no_punct_title and no_punct_title not in title_candidates:
+        title_candidates.append(no_punct_title)
+
     if title and title not in title_candidates:
         title_candidates.append(title)
 

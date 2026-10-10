@@ -92,6 +92,11 @@ def serve_sw():
     return send_from_directory('static', 'sw.js')
 
 
+@static_bp.route('/assets/<path:filename>')
+def serve_assets(filename):
+    return send_from_directory('assets', filename)
+
+
 @static_bp.route('/app.apk')
 @static_bp.route('/download/apk')
 def serve_apk():
