@@ -4,7 +4,7 @@ APP_NAME := youtube-stream-controller
 VERSION := 1.0.0
 PREFIX ?= $(HOME)/.local
 
-.PHONY: help install install-deb uninstall run run-web viewer release clean setup-obs test
+.PHONY: help install install-deb uninstall run run-web viewer release clean setup-obs test test-live
 
 help:
 	@echo "================================================================="
@@ -20,6 +20,7 @@ help:
 	@echo "  make install-deb   -> Instala el paquete .deb del sistema (requiere sudo)"
 	@echo "  make uninstall     -> Desinstala la app del sistema del usuario"
 	@echo "  make test          -> Ejecuta la suite de pruebas unitarias"
+	@echo "  make test-live     -> Ejecuta pruebas con APIs reales (YouTube, Spotify, etc.)"
 	@echo "  make clean         -> Limpia archivos temporales y de compilación"
 	@echo "================================================================="
 
@@ -105,11 +106,20 @@ clean:
 	@rm -rf build/ __pycache__/ *.pyc
 	@echo "✓ Directorio limpio."
 
-# Ejecutar pruebas unitarias
+# Ejecutar pruebas unitarias generales (mocks y componentes)
 test:
 	@echo "[test] Ejecutando suite de pruebas unitarias..."
 	@if [ -d "venv" ]; then \
-		venv/bin/python -m pytest tests/ -v || venv/bin/python -m unittest discover tests/ -v; \
+		venv/bin/python -m unittest discover tests/ -v; \
 	else \
-		python3 -m pytest tests/ -v || python3 -m unittest discover tests/ -v; \
+		python3 -m unittest discover tests/ -v; \
+	fi
+
+# Ejecutar pruebas de integración en vivo con las API keys locales de la máquina
+test-live:
+	@echo "[test-live] Ejecutando tests de integración con APIs reales (YouTube, Spotify, Soundboard)..."
+	@if [ -d "venv" ]; then \
+		venv/bin/python -m unittest tests/test_live_integrations.py -v; \
+	else \
+		python3 -m unittest tests/test_live_integrations.py -v; \
 	fi
