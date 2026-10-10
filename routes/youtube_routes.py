@@ -1,6 +1,7 @@
 import json
 import time
 import threading
+import re
 import urllib.request
 import urllib.parse
 from flask import Blueprint, request, jsonify
@@ -13,6 +14,37 @@ save_config = None
 broadcast_event = None
 current_state = None
 video_manager = None
+
+# Cache en memoria de duraciones por videoId
+_duration_cache = {}
+
+
+def _parse_iso8601_duration(d):
+    if not d:
+        return ''
+    m = re.match(r'^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$', d)
+    if not m:
+        return ''
+    h, m_, s = m.groups()
+    hours = int(h) if h else 0
+    mins = int(m_) if m_ else 0
+    secs = int(s) if s else 0
+    if hours > 0:
+        return f"{hours}:{mins:02d}:{secs:02d}"
+    return f"{mins}:{secs:02d}"
+
+
+def _format_seconds_duration(sec):
+    try:
+        s = int(sec)
+        h = s // 3600
+        m = (s % 3600) // 60
+        rem_s = s % 60
+        if h > 0:
+            return f"{h}:{m:02d}:{rem_s:02d}"
+        return f"{m}:{rem_s:02d}"
+    except Exception:
+        return ''
 
 
 def init_youtube_routes(config_loader, config_saver, broadcast_fn, state, video_mgr_inst):
@@ -80,6 +112,33 @@ def get_youtube_playlist():
             if not next_page_token:
                 break
 
+        # Consultar duraciones faltantes en lotes de 50 usando videos?part=contentDetails
+        missing_ids = [v['id'] for v in videos if v['id'] not in _duration_cache]
+        for i in range(0, len(missing_ids), 50):
+            batch = missing_ids[i:i + 50]
+            try:
+                v_params = {
+                    'part': 'contentDetails',
+                    'id': ','.join(batch),
+                    'key': api_key
+                }
+                v_url = f"https://www.googleapis.com/youtube/v3/videos?{urllib.parse.urlencode(v_params)}"
+                with urllib.request.urlopen(v_url, timeout=10) as v_resp:
+                    v_data = json.loads(v_resp.read().decode())
+                for v_item in v_data.get('items', []):
+                    vid_id = v_item.get('id')
+                    raw_dur = v_item.get('contentDetails', {}).get('duration', '')
+                    if vid_id and raw_dur:
+                        _duration_cache[vid_id] = _parse_iso8601_duration(raw_dur)
+            except Exception as batch_err:
+                print(f"[youtube] Error obteniendo duraciones de videos: {batch_err}")
+
+        # Inyectar duraciones a las listas
+        for v in videos:
+            v['duration'] = _duration_cache.get(v['id'], '')
+        for it in items:
+            it['duration'] = _duration_cache.get(it['videoId'], '')
+
         return jsonify({'success': True, 'videos': videos, 'items': items})
     except Exception as e:
         # Fallback ultra-confiable con yt-dlp si la API da error (ej. quota excedida o red)
@@ -97,18 +156,23 @@ def get_youtube_playlist():
                     if vid:
                         t = entry.get('title', '')
                         th = f'https://i.ytimg.com/vi/{vid}/hqdefault.jpg'
+                        raw_sec = entry.get('duration')
+                        dur_str = _format_seconds_duration(raw_sec) if raw_sec else _duration_cache.get(vid, '')
+                        if dur_str:
+                            _duration_cache[vid] = dur_str
                         videos.append({
                             'id': vid,
                             'title': t,
                             'thumbnail': th,
                             'channel': entry.get('uploader', ''),
-                            'published': ''
+                            'published': '',
+                            'duration': dur_str
                         })
                         items.append({
                             'videoId': vid,
                             'title': t,
                             'thumb': th,
-                            'duration': ''
+                            'duration': dur_str
                         })
                 if items:
                     return jsonify({'success': True, 'videos': videos, 'items': items, 'fallback': True})

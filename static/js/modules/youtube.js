@@ -128,9 +128,11 @@ function renderNextVideosBatch() {
     const isPlaying = v.videoId === currentPlayingVideoId;
     card.className = 'video-card' + (isPlaying ? ' active' : '');
     card.dataset.videoId = v.videoId;
+    const durationHtml = v.duration ? `<span class="duration-badge">${v.duration}</span>` : '';
     card.innerHTML = `
       <div class="thumb-wrap">
         <img src="${v.thumb}" alt="${(v.title || '').replace(/"/g, '&quot;')}" loading="lazy" decoding="async">
+        ${durationHtml}
       </div>
       <div class="video-card-info">
         <p>${v.title || 'Video sin título'}</p>
