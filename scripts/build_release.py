@@ -46,8 +46,8 @@ def build_deb():
         if src.exists():
             shutil.copy2(src, usr_share_app / f)
 
-    # Copiar carpetas assets, bin, scripts, core, routes, services y static
-    for folder in ["assets", "bin", "scripts", "core", "routes", "services", "static", "extension"]:
+    # Copiar carpetas assets, bin, scripts, core, routes, services, static, templates y extension
+    for folder in ["assets", "bin", "scripts", "core", "routes", "services", "static", "templates", "extension"]:
         folder_path = BASE_DIR / folder
         if folder_path.exists():
             shutil.copytree(folder_path, usr_share_app / folder, dirs_exist_ok=True)

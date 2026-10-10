@@ -102,5 +102,14 @@ class TestRoutes(unittest.TestCase):
             self.assertGreater(len(res.data), 0)
 
 
+    def test_controller_renders_all_partials(self):
+        """Verifica que el controller compile e incluya todas las vistas modulares."""
+        res = self.client.get('/controller.html')
+        self.assertEqual(res.status_code, 200)
+        html = res.data.decode('utf-8')
+        for view_id in ['view-menu', 'view-fondos', 'view-obs', 'view-spotify', 'view-soundboard', 'view-overlays', 'settingsModal']:
+            self.assertIn(f'id="{view_id}"', html, f"Falta el módulo/vista {view_id} en el controller")
+
+
 if __name__ == '__main__':
     unittest.main()

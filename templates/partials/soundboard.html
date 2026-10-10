@@ -1,0 +1,75 @@
+<!-- ─── 6. VISTA SOUNDBOARD / BOTONERA (MYINSTANTS) ─── -->
+<div class="view-container" id="view-soundboard">
+  <div class="soundboard-container">
+    <div class="soundboard-header-deck">
+      <!-- Barra superior de controles fija -->
+      <div class="soundboard-topbar">
+        <div class="soundboard-now-playing">
+          <span style="color:var(--muted); font-size:11px;">EN PC:</span>
+          <span class="soundboard-playing-pill" id="sbNowPlayingText">Listo / Silencio</span>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <!-- Deslizador de volumen -->
+          <div style="display:flex; align-items:center; gap:6px; font-size:11px;">
+            <span style="color:var(--muted);">🔊</span>
+            <input type="range" id="sbVolumeSlider" min="0" max="100" value="80" oninput="updateSoundboardVolume(this.value)" style="accent-color:var(--accent); width:100px;">
+            <span id="sbVolumeText" style="color:var(--accent); font-weight:700; width:34px;">80%</span>
+          </div>
+          <!-- Botón de parar -->
+          <button class="btn btn-danger" onclick="stopSoundboard()" title="Detener todo el audio">⏹️ Parar</button>
+          <!-- Botón para subir -->
+          <button class="btn btn-accent" onclick="scrollToTopSoundboard()" title="Subir al inicio">⬆️ Subir</button>
+        </div>
+      </div>
+
+      <!-- Barra de pestañas -->
+      <div class="soundboard-tabs">
+        <button class="sb-tab-btn active" id="sbTab-arg" onclick="switchSoundboardTab('arg')">🇦🇷 Top ARG</button>
+        <button class="sb-tab-btn" id="sbTab-latam" onclick="switchSoundboardTab('latam')">🌎 Top LATAM</button>
+        <button class="sb-tab-btn" id="sbTab-usa" onclick="switchSoundboardTab('usa')">🇺🇸 Top USA</button>
+        <button class="sb-tab-btn" id="sbTab-global" onclick="switchSoundboardTab('global')">🌐 Top GLOBAL</button>
+        <button class="sb-tab-btn" id="sbTab-favorites" onclick="switchSoundboardTab('favorites')">⭐ Mis Favoritos</button>
+        <button class="sb-tab-btn" id="sbTab-search" onclick="switchSoundboardTab('search')">🔍 Buscador</button>
+      </div>
+
+      <!-- Barra de búsqueda -->
+      <div class="soundboard-search-bar" id="sbSearchBarWrap">
+        <input type="text" id="sbSearchInput" class="form-input" style="flex:1;" placeholder="Buscar entre miles de efectos y memes en MyInstants..." onkeydown="if(event.key==='Enter') executeSoundboardSearch()">
+        <button class="btn btn-accent" onclick="executeSoundboardSearch()">Buscar</button>
+        <button class="btn" onclick="clearSoundboardSearch()">Limpiar</button>
+      </div>
+
+      <!-- Barra de cuenta vinculada y sincronización -->
+      <div class="soundboard-account-bar">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span>👤 Cuenta MyInstants:</span>
+          <strong id="sbAccountUsername" style="color:var(--accent);">Sin vincular</strong>
+          <span id="sbCloudSyncBadge" style="font-size:11px; padding:2px 8px; border-radius:10px; background:rgba(255,255,255,0.08); color:var(--muted);">Solo local</span>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-accent" onclick="openMyInstantsAuthModal()" title="Vincular cuenta con Google o sesión para guardar en la nube">🌐 Vincular con Google</button>
+          <button class="btn" onclick="syncMyInstantsAccount()" title="Descargar favoritos de tu perfil público">🔄 Sincronizar</button>
+          <button class="btn" onclick="openSettingsModal()">⚙️ Ajustes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contenedor con scroll independiente para los sonidos -->
+    <div class="soundboard-scroll-content" id="sbScrollContainer">
+      <!-- Grid de Botones -->
+      <div id="sbLoadingIndicator" style="text-align:center; padding:30px; color:var(--muted); display:none;">Cargando sonidos de MyInstants…</div>
+      <div class="soundboard-grid" id="soundboardGrid"></div>
+
+      <!-- Indicador de carga inferior para scroll infinito -->
+      <div id="sbLoadingMore" style="text-align:center; padding:20px 0; color:var(--accent); font-size:12px; display:none;">
+        ⏳ Cargando más sonidos al deslizar…
+      </div>
+      <div style="text-align:center; margin-top:14px; margin-bottom:10px;">
+        <button class="btn" id="sbBtnLoadMore" onclick="loadMoreSounds()" style="display:none; margin:0 auto;">⬇ Cargar más sonidos</button>
+      </div>
+      <div id="sbScrollSentinel" style="height:20px; width:100%;"></div>
+    </div>
+  </div>
+</div>
+

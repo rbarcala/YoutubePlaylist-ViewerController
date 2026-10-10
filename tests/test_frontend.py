@@ -29,6 +29,15 @@ class TestFrontendIntegrity(unittest.TestCase):
             self.assertTrue(html_file.exists(), f"Falta el archivo {html_name}")
             self.assertGreater(html_file.stat().st_size, 0)
 
+    def test_html_partials_exist(self):
+        """Verifica que los fragmentos HTML modulares de las vistas existan."""
+        partials_dir = BASE_DIR / "templates" / "partials"
+        expected = ["menu.html", "fondos.html", "obs.html", "spotify.html", "soundboard.html", "overlays.html", "modals.html"]
+        for p in expected:
+            p_file = partials_dir / p
+            self.assertTrue(p_file.exists(), f"Falta el parcial {p}")
+            self.assertGreater(p_file.stat().st_size, 0)
+
     def test_css_files_exist(self):
         """Verifica que los estilos modulares existan y tengan contenido."""
         expected_css = [

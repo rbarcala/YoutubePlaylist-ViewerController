@@ -1,0 +1,73 @@
+<!-- ─── 4. VISTA SPOTIFY REMOTE (LAYOUT PANORÁMICO) ─── -->
+<div class="view-container" id="view-spotify">
+  <div class="spotify-dashboard-grid">
+    <!-- PANEL IZQUIERDO: Reproductor + Mis Playlists Guardadas -->
+    <div class="spotify-side-panel">
+      <!-- Tarjeta Now Playing -->
+      <div class="spotify-player-card">
+        <div class="spotify-track-info">
+          <img id="spTrackArt" class="spotify-art" src="/assets/icon.png" alt="Carátula">
+          <div class="spotify-meta">
+            <h3 id="spTrackTitle">Sin reproducción activa</h3>
+            <p id="spTrackArtist">—</p>
+            <span id="spDeviceName">Dispositivo: PC</span>
+          </div>
+        </div>
+
+                <!-- Controles -->
+        <div class="spotify-controls-row">
+          <button class="btn" onclick="spotifyAction('previous')" style="font-size:15px; padding:6px 14px;">⏮</button>
+          <button class="btn btn-spotify" id="spPlayBtn" onclick="spotifyTogglePlay()" style="font-size:15px; padding:8px 22px;">▶</button>
+          <button class="btn" onclick="spotifyAction('next')" style="font-size:15px; padding:6px 14px;">⏭</button>
+        </div>
+
+        <!-- Barra de Progreso y Tiempo de Reproducción -->
+        <div style="display:flex; flex-direction:column; gap:2px; width:100%; margin-top:2px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span id="spTimeCurrent" style="font-size:10px; color:var(--muted); font-family:'Space Mono', monospace; width:34px; text-align:right;">0:00</span>
+            <input type="range" id="spProgressSlider" min="0" max="1000" value="0" style="flex:1; accent-color:var(--accent-spotify); cursor:pointer;" oninput="onSpotifySeekInput(this.value)" onchange="onSpotifySeekChange(this.value)">
+            <span id="spTimeTotal" style="font-size:10px; color:var(--muted); font-family:'Space Mono', monospace; width:34px;">0:00</span>
+          </div>
+        </div>
+
+        <!-- Volumen de la PC -->
+        <div style="display:flex; align-items:center; gap:10px; justify-content:center;">
+          <span style="font-size:11px; color:#aaa;">🔊 PC:</span>
+          <input type="range" id="spVolumeSlider" min="0" max="100" value="50" oninput="onSpotifyVolumeInput(this.value)" onchange="onSpotifyVolumeChange(this.value)" style="accent-color:var(--accent-spotify); flex:1; max-width:180px;">
+          <span id="spVolumeValue" style="font-size:11px; color:var(--accent-spotify); width:32px;">50%</span>
+        </div>
+      </div>
+
+      <!-- Playlists Guardadas en la columna izquierda -->
+      <div class="spotify-saved-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:12px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.5px;">📁 Mis Playlists Guardadas:</span>
+          <span style="font-size:11px; color:var(--muted);" id="spSavedCount">0 guardadas</span>
+        </div>
+        <div id="spSavedPlaylists" style="display:flex; flex-direction:column; gap:6px; max-height:260px; overflow-y:auto; padding-right:4px;">
+          <span style="color:var(--muted); font-size:11px;">Cargando playlists guardadas…</span>
+        </div>
+        <button class="btn btn-accent" style="width:100%; margin-top:10px; font-size:11px; font-weight:700; padding:7px;" onclick="promptAddPlaylist()">➕ Guardar Otra Playlist</button>
+      </div>
+    </div>
+
+    <!-- PANEL DERECHO: Buscador + Canciones en Ancho Completo -->
+    <div class="spotify-main-panel">
+      <div class="spotify-search-box">
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="spSearchInput" class="form-input" style="flex:1;" placeholder="Buscar canción o: https://open.spotify.com/playlist/... [término para filtrar]" oninput="onSpotifySearchInput(this.value)" onkeydown="if(event.key === 'Enter') spotifySearch()">
+          <button class="btn btn-spotify" onclick="spotifySearch()" style="font-weight:700; padding:8px 20px;">🔍 Buscar</button>
+          <button class="btn btn-accent" onclick="scrollToTopSpotify()" title="Subir al inicio">⬆️ Subir</button>
+        </div>
+
+        <div id="spPlaylistHeader" style="display:none; margin-top:4px;"></div>
+        <div class="spotify-results-list" id="spResultsList">
+          <div style="color:var(--muted); font-size:12px; text-align:center; padding:60px 20px;">
+            Selecciona una playlist a la izquierda o escribe en el buscador de arriba para explorar canciones.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+

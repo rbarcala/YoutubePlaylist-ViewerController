@@ -1,0 +1,102 @@
+<!-- ─── 3. VISTA OBS STUDIO ─── -->
+<div class="view-container" id="view-obs">
+  <div class="obs-status-box">
+    <div>
+      <h3 style="font-size:16px; margin-bottom:4px;">Estado de OBS Studio</h3>
+      <p style="font-size:12px; color:var(--muted);" id="obsStatusText">Consultando conexión…</p>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn btn-accent" id="btnLaunchObs" onclick="openObsStudio()" style="display:none;">🎬 Abrir OBS</button>
+      <button class="btn" id="btnObsStream" onclick="toggleObsStream()">Iniciar Stream</button>
+      <button class="btn" id="btnObsRecord" onclick="toggleObsRecord()">Iniciar Grabación</button>
+    </div>
+  </div>
+
+  <div class="obs-dashboard-grid">
+    <div class="obs-scenes-panel">
+      <h3 style="margin-bottom:12px; font-size:14px; text-transform:uppercase; color:var(--muted);">Escenas Disponibles:</h3>
+      <div class="obs-scenes-grid" id="obsScenesGrid">
+        <p style="color:var(--muted);">Cargando escenas de OBS…</p>
+      </div>
+
+      <!-- Vúmetros de Audio OBS (Sistema y Micrófono) -->
+      <div class="obs-vumeters-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--muted); letter-spacing:0.5px;">🎚️ Mezclador de Audio OBS</span>
+          <span id="obsAudioStatusTag" style="font-size:10px; color:var(--accent); font-weight:700;">Conectando…</span>
+        </div>
+        <div class="obs-vumeters-grid">
+          <!-- Desktop Audio -->
+          <div class="obs-vu-strip" id="obsVuStripDesktop">
+            <div class="obs-vu-header">
+              <span style="color:#fff; display:flex; align-items:center; gap:5px;">🔊 Sistema</span>
+              <span id="obsVuValDesktop" style="font-family:'Space Mono',monospace; color:var(--accent); font-size:10px;">0 dB</span>
+            </div>
+            <div class="obs-vu-track">
+              <div class="obs-vu-bar" id="obsVuBarDesktop"></div>
+            </div>
+            <div class="obs-vu-slider-wrap">
+              <button class="obs-vu-btn-mute" id="obsVuMuteDesktop" onclick="toggleObsAudioMute('desktop')" title="Mutear / Desmutear Sistema">🔊</button>
+              <input type="range" class="obs-vu-slider" id="obsVuSliderDesktop" min="0" max="100" value="100" oninput="onObsAudioSliderInput('desktop', this.value)" onchange="onObsAudioSliderChange('desktop', this.value)">
+            </div>
+          </div>
+
+          <!-- Mic/Aux Audio -->
+          <div class="obs-vu-strip" id="obsVuStripMic">
+            <div class="obs-vu-header">
+              <span style="color:#fff; display:flex; align-items:center; gap:5px;">🎙️ Micrófono</span>
+              <span id="obsVuValMic" style="font-family:'Space Mono',monospace; color:var(--accent); font-size:10px;">-inf dB</span>
+            </div>
+            <div class="obs-vu-track">
+              <div class="obs-vu-bar" id="obsVuBarMic"></div>
+            </div>
+            <div class="obs-vu-slider-wrap">
+              <button class="obs-vu-btn-mute" id="obsVuMuteMic" onclick="toggleObsAudioMute('mic')" title="Mutear / Desmutear Micrófono">🎙️</button>
+              <input type="range" class="obs-vu-slider" id="obsVuSliderMic" min="0" max="100" value="100" oninput="onObsAudioSliderInput('mic', this.value)" onchange="onObsAudioSliderChange('mic', this.value)">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="obs-live-panel">
+      <div class="live-monitor-container">
+        <div class="live-controls-bar">
+          <div style="display:flex; align-items:center; gap:10px; overflow:hidden; flex:1;">
+            <span style="font-size:12px; font-weight:700; color:var(--accent2); flex-shrink:0;" id="liveBadgeStatus">🔴 DIRECTO</span>
+            <span style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="liveTitleText">Monitoreando transmisión…</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn" id="btnLiveToggleMute" onclick="toggleLiveMute()" title="Activar/desactivar audio del directo">🔇 Muteado</button>
+            <button class="btn" onclick="refreshLiveStream()">🔄 Recargar</button>
+          </div>
+        </div>
+        <div class="obs-preview-frame" id="obsPreviewContainer" style="background:#000; aspect-ratio:16/9; position:relative; overflow:hidden; border-bottom:1px solid var(--border);">
+          <div style="position:absolute; top:5px; right:5px; z-index:10;">
+            <select id="obsCamSelect" style="display:none; background:rgba(0,0,0,0.6); color:white; border:1px solid var(--border); border-radius:4px; font-size:10px; padding:2px;" onchange="connectSelectedCamera(this.value)"></select>
+          </div>
+          <video id="obsVideoCam" autoplay playsinline muted style="width:100%; height:100%; object-fit:contain; display:none;"></video>
+          <div id="obsPreviewFallback" style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted); font-size:12px; flex-direction:column; gap:10px;">
+            <span id="obsPreviewMsg">Previsualización a 60 FPS (Zero Latency)</span>
+            <button class="btn btn-accent" id="btnStartVirtualCam" onclick="startVirtualCameraPreview()">📷 Activar Cámara Virtual</button>
+          </div>
+        </div>
+        <div class="live-video-frame" id="liveVideoContainer">
+          <div style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted); flex-direction:column; gap:10px;">
+            <p>Buscando transmisión activa de tu canal…</p>
+            <button class="btn btn-accent" onclick="openSettingsModal()">⚙️ Configurar Canal de YouTube</button>
+          </div>
+        </div>
+        <!-- Link de compartir transmisión en vivo -->
+        <div class="live-share-bar" id="liveShareBar" style="display:none;">
+          <span style="font-size:12px; font-weight:700; color:#fff; display:flex; align-items:center; gap:6px;">
+            🔗 Enlace al Directo:
+          </span>
+          <input type="text" class="live-share-link-input" id="liveShareLinkInput" readonly value="" onclick="this.select()">
+          <button class="btn btn-accent btn-sm" onclick="copyLiveStreamLink()" title="Copiar enlace para compartir">📋 Copiar Link</button>
+          <button class="btn btn-sm" onclick="openLiveStreamLink()" title="Abrir en YouTube">↗️ Abrir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+

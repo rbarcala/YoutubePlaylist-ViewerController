@@ -1,0 +1,50 @@
+<!-- ─── 1. PANTALLA PRINCIPAL (MENÚ / HUB) ─── -->
+<div class="view-container active" id="view-menu">
+  <div class="hub-header">
+    <h1>Panel de Control Principal</h1>
+    <p>Selecciona la función que deseas controlar en tu sesión de streaming</p>
+  </div>
+
+  <div class="hub-grid">
+    <!-- Opción 1: Fondos & Videos -->
+    <div class="hub-card" onclick="navigateTo('fondos')">
+      <div class="hub-card-icon">🎬</div>
+      <div class="hub-card-title">Fondos &amp; Videos (Viewer)</div>
+      <div class="hub-card-desc">Playlist y fondos en 1080p con velocidad y audio sincronizados.</div>
+      <span class="hub-card-badge">Función Controller</span>
+    </div>
+
+    <!-- Opción 2: OBS Studio y monitor de directo -->
+    <div class="hub-card" onclick="navigateTo('obs')">
+      <div class="hub-card-icon">🎥</div>
+      <div class="hub-card-title">OBS + Monitor de Directo</div>
+      <div class="hub-card-desc">Cambia escenas, controla la transmisión y monitorea el directo de YouTube.</div>
+      <span class="hub-card-badge" id="hubObsBadge">OBS Studio + YouTube Live</span>
+    </div>
+
+    <!-- Opción 3: Spotify Remote -->
+    <div class="hub-card" onclick="navigateTo('spotify')">
+      <div class="hub-card-icon">🎵</div>
+      <div class="hub-card-title">Spotify Remote (PC)</div>
+      <div class="hub-card-desc">Control de música en tu PC, buscador de temas y cola.</div>
+      <span class="hub-card-badge" id="hubSpotifyBadge">Spotify Connect</span>
+    </div>
+
+    <!-- Opción 4: Botonera / Soundboard (MyInstants) -->
+    <div class="hub-card" onclick="navigateTo('soundboard')">
+      <div class="hub-card-icon">🔊</div>
+      <div class="hub-card-title">Botonera (MyInstants)</div>
+      <div class="hub-card-desc">Efectos de sonido y memes reproducidos en tu PC.</div>
+      <span class="hub-card-badge">MyInstants SFX</span>
+    </div>
+
+    <!-- Opción 6: Overlays & Recreo -->
+    <div class="hub-card" onclick="navigateTo('overlays')">
+      <div class="hub-card-icon">📺</div>
+      <div class="hub-card-title">Overlays &amp; Ya Vuelvo</div>
+      <div class="hub-card-desc">Temporizador con memes de ingeniería y barra Now Playing.</div>
+      <span class="hub-card-badge">OBS Browser</span>
+    </div>
+  </div>
+</div>
+

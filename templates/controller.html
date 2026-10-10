@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>🎛️ CONTROLLER — Fondos & Stream Hub</title>
+
+<!-- Favicon compatible con Firefox, Chrome y navegadores modernos -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎛️</text></svg>">
+<link rel="alternate icon" type="image/png" href="/assets/icon.png">
+<link rel="apple-touch-icon" href="/assets/icons/192x192/youtube-stream-controller.png">
+<link rel="manifest" href="/manifest.json">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+
+<!-- Estilos Modulares -->
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/controller.css">
+<link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo-group">
+    <button class="btn-back-hub" id="btnBackHub" onclick="navigateTo('menu')">← Menú</button>
+    <div class="logo" onclick="navigateTo('menu')">⬡ STREAM HUB</div>
+  </div>
+
+  <!-- Pestañas de acceso directo en PC -->
+  <div class="nav-pills">
+    <button class="nav-pill active" id="pill-menu" onclick="navigateTo('menu')">🏠 Menú</button>
+    <button class="nav-pill" id="pill-fondos" onclick="navigateTo('fondos')">🎬 Fondos</button>
+    <button class="nav-pill" id="pill-obs" onclick="navigateTo('obs')">🎥 OBS</button>
+    <button class="nav-pill" id="pill-spotify" onclick="navigateTo('spotify')">🎵 Spotify</button>
+    <button class="nav-pill" id="pill-soundboard" onclick="navigateTo('soundboard')">🔊 Botonera</button>
+    <button class="nav-pill" id="pill-overlays" onclick="navigateTo('overlays')">📺 Overlays</button>
+  </div>
+
+  <div class="status-indicators">
+    <div class="status-dot" id="viewerStatusDot" onclick="openViewer()" title="Haz clic para abrir o conectar el Viewer">Sin viewer</div>
+  </div>
+
+  <div class="header-actions">
+    <button class="btn" onclick="openWebController()" title="Abrir en navegador">🌐 Web</button>
+    <button class="btn" onclick="openViewer()" title="Abrir pantalla completa del Viewer">📺 Viewer</button>
+    <button class="btn" onclick="openQRModal()" title="Código QR para conectar celular">📱</button>
+    <button class="btn" onclick="openSettingsModal()" title="Configuración">⚙️</button>
+  </div>
+</header>
+
+<!-- VISTAS Y COMPONENTES MODULARES -->
+{% include 'partials/menu.html' %}
+{% include 'partials/fondos.html' %}
+{% include 'partials/obs.html' %}
+{% include 'partials/spotify.html' %}
+{% include 'partials/soundboard.html' %}
+{% include 'partials/overlays.html' %}
+{% include 'partials/modals.html' %}
+
+<div id="toastNotice">Notificación</div>
+<button class="sb-floating-top-btn" id="sbFloatingTopBtn" onclick="scrollToTopCurrentView()" title="Subir al inicio">⬆️</button>
+
+
+<!-- Módulos JavaScript -->
+<script src="js/state.js"></script>
+<script src="js/modules/youtube.js"></script>
+<script src="js/modules/obs.js"></script>
+<script src="js/modules/spotify.js"></script>
+<script src="js/modules/soundboard.js"></script>
+<script src="js/modules/modals.js"></script>
+<script src="js/modules/timer.js"></script>
+<script>
+window.addEventListener("DOMContentLoaded", updateHeaderHeight);
+window.addEventListener("DOMContentLoaded", () => {
+  initApp();
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+});
+</script>
+</body>
+</html>

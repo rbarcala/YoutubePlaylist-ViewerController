@@ -1,0 +1,259 @@
+<!-- ─── MODAL DE CONFIGURACIÓN Y SETUP (⚙️) ─── -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal-content">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px;">
+      <div style="font-family:'Syne',sans-serif; font-size:18px; font-weight:700; color:var(--accent);">⚙️ Configuración del Sistema</div>
+      <button onclick="closeSettingsModal()" style="background:none; border:none; color:#aaa; font-size:20px; cursor:pointer;">&times;</button>
+    </div>
+
+    <!-- YouTube & Playlist -->
+    <div class="form-group">
+      <label class="form-label">YouTube Data API v3 Key</label>
+      <input type="password" id="cfgApiKey" class="form-input" placeholder="Pega aquí tu API Key de YouTube...">
+      <div class="form-help">Se almacena localmente de forma segura (ignorado por git).</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">ID o URL de la Playlist de Fondos</label>
+      <input type="text" id="cfgPlaylistId" class="form-input" placeholder="PL7E8lrk1ePfZVWMM2vsUkpQ6vbpbHi4G_">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">ID de Canal para Directos (YouTube Live)</label>
+      <input type="text" id="cfgChannelId" class="form-input" placeholder="UC... (o ID de tu canal)">
+      <div class="form-help">Utilizado para detectar automáticamente tu transmisión en vivo activa.</div>
+    </div>
+
+    <!-- Foco automático del Viewer -->
+    <div class="form-group">
+      <label class="form-label" style="display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="cfgAutoFocusViewer" checked> Poner en foco la ventana del Viewer al clickear un video
+      </label>
+      <div class="form-help">Al seleccionar o re-clickear un video, el Viewer pasa al primer plano automáticamente en el navegador.</div>
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label" style="display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="cfgAutoOpenViewer" checked> Abrir Viewer automáticamente al iniciar la app
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Modo de reproducción de fondos</label>
+      <select id="cfgVideoPlaybackMode" class="form-input">
+        <option value="original">Original: reproducir directamente</option>
+        <option value="cache">Cache: descargar en paralelo y reutilizar</option>
+        <option value="adaptive">Adaptativo: usar cache para evitar trabas</option>
+      </select>
+      <div class="form-help">Original mantiene el comportamiento anterior. Cache y Adaptativo descargan los videos seleccionados en segundo plano.</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" style="display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="cfgOverlayEnabled" checked> Habilitar Overlay (barra de música y temporizador) en el Viewer / OBS
+      </label>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="cfgShowLyrics" checked> Mostrar Letra (Lyrics) de Spotify en el Overlay si está disponible
+      </label>
+    </div>
+
+
+    <!-- Spotify Credentials -->
+    <div class="form-group" style="border-top:1px solid var(--border); padding-top:10px;">
+      <label class="form-label">Spotify Client ID</label>
+      <input type="text" id="cfgSpotifyClientId" class="form-input" placeholder="Tu Client ID de Spotify Developer">
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="display:flex; justify-content:space-between;">
+        <span>Spotify Client Secret</span>
+        <span id="cfgSpotifySecretSavedStatus" style="font-size:11px; color:#34C759; display:none;">✓ Guardado en el sistema</span>
+      </label>
+      <input type="password" id="cfgSpotifyClientSecret" class="form-input" placeholder="Tu Client Secret (déjalo vacío si ya está guardado)">
+      <div style="margin-top:6px;">
+        <button class="btn btn-spotify" type="button" onclick="loginSpotifyOAuth()">🔗 Vincular Cuenta de Spotify</button>
+      </div>
+    </div>
+
+    <!-- OBS Studio -->
+    <div class="form-group" style="border-top:1px solid var(--border); padding-top:10px;">
+      <label class="form-label" style="display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="cfgObsEnabled"> Habilitar Integración con OBS Studio (WebSocket v5)
+      </label>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="cfgAutoOpenObs" checked> Abrir OBS Studio automáticamente al iniciar el Controller en PC
+      </label>
+      <div class="form-help">Si OBS Studio no está en ejecución, se abre en segundo plano automáticamente al iniciar o hacer 'make run'.</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2;">
+        <label class="form-label">Host OBS</label>
+        <input type="text" id="cfgObsHost" class="form-input" value="localhost">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label class="form-label">Puerto</label>
+        <input type="number" id="cfgObsPort" class="form-input" value="4455">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contraseña OBS</label>
+      <input type="password" id="cfgObsPassword" class="form-input" placeholder="Opcional">
+    </div>
+
+    <!-- Botonera / MyInstants -->
+    <div class="form-group" style="border-top:1px solid var(--border); padding-top:10px;">
+      <label class="form-label">Botonera: Cuenta MyInstants (Favoritos &amp; Nube)</label>
+      <input type="text" id="cfgSoundboardUsername" class="form-input" placeholder="Nombre de usuario o URL (ej: axelito__ o https://www.myinstants.com/en/profile/tu_usuario/)">
+      <div class="form-help">Tu usuario de MyInstants para importar y sincronizar favoritos existentes.</div>
+      <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+        <button class="btn btn-accent" type="button" onclick="openMyInstantsAuthModal()">🌐 Vincular Sesión (Google / Nube)</button>
+        <button class="btn" type="button" onclick="syncMyInstantsFromSettings()">🔄 Importar Favoritos Ahora</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Volumen Predeterminado de la Botonera (PC)</label>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <input type="range" id="cfgSoundboardVolume" min="0" max="100" value="80" style="accent-color:var(--accent); width:200px;" oninput="updateSoundboardVolume(this.value)">
+        <span id="cfgSbVolVal" style="color:var(--accent); font-weight:700; font-size:12px;">80%</span>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+      <button class="btn" onclick="closeSettingsModal()">Cancelar</button>
+      <button class="btn btn-accent" onclick="saveSettings()">Guardar Configuración</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE AUTENTICACIÓN / VINCULACIÓN MYINSTANTS -->
+<div class="modal-overlay" id="myinstantsAuthModal">
+  <div class="modal-content" style="max-width:540px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px;">
+      <div style="font-family:'Syne',sans-serif; font-size:18px; font-weight:700; color:var(--accent);">
+        🌐 Cuenta MyInstants &amp; Guardado en la Nube
+      </div>
+      <button onclick="closeMyInstantsAuthModal()" style="background:none; border:none; color:#aaa; font-size:20px; cursor:pointer;">&times;</button>
+    </div>
+
+    <!-- Estado actual -->
+    <div style="margin:16px 0; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:10px; padding:12px 14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="color:var(--muted); font-size:12px;">ESTADO DE CONEXIÓN:</span>
+        <span id="modalAuthStatusBadge" style="font-weight:bold; font-size:12px; color:#ff5555;">⚪ No vinculado</span>
+      </div>
+      <div style="font-size:13px; margin-bottom:4px;">
+        <strong>Usuario:</strong> <span id="modalAuthUsernameText" style="color:var(--accent);">Sin configurar</span>
+      </div>
+      <div style="font-size:12px; color:var(--muted);">
+        <strong>Guardado en servidor de MyInstants:</strong> <span id="modalAuthCloudStatus">Inactivo (solo favoritos locales)</span>
+      </div>
+    </div>
+
+    <!-- Opción 1: Iniciar Sesión con Google / MyInstants en PC -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#fff;">Opción 1: Iniciar Sesión en la PC (Recomendado)</div>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">
+        Abre una ventana para iniciar sesión con Google o tu usuario en MyInstants. La sesión y tus favoritos se vincularán automáticamente al terminar.
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-accent" type="button" onclick="startDesktopLoginWindow()" style="flex:1;">
+          🚀 Iniciar Sesión con Google (Ventana PC)
+        </button>
+        <button class="btn" type="button" onclick="openMyInstantsInBrowser()" style="flex:1;">
+          🌐 Abrir en Navegador
+        </button>
+      </div>
+    </div>
+
+    <!-- Opción 2: Vinculación manual / Cookie de sesión -->
+    <div style="border-top:1px solid var(--border); padding-top:14px;">
+      <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#fff;">Opción 2: Configuración Manual</div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label" style="font-size:12px;">Nombre de usuario en MyInstants</label>
+        <input type="text" id="modalInputUsername" class="form-input" placeholder="Ej: axelito__ o https://www.myinstants.com/en/profile/axelito__/">
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label" style="font-size:12px; display:flex; justify-content:space-between;">
+          <span>Cookie de sesión (sessionid)</span>
+          <a href="javascript:void(0)" onclick="toggleCookieHelp()" style="color:var(--accent); text-decoration:none; font-size:11px;">¿Cómo obtenerla?</a>
+        </label>
+        <input type="password" id="modalInputSessionCookie" class="form-input" placeholder="Valor de cookie sessionid (opcional para guardar en la nube)">
+        <div id="cookieHelpBox" style="display:none; font-size:11px; color:#aaa; background:rgba(0,0,0,0.5); padding:8px 10px; border-radius:6px; margin-top:6px; line-height:1.5;">
+          1. Entra a <a href="https://www.myinstants.com" target="_blank" style="color:var(--accent);">myinstants.com</a> e inicia sesión con Google o tu usuario.<br>
+          2. Presiona <kbd>F12</kbd> &rarr; pestaña <strong>Aplicación</strong> (o Almacenamiento) &rarr; <strong>Cookies</strong> &rarr; <code>myinstants.com</code>.<br>
+          3. Copia el valor de la cookie <code>sessionid</code> y pégalo aquí. ¡Listo!
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+        <button class="btn btn-danger" type="button" onclick="disconnectMyInstantsAccount()" id="btnDisconnectSb" style="display:none;">Desvincular</button>
+        <div style="margin-left:auto; display:flex; gap:10px;">
+          <button class="btn" onclick="closeMyInstantsAuthModal()">Cerrar</button>
+          <button class="btn btn-accent" onclick="saveMyInstantsAuth()">Guardar y Vincular</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CÓDIGO QR / CELULAR -->
+<div class="modal-overlay" id="qrModal">
+  <div class="modal-content" style="max-width: 440px; text-align:center;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="font-family:'Syne',sans-serif; color:var(--accent);">📱 Conectar Celular</h3>
+      <button onclick="closeQRModal()" style="background:none; border:none; color:#aaa; font-size:20px; cursor:pointer;">&times;</button>
+    </div>
+    
+    <!-- Tarjeta blanca de alto contraste para lectura rápida de cámara -->
+    <div style="background:#ffffff; padding:16px; border-radius:14px; display:inline-flex; justify-content:center; align-items:center; margin:16px auto; box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+      <div id="qrCodeContainer" style="display:flex; justify-content:center; align-items:center;"></div>
+    </div>
+
+    <!-- Indicador de dígitos rápidos para la app -->
+    <div style="margin:4px 0 14px 0; background:rgba(232, 255, 71, 0.08); border:1px solid var(--accent); border-radius:8px; padding:10px 14px;">
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#bbb; margin-bottom:4px;">⚡ Para la App de Celular (Dígitos Rápidos):</div>
+      <div style="font-size:18px; font-weight:bold; color:#fff; font-family:'Space Mono', monospace;">
+        Solo ingresa: <span id="qrQuickDigits" style="background:#000; color:var(--accent); padding:2px 10px; border-radius:6px; border:1px solid var(--accent); font-size:22px; display:inline-block;">...</span>
+      </div>
+    </div>
+
+    <p style="font-size:12px; color:#aaa; margin-bottom:8px;">O escanea el código QR con la cámara de la app en tu celular en la misma red Wi-Fi.</p>
+    <div id="qrLanUrl" style="background:#000; border:1px solid var(--border); padding:8px; border-radius:4px; font-size:11px; color:var(--accent); word-break:break-all;"></div>
+    <button class="btn" onclick="copyLanUrl()" style="margin-top:10px;">📋 Copiar Enlace</button>
+  </div>
+</div>
+
+<!-- ─── MODAL GESTIÓN DE FRASES / MEMES DE ESTUDIANTE ─── -->
+<div class="modal-overlay" id="phrasesModal">
+  <div class="modal-content" style="max-width: 580px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px;">
+      <div style="font-family:'Syne',sans-serif; font-size:16px; font-weight:700; color:var(--accent);">
+        🎓 Chistes y Memes de Informática / Ingeniería
+      </div>
+      <button onclick="closeManagePhrasesModal()" style="background:none; border:none; color:#aaa; font-size:20px; cursor:pointer;">&times;</button>
+    </div>
+
+    <div style="font-size:11px; color:var(--muted); line-height:1.4;">
+      Estas frases se muestran en el overlay durante los recreos. Puedes agregar nuevos memes del profesor, de exámenes, de bugs en código o eliminar las que no quieras.
+    </div>
+
+    <!-- Agregar nueva frase -->
+    <div style="display:flex; gap:8px;">
+      <input type="text" id="newPhraseInput" class="form-input" placeholder="Ej: Compilando... no hagan preguntas que se rompe" style="flex:1;">
+      <button class="btn btn-accent" onclick="addTimerPhrase()">➕ Agregar</button>
+    </div>
+
+    <!-- Lista de frases existentes -->
+    <div id="phrasesModalList" style="display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto; padding-right:4px;">
+      <!-- Llenado dinámicamente -->
+    </div>
+
+    <div style="text-align:right; border-top:1px solid var(--border); padding-top:10px;">
+      <button class="btn" onclick="closeManagePhrasesModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+

@@ -4,7 +4,7 @@ import queue
 import socket
 import threading
 import webbrowser
-from flask import Blueprint, request, jsonify, send_from_directory, Response, redirect
+from flask import Blueprint, request, jsonify, send_from_directory, Response, redirect, render_template
 from services.qr_svg import generate_qr_svg
 
 static_bp = Blueprint('static', __name__)
@@ -70,7 +70,10 @@ def serve_viewer():
 @static_bp.route('/controller')
 @static_bp.route('/controller.html')
 def serve_controller():
-    return send_from_directory('static', 'controller.html')
+    try:
+        return render_template('controller.html')
+    except Exception:
+        return send_from_directory('static', 'controller.html')
 
 
 @static_bp.route('/overlay')

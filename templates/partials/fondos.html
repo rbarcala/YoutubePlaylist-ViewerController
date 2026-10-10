@@ -1,0 +1,33 @@
+<!-- ─── 2. VISTA FONDOS STREAM ─── -->
+<div class="view-container" id="view-fondos">
+  <div class="now-playing-bar">
+    <div class="now-playing-row1">
+      <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+        <span style="color:var(--muted); font-size:11px; flex-shrink:0;">REPRODUCIENDO:</span>
+        <span class="title-text" id="nowPlayingTitle">—</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar video..." autocomplete="off">
+        <span id="videoCountBadge" style="font-size:11px; color:var(--muted); font-family:'Space Mono', monospace; white-space:nowrap;"></span>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; font-size:11px;">
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="color:var(--muted);">VELOCIDAD:</span>
+          <input type="range" id="speedSlider" min="1.0" max="5.0" step="0.1" value="1.7" style="accent-color:var(--accent); width:190px;">
+          <span id="speedValue" style="color:var(--accent); font-weight:700;">1.7x</span>
+        </div>
+        <button class="btn" id="muteBtn" onclick="toggleMute()">Muted</button>
+      </div>
+      <button class="btn btn-accent" onclick="scrollToTopFondos()" title="Subir al inicio">⬆️ Subir</button>
+    </div>
+  </div>
+
+  <div class="fondos-scroll-content" id="fondosScrollContent">
+    <div id="loadingVideos" style="text-align:center; padding:40px; color:var(--muted);">Cargando lista de fondos…</div>
+    <div class="grid-videos" id="gridVideos"></div>
+  </div>
+</div>
+
