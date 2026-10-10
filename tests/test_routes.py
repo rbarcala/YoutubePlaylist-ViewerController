@@ -110,6 +110,27 @@ class TestRoutes(unittest.TestCase):
         for view_id in ['view-menu', 'view-fondos', 'view-obs', 'view-spotify', 'view-soundboard', 'view-overlays', 'settingsModal']:
             self.assertIn(f'id="{view_id}"', html, f"Falta el módulo/vista {view_id} en el controller")
 
+    def test_open_browser_endpoint(self):
+        """Verifica que el endpoint /api/open_browser responda correctamente."""
+        res = self.client.post('/api/open_browser?url=https://example.com')
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data.get('ok'))
+        self.assertEqual(data.get('url'), 'https://example.com')
+
+    def test_spotify_auth_url_endpoints(self):
+        """Verifica que /api/spotify/auth_url soporte tanto GET como POST con credenciales."""
+        # GET
+        res_get = self.client.get('/api/spotify/auth_url')
+        self.assertEqual(res_get.status_code, 200)
+
+        # POST con client_id
+        res_post = self.client.post('/api/spotify/auth_url', json={'client_id': 'test_id', 'client_secret': 'test_sec'})
+        self.assertEqual(res_post.status_code, 200)
+        data = res_post.get_json()
+        self.assertIn('auth_url', data)
+        self.assertIn('client_id=test_id', data['auth_url'])
+
 
 if __name__ == '__main__':
     unittest.main()

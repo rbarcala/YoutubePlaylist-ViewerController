@@ -518,10 +518,14 @@ async function loginSpotifyOAuth() {
       return;
     }
     // Abrir en el navegador predeterminado del sistema operativo
-    fetch(`/api/open_browser?url=${encodeURIComponent(data.auth_url)}`, { method: 'POST' }).catch(() => {});
-    try {
-      window.open(data.auth_url, '_blank');
-    } catch(e) {}
+    if (typeof openExternalUrl === 'function') {
+      openExternalUrl(data.auth_url);
+    } else {
+      fetch(`/api/open_browser?url=${encodeURIComponent(data.auth_url)}`, { method: 'POST' }).catch(() => {});
+      try {
+        window.open(data.auth_url, '_blank');
+      } catch(e) {}
+    }
     showToast('Abriendo autorización de Spotify en tu navegador...', 'info');
   } catch(e) {
     showToast('No se pudo iniciar la vinculación con Spotify', 'error');

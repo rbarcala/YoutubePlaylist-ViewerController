@@ -355,22 +355,31 @@ class BrowserManager:
             self._open_url_in_browser(viewer_url)
             return {"success": True, "action": "opened_in_browser", "url": viewer_url}
 
+    def open_url(self, url: str) -> bool:
+        """Abre cualquier URL en el navegador predeterminado del sistema respetando la configuración del usuario."""
+        if not url:
+            return False
+        try:
+            if shutil.which("xdg-open"):
+                subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return True
+        except Exception:
+            pass
+        try:
+            return webbrowser.open(url)
+        except Exception as e:
+            logger.error(f"[browser_manager] Error abriendo URL {url}: {e}")
+            return False
+
+    def open_myinstants_tab(self) -> bool:
+        """Abre la web de MyInstants en el navegador predeterminado."""
+        return self.open_url("https://www.myinstants.com")
+
     def _open_url_in_browser(self, url: str):
         """Lanza la URL en el navegador de forma segura con exactamente 1 llamada, sin flags que dupliquen ventanas/pestañas."""
         if not url:
             return
-        try:
-            # Si firefox está disponible en el sistema, invocar limpiamente
-            if shutil.which("firefox"):
-                subprocess.Popen(["firefox", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                return
-        except Exception:
-            pass
-
-        try:
-            webbrowser.open(url)
-        except Exception as e:
-            logger.error(f"[browser_manager] Error en webbrowser.open: {e}")
+        self.open_url(url)
 
     # ─── 4. FOCO EN LA PESTAÑA DEL VIEWER AL PONER VIDEO ───
 

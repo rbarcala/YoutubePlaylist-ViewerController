@@ -27,8 +27,17 @@ function openViewer() {
     });
 }
 
+function openExternalUrl(url) {
+  if (!url) return;
+  fetch('/api/open_browser?url=' + encodeURIComponent(url), { method: 'POST' }).catch(() => {});
+  try {
+    window.open(url, '_blank');
+  } catch(e) {}
+}
+window.openExternalUrl = openExternalUrl;
+
 function openWebController() {
-  window.open('/controller.html', '_blank');
+  openExternalUrl('/controller.html');
 }
 
 function setConnected(val) {

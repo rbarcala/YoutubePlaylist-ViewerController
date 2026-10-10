@@ -1,5 +1,7 @@
 import os
 import json
+import shutil
+import subprocess
 import threading
 import webbrowser
 from flask import Blueprint, request, jsonify, send_from_directory
@@ -50,11 +52,35 @@ def soundboard_search():
 
 @soundboard_bp.route('/api/open_browser', methods=['GET', 'POST'])
 def open_browser():
-    if browser_mgr:
+    target_url = request.args.get('url') or ''
+    if not target_url and request.is_json:
+        data = request.get_json(silent=True) or {}
+        target_url = data.get('url', '')
+    if not target_url:
+        target_url = request.form.get('url', '')
+    if not target_url:
+        target_url = "https://www.myinstants.com"
+
+    # Resolver rutas relativas si se pasaron
+    if target_url.startswith('/'):
+        cfg = load_config() if load_config else {}
+        port = cfg.get('port', 8000)
+        target_url = f"http://127.0.0.1:{port}{target_url}"
+
+    if browser_mgr and hasattr(browser_mgr, 'open_url'):
+        browser_mgr.open_url(target_url)
+    elif browser_mgr and hasattr(browser_mgr, 'open_myinstants_tab') and target_url == "https://www.myinstants.com":
         browser_mgr.open_myinstants_tab()
-        return jsonify({'ok': True})
-    webbrowser.open("https://www.myinstants.com")
-    return jsonify({'ok': True, 'fallback': 'browser'})
+    else:
+        try:
+            if shutil.which("xdg-open"):
+                subprocess.Popen(["xdg-open", target_url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                webbrowser.open(target_url)
+        except Exception:
+            webbrowser.open(target_url)
+
+    return jsonify({'ok': True, 'url': target_url})
 
 
 @soundboard_bp.route('/api/soundboard/auth', methods=['GET', 'POST'])

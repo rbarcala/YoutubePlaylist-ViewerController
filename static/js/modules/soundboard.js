@@ -662,10 +662,12 @@ async function startDesktopLoginWindow() {
 
 function openMyInstantsInBrowser() {
   const url = 'https://www.myinstants.com/en/favorites/';
-  fetch(`/api/open_browser?url=${encodeURIComponent(url)}`, { method: 'POST' }).catch(() => {});
-  try {
-    window.open(url, '_blank');
-  } catch(e) {}
+  if (typeof openExternalUrl === 'function') {
+    openExternalUrl(url);
+  } else {
+    fetch(`/api/open_browser?url=${encodeURIComponent(url)}`, { method: 'POST' }).catch(() => {});
+    try { window.open(url, '_blank'); } catch(e) {}
+  }
   showToast('Abriendo MyInstants en el navegador 🌐');
 }
 

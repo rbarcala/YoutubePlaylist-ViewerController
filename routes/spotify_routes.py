@@ -16,11 +16,23 @@ def init_spotify_routes(sp_mgr, config_loader, config_saver, broadcast_fn):
     broadcast_event = broadcast_fn
 
 
-@spotify_bp.route('/api/spotify/auth_url')
+@spotify_bp.route('/api/spotify/auth_url', methods=['GET', 'POST'])
 def spotify_auth_url():
-    cfg = load_config()
+    cfg = load_config() if load_config else {}
     client_id = cfg.get('spotify_client_id', '')
-    redirect_uri = cfg.get('spotify_redirect_uri', 'http://127.0.0.1:8000/api/spotify/callback')
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        req_cid = data.get('client_id', '').strip()
+        req_csec = data.get('client_secret', '').strip()
+        if req_cid:
+            client_id = req_cid
+            cfg['spotify_client_id'] = req_cid
+        if req_csec:
+            cfg['spotify_client_secret'] = req_csec
+        if (req_cid or req_csec) and save_config:
+            save_config(cfg)
+    port = cfg.get('port', 8000)
+    redirect_uri = cfg.get('spotify_redirect_uri', f'http://127.0.0.1:{port}/api/spotify/callback')
     scopes = 'user-read-playback-state user-modify-playback-state user-read-currently-playing streaming user-library-read user-read-recently-played playlist-read-private playlist-read-collaborative user-top-read'
     if client_id:
         from urllib.parse import urlencode

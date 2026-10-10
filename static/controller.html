@@ -1242,7 +1242,7 @@ Warm smell of colitas, rising up through the air...</div>
         </label>
         <input type="password" id="modalInputSessionCookie" class="form-input" placeholder="Valor de cookie sessionid (opcional para guardar en la nube)">
         <div id="cookieHelpBox" style="display:none; font-size:11px; color:#aaa; background:rgba(0,0,0,0.5); padding:8px 10px; border-radius:6px; margin-top:6px; line-height:1.5;">
-          1. Entra a <a href="https://www.myinstants.com" target="_blank" style="color:var(--accent);">myinstants.com</a> e inicia sesión con Google o tu usuario.<br>
+          1. Entra a <a href="https://www.myinstants.com" target="_blank" onclick="if(typeof openExternalUrl==='function'){openExternalUrl(this.href);return false;}" style="color:var(--accent);">myinstants.com</a> e inicia sesión con Google o tu usuario.<br>
           2. Presiona <kbd>F12</kbd> &rarr; pestaña <strong>Aplicación</strong> (o Almacenamiento) &rarr; <strong>Cookies</strong> &rarr; <code>myinstants.com</code>.<br>
           3. Copia el valor de la cookie <code>sessionid</code> y pégalo aquí. ¡Listo!
         </div>

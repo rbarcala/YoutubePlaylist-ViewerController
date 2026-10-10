@@ -305,7 +305,12 @@ function copyLiveStreamLink() {
 function openLiveStreamLink() {
   const shareInput = document.getElementById('liveShareLinkInput');
   if (shareInput && shareInput.value) {
-    window.open(shareInput.value, '_blank');
+    if (typeof openExternalUrl === 'function') {
+      openExternalUrl(shareInput.value);
+    } else {
+      fetch(`/api/open_browser?url=${encodeURIComponent(shareInput.value)}`, { method: 'POST' }).catch(() => {});
+      try { window.open(shareInput.value, '_blank'); } catch(e) {}
+    }
   } else {
     showToast('No hay enlace disponible');
   }

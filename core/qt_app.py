@@ -59,24 +59,44 @@ def launch_qt_window(url: str, title: str, port: int, browser_mgr=None) -> int:
         app.setStyleSheet("QToolTip { color: #ffffff; background-color: #2a82da; border: 1px solid white; }")
 
         
+        class ExternalPage(QWebEnginePage):
+            """Página efímera para capturar window.open() y enlaces target='_blank'."""
+            def acceptNavigationRequest(self, url, nav_type, is_main_frame):
+                url_str = url.toString()
+                if not url_str or url_str == "about:blank":
+                    return True
+                logger.info(f"[qt_app] Interceptada ventana emergente / window.open: {url_str}")
+                _open_in_browser(url_str)
+                self.deleteLater()
+                return False
+
         class CustomPage(QWebEnginePage):
             def __init__(self, profile, parent=None):
                 super().__init__(profile, parent)
                 self.featurePermissionRequested.connect(self.on_feature_permission_requested)
                 self.setBackgroundColor(QColor(18, 18, 18))
+
             def javaScriptConsoleMessage(self, level, message, line_number, source_id):
                 if level >= QWebEnginePage.WarningMessageLevel:
                     logger.debug(f"[qt_app js] {message} (line {line_number})")
+
             def on_feature_permission_requested(self, sec_url, feature):
                 # Auto-allow camera/mic for virtual camera WebRTC
                 if feature in (QWebEnginePage.MediaAudioCapture, QWebEnginePage.MediaVideoCapture, QWebEnginePage.MediaAudioVideoCapture):
                     self.setFeaturePermission(sec_url, feature, QWebEnginePage.PermissionGrantedByUser)
                 else:
                     self.setFeaturePermission(sec_url, feature, QWebEnginePage.PermissionDeniedByUser)
+
+            def createWindow(self, _type):
+                # Intercepta window.open(...) y <a target="_blank">
+                temp_page = ExternalPage(self.profile(), self)
+                return temp_page
+
             def acceptNavigationRequest(self, url, nav_type, is_main_frame):
                 url_str = url.toString()
-                if url_str and not (url_str.startswith("http://localhost") or url_str.startswith("http://127.0.0.1") or url_str.startswith("file://")):
-                    webbrowser.open(url_str)
+                if url_str and not (url_str.startswith("http://localhost") or url_str.startswith("http://127.0.0.1") or url_str.startswith("file://") or url_str == "about:blank"):
+                    logger.info(f"[qt_app] Enlace externo detectado en navegación principal: {url_str}")
+                    _open_in_browser(url_str)
                     return False
                 return super().acceptNavigationRequest(url, nav_type, is_main_frame)
 
@@ -137,9 +157,22 @@ def launch_qt_window(url: str, title: str, port: int, browser_mgr=None) -> int:
 
 
 def _open_in_browser(url: str):
-    """Abre la URL en el navegador predeterminado."""
+    """Abre la URL en el navegador predeterminado del sistema operativo."""
+    if not url or url == "about:blank":
+        return
+    import shutil
+    import subprocess
     import webbrowser
-    webbrowser.open(url)
+    try:
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return
+    except Exception:
+        pass
+    try:
+        webbrowser.open(url)
+    except Exception as e:
+        logger.error(f"[qt_app] Error abriendo navegador para URL {url}: {e}")
 
 
 def _show_qr_dialog(parent, url: str):
