@@ -217,6 +217,197 @@ function toggleMute() {
 // ─── 4. YOUTUBE LIVE MONITOR LOGIC ───
 let liveIsMuted = true;
 let currentLiveVideoId = '';
+let liveEmbedTimer = null;
+
+function removeLiveFallback() {
+  const container = document.getElementById('liveVideoContainer');
+  const fb = container && container.querySelector('.live-fallback');
+  if (fb) fb.remove();
+}
+
+/**
+ * Muestra una tarjeta sobre el monitor cuando el embed de YouTube no se puede
+ * reproducir (Error 153/150/101, embed deshabilitado, etc.), con miniatura y
+ * botones para abrir el directo o reintentar.
+ */
+const LIVE_FALLBACK_MSG_CONNECTING = 'Conectando la vista previa de YouTube…';
+const LIVE_FALLBACK_MSG_FAILED = 'YouTube no pudo mostrar la vista previa embebida (el directo está al aire igual).';
+
+function setLiveFallbackMessage(text) {
+  const el = document.querySelector('#liveVideoContainer .live-fallback-msg');
+  if (el) el.textContent = text;
+}
+
+function showLiveFallback(videoId, title, connecting = false) {
+  const container = document.getElementById('liveVideoContainer');
+  if (!container) return;
+  if (container.querySelector('.live-fallback')) {
+    if (!connecting) setLiveFallbackMessage((title ? `${title} — ` : '') + LIVE_FALLBACK_MSG_FAILED);
+    return;
+  }
+  container.style.position = 'relative';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'live-fallback';
+  wrap.style.cssText = 'position:absolute; inset:0; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:20px; text-align:center; background:#000; color:#fff;';
+
+  const img = document.createElement('img');
+  const id = encodeURIComponent(videoId);
+  img.src = `https://i.ytimg.com/vi/${id}/hqdefault_live.jpg`;
+  img.onerror = () => { img.onerror = null; img.src = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`; };
+  img.style.cssText = 'position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0.35; z-index:-1;';
+  wrap.appendChild(img);
+
+  const badge = document.createElement('div');
+  badge.textContent = '🔴 Directo detectado';
+  badge.style.cssText = 'font-weight:800; font-size:1.1rem;';
+  wrap.appendChild(badge);
+
+  const sub = document.createElement('div');
+  sub.className = 'live-fallback-msg';
+  sub.textContent = (title ? `${title} — ` : '') + (connecting ? LIVE_FALLBACK_MSG_CONNECTING : LIVE_FALLBACK_MSG_FAILED);
+  sub.style.cssText = 'font-size:0.85rem; opacity:0.85; max-width:420px;';
+  wrap.appendChild(sub);
+
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex; gap:10px; flex-wrap:wrap; justify-content:center;';
+  const openBtn = document.createElement('button');
+  openBtn.className = 'btn btn-accent';
+  openBtn.textContent = '↗ Abrir en YouTube';
+  openBtn.onclick = () => openLiveStreamLink();
+  const retryBtn = document.createElement('button');
+  retryBtn.className = 'btn';
+  retryBtn.textContent = '🔄 Reintentar';
+  retryBtn.onclick = () => refreshLiveStream();
+  const hlsBtn = document.createElement('button');
+  hlsBtn.className = 'btn';
+  hlsBtn.textContent = '📺 Reproducir aquí';
+  hlsBtn.onclick = () => startLiveHls(container, videoId, title);
+  row.appendChild(openBtn);
+  row.appendChild(hlsBtn);
+  row.appendChild(retryBtn);
+  wrap.appendChild(row);
+
+  container.appendChild(wrap);
+}
+
+/**
+ * Vigila el iframe del directo: escucha los mensajes de la IFrame API de YouTube
+ * (onError / onReady) y mantiene una tarjeta de respaldo hasta recibir confirmación (5s sin señal => mensaje de fallo).
+ * Si el player reporta que sí funciona más tarde, retira el fallback.
+ */
+function watchLiveEmbed(container, videoId, title) {
+  if (liveEmbedTimer) clearTimeout(liveEmbedTimer);
+  const iframe = container.querySelector('iframe');
+  if (!iframe) return;
+
+  iframe.addEventListener('load', () => {
+    try {
+      iframe.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*');
+    } catch (e) {}
+  });
+
+  // Nunca mostrar un recuadro negro: tarjeta inmediata hasta que el player confirme que funciona
+  showLiveFallback(videoId, title, true);
+  liveEmbedTimer = setTimeout(() => {
+    if (currentLiveVideoId === videoId) showLiveFallback(videoId, title, false);
+  }, 5000);
+
+  const onMsg = (ev) => {
+    if (currentLiveVideoId !== videoId) {
+      window.removeEventListener('message', onMsg);
+      return;
+    }
+    if (typeof ev.origin !== 'string' || !ev.origin.includes('youtube')) return;
+    let d = ev.data;
+    if (typeof d === 'string') {
+      try { d = JSON.parse(d); } catch (e) { return; }
+    }
+    if (!d || typeof d !== 'object') return;
+    if (d.event === 'onError') {
+      if (liveEmbedTimer) clearTimeout(liveEmbedTimer);
+      showLiveFallback(videoId, title, false);
+    } else if (d.event === 'onReady' || (d.event === 'infoDelivery' && d.info && d.info.playerState !== undefined)) {
+      if (liveEmbedTimer) clearTimeout(liveEmbedTimer);
+      removeLiveFallback();
+    }
+  };
+  window.addEventListener('message', onMsg);
+}
+
+// ─── Reproductor HLS (ventana nativa / respaldo cuando el embed falla) ───
+let liveHls = null;
+let liveHlsScriptPromise = null;
+
+function loadHlsLibrary() {
+  if (window.Hls) return Promise.resolve();
+  if (liveHlsScriptPromise) return liveHlsScriptPromise;
+  liveHlsScriptPromise = new Promise((resolve, reject) => {
+    const sc = document.createElement('script');
+    sc.src = '/js/vendor/hls.min.js';
+    sc.onload = () => resolve();
+    sc.onerror = () => { liveHlsScriptPromise = null; reject(new Error('No se pudo cargar hls.js')); };
+    document.head.appendChild(sc);
+  });
+  return liveHlsScriptPromise;
+}
+
+function destroyLiveHls() {
+  if (liveHls) {
+    try { liveHls.destroy(); } catch (e) {}
+    liveHls = null;
+  }
+}
+
+/**
+ * Reproduce el directo con <video> + hls.js a través del proxy del backend.
+ * Pensado para la ventana nativa (Qt WebEngine), donde el embed de YouTube no funciona.
+ */
+async function startLiveHls(container, videoId, title) {
+  destroyLiveHls();
+  if (liveEmbedTimer) { clearTimeout(liveEmbedTimer); liveEmbedTimer = null; }
+  container.innerHTML = '<video id="liveHlsVideo" playsinline autoplay style="width:100%; height:100%; object-fit:contain; background:#000;"></video>';
+  const video = container.querySelector('#liveHlsVideo');
+  video.muted = liveIsMuted;
+  showLiveFallback(videoId, title, true);
+
+  const fail = (msg) => {
+    if (currentLiveVideoId !== videoId) return;
+    showLiveFallback(videoId, title, false);
+    setLiveFallbackMessage((title ? `${title} — ` : '') + msg);
+  };
+
+  try {
+    await loadHlsLibrary();
+  } catch (e) {
+    return fail('No se pudo cargar el reproductor HLS.');
+  }
+  if (currentLiveVideoId !== videoId) return;
+
+  const h264 = window.MediaSource && MediaSource.isTypeSupported('video/mp4; codecs="avc1.4d401f,mp4a.40.2"');
+  if (!window.Hls || !Hls.isSupported() || !h264) {
+    return fail('Esta ventana no soporta H.264/HLS. Abrí el directo en YouTube.');
+  }
+
+  const hls = new Hls({ liveSyncDurationCount: 3, maxBufferLength: 20, enableWorker: true });
+  liveHls = hls;
+  hls.loadSource(`/api/youtube/live_hls/playlist.m3u8?v=${encodeURIComponent(videoId)}`);
+  hls.attachMedia(video);
+  hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(() => {}); });
+  hls.on(Hls.Events.ERROR, (_ev, data) => {
+    if (!data.fatal) return;
+    if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+      hls.startLoad();
+      // Si tras reintentar sigue sin reproducir, avisar
+      setTimeout(() => { if (liveHls === hls && video.readyState < 2) fail('No se pudo conectar con el directo.'); }, 8000);
+    } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+      hls.recoverMediaError();
+    } else {
+      fail('El reproductor del directo falló. Probá Reintentar.');
+    }
+  });
+  video.addEventListener('playing', () => { if (currentLiveVideoId === videoId) removeLiveFallback(); });
+}
 
 async function loadLiveData() {
   const container = document.getElementById('liveVideoContainer');
@@ -245,15 +436,24 @@ async function loadLiveData() {
       }
 
       // Recrear solo si cambió el video o no hay iframe cargado
-      if (currentLiveVideoId !== data.video_id || !container.querySelector('iframe')) {
+      if (currentLiveVideoId !== data.video_id || !container.querySelector('iframe, #liveHlsVideo')) {
         currentLiveVideoId = data.video_id;
+        destroyLiveHls();
+        // La ventana nativa (Qt WebEngine) no soporta el embed: usar HLS directamente
+        if (/QtWebEngine/i.test(navigator.userAgent)) {
+          startLiveHls(container, data.video_id, data.title);
+          return;
+        }
         const muteParam = liveIsMuted ? 1 : 0;
+        const origin = encodeURIComponent(window.location.origin);
         container.innerHTML = `
-          <iframe id="livePlayerIframe" src="https://www.youtube.com/embed/${data.video_id}?autoplay=1&mute=${muteParam}&enablejsapi=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+          <iframe id="livePlayerIframe" src="https://www.youtube.com/embed/${encodeURIComponent(data.video_id)}?autoplay=1&mute=${muteParam}&enablejsapi=1&playsinline=1&origin=${origin}" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
         `;
+        watchLiveEmbed(container, data.video_id, data.title);
       }
     } else {
       currentLiveVideoId = '';
+      destroyLiveHls();
       if (muteBtn) muteBtn.style.display = 'none';
       if (shareBar) shareBar.style.display = 'none';
       badge.textContent = '⏸️ SIN DIRECTO ACTIVO';
@@ -322,6 +522,12 @@ function updateLiveMuteButton() {
 function toggleLiveMute() {
   liveIsMuted = !liveIsMuted;
   updateLiveMuteButton();
+
+  const hlsVideo = document.getElementById('liveHlsVideo');
+  if (hlsVideo) {
+    hlsVideo.muted = liveIsMuted;
+    if (!liveIsMuted) hlsVideo.volume = 1;
+  }
 
   const iframe = document.getElementById('livePlayerIframe') || document.querySelector('#liveVideoContainer iframe');
   if (iframe && iframe.contentWindow) {

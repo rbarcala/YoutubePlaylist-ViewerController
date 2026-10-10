@@ -4,7 +4,7 @@ import threading
 import re
 import urllib.request
 import urllib.parse
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response, stream_with_context
 
 youtube_bp = Blueprint('youtube', __name__)
 
@@ -340,6 +340,124 @@ def get_video_url():
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ─── PROXY HLS DEL DIRECTO ───
+# La ventana nativa (Qt WebEngine con Chromium viejo) no reproduce el embed de
+# YouTube. Se resuelve el HLS del directo con yt-dlp y se sirve por este proxy
+# porque googlevideo.com no envía cabeceras CORS (hls.js no podría leerlo directo).
+_live_hls_cache = {}  # video_id -> (variant_url, expira_ts)
+_HLS_ALLOWED_SUFFIXES = ('.googlevideo.com', '.youtube.com')
+_HLS_UA = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+_VIDEO_ID_RE = re.compile(r'^[A-Za-z0-9_-]{6,20}$')
+
+
+def _hls_host_allowed(url):
+    """Solo permite proxear hosts de YouTube/googlevideo (evita SSRF)."""
+    try:
+        p = urllib.parse.urlparse(url)
+        host = (p.hostname or '').lower()
+    except Exception:
+        return False
+    if p.scheme not in ('http', 'https') or not host:
+        return False
+    return any(host == suf[1:] or host.endswith(suf) for suf in _HLS_ALLOWED_SUFFIXES)
+
+
+def _rewrite_hls_playlist(text, base_url):
+    """Reescribe segmentos y URIs de la playlist para que pasen por /live_hls/seg."""
+    def proxify(u):
+        absolute = urllib.parse.urljoin(base_url, u)
+        return '/api/youtube/live_hls/seg?u=' + urllib.parse.quote(absolute, safe='')
+
+    out = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            out.append(line)
+        elif stripped.startswith('#'):
+            out.append(re.sub(r'URI="([^"]+)"', lambda m: 'URI="%s"' % proxify(m.group(1)), line))
+        else:
+            out.append(proxify(stripped))
+    return '\n'.join(out) + '\n'
+
+
+def _resolve_live_variant(video_id, force=False):
+    """URL de la variante HLS (<=480p) del directo; cacheada 20 min."""
+    now = time.time()
+    cached = _live_hls_cache.get(video_id)
+    if cached and not force and cached[1] > now:
+        return cached[0]
+
+    import yt_dlp
+    opts = {'quiet': True, 'no_warnings': True, 'skip_download': True, 'noplaylist': True}
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
+
+    fmts = [f for f in info.get('formats', [])
+            if str(f.get('protocol', '')).startswith('m3u8') and f.get('height') and f.get('url')]
+    if not fmts:
+        return None
+    small = [f for f in fmts if f['height'] <= 480]
+    chosen = max(small, key=lambda f: f['height']) if small else min(fmts, key=lambda f: f['height'])
+    _live_hls_cache[video_id] = (chosen['url'], now + 1200)
+    return chosen['url']
+
+
+@youtube_bp.route('/api/youtube/live_hls/playlist.m3u8')
+def live_hls_playlist():
+    video_id = request.args.get('v', '')
+    if not _VIDEO_ID_RE.match(video_id):
+        return jsonify({'error': 'Parámetro v inválido'}), 400
+
+    import requests
+    last_error = 'sin respuesta'
+    for attempt in (0, 1):
+        try:
+            variant = _resolve_live_variant(video_id, force=bool(attempt))
+            if not variant:
+                return jsonify({'error': 'El directo no tiene formatos HLS'}), 404
+            upstream = requests.get(variant, headers=_HLS_UA, timeout=10)
+            if upstream.status_code == 200:
+                body = _rewrite_hls_playlist(upstream.text, variant)
+                resp = Response(body, mimetype='application/vnd.apple.mpegurl')
+                resp.headers['Cache-Control'] = 'no-cache, no-store'
+                return resp
+            last_error = f'HTTP {upstream.status_code}'
+        except Exception as e:
+            last_error = str(e)
+    return jsonify({'error': last_error}), 502
+
+
+@youtube_bp.route('/api/youtube/live_hls/seg')
+def live_hls_segment():
+    target = request.args.get('u', '')
+    if not _hls_host_allowed(target):
+        return jsonify({'error': 'Host no permitido'}), 403
+
+    import requests
+    try:
+        upstream = requests.get(target, headers=_HLS_UA, stream=True, timeout=(5, 15))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+    if upstream.status_code != 200:
+        code = upstream.status_code
+        upstream.close()
+        return jsonify({'error': f'HTTP {code}'}), 502
+
+    def generate():
+        try:
+            for chunk in upstream.iter_content(65536):
+                if chunk:
+                    yield chunk
+        finally:
+            upstream.close()
+
+    return Response(
+        stream_with_context(generate()),
+        content_type=upstream.headers.get('Content-Type', 'application/octet-stream'),
+        headers={'Cache-Control': 'no-cache'},
+    )
 
 
 @youtube_bp.route('/api/prefetch_video_url')
