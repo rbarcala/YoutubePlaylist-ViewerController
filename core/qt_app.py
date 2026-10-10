@@ -10,7 +10,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-def launch_qt_window(url: str, title: str, port: int, browser_mgr=None) -> int:
+def launch_qt_window(url: str, title: str, port: int, browser_mgr=None, on_close=None) -> int:
     """
     Lanza la ventana nativa PyQt5 con WebEngine.
     Returns el código de salida de la aplicación.
@@ -99,7 +99,17 @@ def launch_qt_window(url: str, title: str, port: int, browser_mgr=None) -> int:
                     return False
                 return super().acceptNavigationRequest(url, nav_type, is_main_frame)
 
-        window = QMainWindow()
+        class ControllerMainWindow(QMainWindow):
+            def closeEvent(self, event):
+                logger.info("[qt_app] Ventana del controlador cerrada. Ejecutando limpieza...")
+                if callable(on_close):
+                    try:
+                        on_close()
+                    except Exception as e:
+                        logger.error(f"[qt_app] Error en hook de cierre: {e}")
+                super().closeEvent(event)
+
+        window = ControllerMainWindow()
         window.setWindowTitle(title)
         window.resize(1220, 840)
         
@@ -154,12 +164,18 @@ def launch_qt_window(url: str, title: str, port: int, browser_mgr=None) -> int:
         
         view.load(QUrl(url))
         window.show()
-        sys.exit(app.exec_())
+        ret = app.exec_()
+        if callable(on_close):
+            try:
+                on_close()
+            except Exception:
+                pass
+        sys.exit(ret)
         
     except ImportError:
         logger.warning("[qt_app] PyQt5 no detectado. Intentando fallback a GTK3/WebKit2...")
         from .gtk_app import launch_webkit_window
-        return launch_webkit_window(url, title, port)
+        return launch_webkit_window(url, title, port, on_close=on_close)
 
 
 def _open_in_browser(url: str):

@@ -444,3 +444,34 @@ class BrowserManager:
                 pass
 
         return False
+
+    def close_viewer(self) -> bool:
+        """
+        Cierra de forma limpia únicamente la ventana del Viewer si fue abierta como ventana independiente
+        o mediante wmctrl/xdotool, sin afectar otras ventanas de navegación personales del usuario.
+        """
+        closed_any = False
+        try:
+            windows = self.enumerate_system_windows()
+            for w in windows:
+                if w.get("is_viewer"):
+                    wid = w.get("wid")
+                    if wid:
+                        if self._wmctrl:
+                            try:
+                                res = subprocess.run([self._wmctrl, "-ic", wid], timeout=1)
+                                if res.returncode == 0:
+                                    closed_any = True
+                            except Exception:
+                                pass
+                        elif self._xdotool:
+                            try:
+                                res = subprocess.run([self._xdotool, "windowclose", wid], timeout=1)
+                                if res.returncode == 0:
+                                    closed_any = True
+                            except Exception:
+                                pass
+        except Exception:
+            pass
+
+        return closed_any

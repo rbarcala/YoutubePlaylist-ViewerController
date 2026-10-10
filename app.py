@@ -125,6 +125,26 @@ def main():
     threading.Thread(target=launch_obs_if_needed, args=(cfg, BASE_DIR), daemon=True).start()
     threading.Thread(target=launch_spotify_if_needed, daemon=True).start()
 
+    def cleanup_on_exit():
+        """Limpia subprocesos huérfanos (sonidos, ventana viewer) sin tocar OBS ni Spotify."""
+        logger.info("[app] Ejecutando limpieza de cierre...")
+        # 1. Detener procesos de audio ffplay del soundboard
+        try:
+            import subprocess
+            subprocess.run(["pkill", "-f", "ffplay.*sounds"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["pkill", "-f", "ffplay"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+        # 2. Cerrar ventana del Viewer si fue abierta para la sesión
+        try:
+            browser_mgr.close_viewer()
+        except Exception:
+            pass
+
+    import atexit
+    atexit.register(cleanup_on_exit)
+
     if mode == "web":
         logger.info(f"[app] Abriendo Controller en navegador web: {controller_url}")
         webbrowser.open(controller_url)
@@ -134,6 +154,8 @@ def main():
                 time.sleep(1)
         except KeyboardInterrupt:
             logger.info("[app] Cerrando aplicación.")
+        finally:
+            cleanup_on_exit()
     else:
         # En modo escritorio, abrir el viewer si está activado en config
         if cfg.get("auto_open_viewer", False):
@@ -146,7 +168,13 @@ def main():
             threading.Thread(target=_smart_open_viewer, daemon=True).start()
 
         logger.info(f"[app] Abriendo Controller nativo de escritorio: {controller_url}")
-        launch_qt_window(controller_url, title="YouTube Stream Controller", port=port, browser_mgr=browser_mgr)
+        launch_qt_window(
+            controller_url,
+            title="YouTube Stream Controller",
+            port=port,
+            browser_mgr=browser_mgr,
+            on_close=cleanup_on_exit
+        )
 
 
 if __name__ == "__main__":

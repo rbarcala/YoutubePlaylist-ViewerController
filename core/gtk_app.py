@@ -8,7 +8,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-def launch_webkit_window(url: str, title: str, port: int) -> int:
+def launch_webkit_window(url: str, title: str, port: int, on_close=None) -> int:
     """
     Lanza la ventana nativa GTK3 con WebKit2.
     Returns el código de salida de la aplicación.
@@ -31,7 +31,14 @@ def launch_webkit_window(url: str, title: str, port: int) -> int:
         # Ventana principal
         window = Gtk.Window(title=title)
         window.set_default_size(1280, 800)
-        window.connect('destroy', Gtk.main_quit)
+        def _on_destroy(*args):
+            if callable(on_close):
+                try:
+                    on_close()
+                except Exception:
+                    pass
+            Gtk.main_quit()
+        window.connect('destroy', _on_destroy)
         
         # Icono
         icon_path = Path(__file__).parent.parent / 'assets' / 'icon.png'
