@@ -221,12 +221,13 @@ class SpotifyManager:
                 target_track_uri = track_uris[0]
 
         res = {}
-        if self._access_token:
+        token = self.refresh_access_token_if_needed()
+        if token:
             res = self._api_request("me/player/play", method="PUT", body=body if body else None)
 
         # Si no hay token de Web API o la llamada a la nube falló (por ejemplo, sin cuenta Premium o 400/403/404):
         # Fallback local 100% garantizado vía MPRIS OpenUri en la PC
-        if "error" in res or not self._access_token:
+        if "error" in res or not token:
             uri_to_open = target_track_uri or context_uri
             if uri_to_open:
                 try:
@@ -237,7 +238,7 @@ class SpotifyManager:
                     ], capture_output=True, timeout=1.0)
                     return {"status": "success", "source": "mpris_open_uri"}
                 except Exception as e:
-                    logger.debug(f"[spotify] Error abriendo URI en MPRIS: {e}")
+                    pass
             else:
                 try:
                     subprocess.run([
@@ -252,9 +253,10 @@ class SpotifyManager:
 
     def pause(self) -> dict:
         res = {}
-        if self._access_token:
+        token = self.refresh_access_token_if_needed()
+        if token:
             res = self._api_request("me/player/pause", method="PUT")
-        if "error" in res or not self._access_token:
+        if "error" in res or not token:
             try:
                 subprocess.run([
                     "gdbus", "call", "--session", "--dest", "org.mpris.MediaPlayer2.spotify",
@@ -268,9 +270,10 @@ class SpotifyManager:
 
     def next_track(self) -> dict:
         res = {}
-        if self._access_token:
+        token = self.refresh_access_token_if_needed()
+        if token:
             res = self._api_request("me/player/next", method="POST")
-        if "error" in res or not self._access_token:
+        if "error" in res or not token:
             try:
                 subprocess.run([
                     "gdbus", "call", "--session", "--dest", "org.mpris.MediaPlayer2.spotify",
@@ -284,9 +287,10 @@ class SpotifyManager:
 
     def previous_track(self) -> dict:
         res = {}
-        if self._access_token:
+        token = self.refresh_access_token_if_needed()
+        if token:
             res = self._api_request("me/player/previous", method="POST")
-        if "error" in res or not self._access_token:
+        if "error" in res or not token:
             try:
                 subprocess.run([
                     "gdbus", "call", "--session", "--dest", "org.mpris.MediaPlayer2.spotify",

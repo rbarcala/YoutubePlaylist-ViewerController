@@ -169,13 +169,10 @@ def spotify_volume():
 @spotify_bp.route('/api/spotify/search')
 def spotify_search():
     query = request.args.get('q', '')
-    type_ = request.args.get('type', 'track')
-    limit = int(request.args.get('limit', 20))
-    
     if not query:
-        return jsonify({'tracks': {'items': []}})
+        return jsonify({'tracks': []})
     
-    results = spotify_mgr.search(query, type_, limit)
+    results = spotify_mgr.search(query)
     return jsonify(results)
 
 
