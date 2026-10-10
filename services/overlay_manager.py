@@ -81,10 +81,10 @@ class OverlayManager:
             self.timer_state["remaining"] += seconds
             self.timer_state["total_seconds"] += seconds
             self.timer_state["duration"] += seconds
-            self.timer_state["last_updated"] = time.time()
-            self._save_timer_state()
-            self._trigger_event()
-            return self.get_status()
+            if self.timer_state.get("running"):
+                self.timer_state["start_epoch"] += seconds
+        self._emit_update()
+        return self.get_status()
 
     def pause_timer(self) -> dict:
         with self.lock:
