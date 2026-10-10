@@ -1,17 +1,18 @@
 // ─── APERTURA DE VENTANAS Y UTILIDADES ───
 let isOpeningViewer = false;
 function openViewer() {
+  if (isOpeningViewer) return;
+  isOpeningViewer = true;
+  setTimeout(() => { isOpeningViewer = false; }, 1500);
+
   if (viewerConnected) {
     fetch('/api/focus_viewer', { method: 'POST' }).catch(() => {});
     if (viewerWindow) {
       try { viewerWindow.focus(); } catch(e) {}
     }
-    showToast('Viewer ya conectado — Enfocando 📺');
+    showToast('Viewer conectado — Solicitando foco 📺');
     return;
   }
-  if (isOpeningViewer) return;
-  isOpeningViewer = true;
-  setTimeout(() => { isOpeningViewer = false; }, 2500);
 
   fetch('/api/open_viewer', { method: 'POST' })
     .then(r => r.json())

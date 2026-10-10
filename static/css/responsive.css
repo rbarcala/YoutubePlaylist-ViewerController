@@ -17,28 +17,29 @@
 
   body { font-size: var(--mobile-font-size); }
   header {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 12px;
-    gap: 12px;
-    height: auto;
+    padding: 0 10px;
+    gap: 8px;
+    height: 50px;
+    min-height: 50px;
+    max-height: 50px;
+    flex-direction: row;
+    align-items: center;
   }
   .view-container { padding: 8px 10px 16px; }
 
   /* Navegación móvil */
+  .logo { font-size: 14px; }
+  .btn-back-hub { font-size: 10px; padding: 4px 8px; }
   .nav-pills {
     display: flex !important;
     overflow-x: auto;
-    padding-bottom: 5px;
     flex-wrap: nowrap;
     justify-content: flex-start;
     -webkit-overflow-scrolling: touch;
   }
-  .nav-pills .btn {
-    flex: 0 0 auto;
-    padding: var(--mobile-nav-pill-padding);
-    font-size: 11px;
-    min-height: var(--mobile-btn-min-height);
+  .nav-pill {
+    padding: 4px 8px;
+    font-size: 10px;
   }
 
   /* Hub / Menú Principal */

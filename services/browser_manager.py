@@ -279,58 +279,63 @@ class BrowserManager:
     def is_viewer_open(self, port: int = 8000) -> bool:
         """
         Determina de manera confiable si ya existe una pestaña o ventana
-        del Viewer activa, descartando conexiones fantasma o huérfanas de SSE.
+        del Viewer activa. Prioriza la conexión SSE en vivo (activeViewers)
+        como fuente de verdad para evitar falsos positivos de archivos diferidos de Firefox.
         """
         # Si ningún navegador está corriendo en el sistema, es imposible que haya un viewer abierto
         has_browser = any(self._is_process_running(b) for b in ["firefox", "chrome", "chromium", "brave", "edge"])
         if not has_browser:
             return False
 
-        # Verificar si en Firefox hay pestañas activas
-        ff_tabs = self.enumerate_firefox_tabs()
-        if any(t.get("is_viewer") for t in ff_tabs):
-            return True
-
-        # Verificar ventanas nativas del entorno gráfico
-        windows = self.enumerate_system_windows()
-        if any(w.get("is_viewer") for w in windows):
-            return True
-
-        # Si hay pestañas legibles en Firefox y NINGUNA coincide con viewer.html,
-        # cualquier reporte de activeViewers del servidor es un socket huérfano/fantasma
-        if ff_tabs and not any(t.get("is_viewer") for t in ff_tabs):
-            return False
-
-        # En caso de otros navegadores donde no se puedan leer pestañas directamente:
+        # 1. Comprobación de estado en vivo del servidor SSE (fuente de verdad inmediata)
+        server_state_checked = False
         try:
             import urllib.request
             req = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/state", timeout=0.3)
             state = json.loads(req.read().decode())
-            if state.get("activeViewers", 0) > 0:
-                return True
+            server_state_checked = True
+            # Si el servidor responde y no hay sockets de viewer activos, no está abierto
+            if state.get("activeViewers", 0) <= 0:
+                return False
+            # Si hay activeViewers reportados por el servidor y un navegador está corriendo:
+            return True
         except Exception:
             pass
+
+        # 2. Si el servidor no respondió la comprobación HTTP (ej. llamada interna antes de bind),
+        # verificar ventanas nativas del entorno gráfico
+        windows = self.enumerate_system_windows()
+        if any(w.get("is_viewer") for w in windows):
+            return True
+
+        # 3. Solo si no se pudo comprobar el estado del servidor, consultar pestañas de Firefox
+        if not server_state_checked:
+            ff_tabs = self.enumerate_firefox_tabs()
+            if any(t.get("is_viewer") for t in ff_tabs):
+                return True
 
         return False
 
     def open_smart_viewer(self, viewer_url: str, port: int = 8000) -> dict:
         """
         Abre el Viewer según la prioridad jerárquica:
-        0. Debounce estricto (2.5s) con lock atómico para evitar aperturas duplicadas en ráfaga.
+        0. Debounce estricto (1.5s) con lock atómico para evitar aperturas duplicadas en ráfaga.
         1. Si ya hay un Viewer abierto en cualquier parte del sistema -> Foco y NO abrir otro.
-        2. Si no hay Viewer abierto: abre exactamente una pestaña en el navegador web.
+        2. Si no hay Viewer abierto o el foco falla -> abre exactamente una pestaña en el navegador web.
         """
         with BrowserManager._global_lock:
             now = time.time()
-            if now - BrowserManager._last_open_time < 2.5:
-                logger.debug("[browser_manager] Solicitud de apertura ignorada por debounce (< 2.5s).")
+            if now - BrowserManager._last_open_time < 1.5:
+                logger.debug("[browser_manager] Solicitud de apertura ignorada por debounce (< 1.5s).")
                 return {"success": True, "action": "debounced", "url": viewer_url}
 
-            # Regla estricta: Si ya existe un Viewer abierto, enfocar y NO abrir otro duplicado
+            # Regla: Si existe un Viewer abierto en vivo, intentar enfocarlo
             if self.is_viewer_open(port):
-                logger.info("[browser_manager] Viewer ya se encuentra abierto en el sistema. Poniendo en foco.")
-                self.focus_viewer()
-                return {"success": True, "action": "focused_existing_viewer", "url": viewer_url}
+                logger.info("[browser_manager] Viewer detectado abierto en el sistema. Poniendo en foco.")
+                focused = self.focus_viewer()
+                if focused:
+                    return {"success": True, "action": "focused_existing_viewer", "url": viewer_url}
+                logger.info("[browser_manager] Viewer activo pero no se pudo enfocar por ventana; abriendo pestaña para asegurar visibilidad.")
 
             BrowserManager._last_open_time = now
 
@@ -387,9 +392,8 @@ class BrowserManager:
         """
         Pone la pestaña/ventana del Viewer en primer plano en el sistema operativo
         utilizando herramientas nativas del entorno sin invocar nuevas instancias de la app.
+        Retorna True solo si efectivamente se logró enfocar una ventana del Viewer.
         """
-        activated = False
-
         if not (self._wmctrl or self._xdotool):
             return False
 
@@ -404,35 +408,39 @@ class BrowserManager:
                             try:
                                 res = subprocess.run([self._wmctrl, "-ia", wid], timeout=1)
                                 if res.returncode == 0:
-                                    activated = True
+                                    return True
                             except Exception:
                                 pass
-                        if not activated and self._xdotool:
+                        if self._xdotool:
                             try:
                                 res = subprocess.run([self._xdotool, "windowactivate", wid], timeout=1)
                                 if res.returncode == 0:
-                                    activated = True
+                                    return True
                             except Exception:
                                 pass
         except Exception:
             pass
 
-        if self._wmctrl and not activated:
+        # 2. Intentar activación por título exacto 'Viewer'
+        if self._wmctrl:
             try:
-                subprocess.run([self._wmctrl, "-a", "Viewer"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                activated = True
+                res = subprocess.run([self._wmctrl, "-a", "Viewer"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
+                if res.returncode == 0:
+                    return True
             except Exception:
                 pass
 
-        if self._xdotool and not activated:
+        if self._xdotool:
             try:
-                subprocess.run(
+                res = subprocess.run(
                     [self._xdotool, "search", "--name", "Viewer", "windowactivate"],
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
+                    stderr=subprocess.DEVNULL,
+                    timeout=1
                 )
-                activated = True
+                if res.returncode == 0:
+                    return True
             except Exception:
                 pass
 
-        return activated
+        return False

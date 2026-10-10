@@ -733,8 +733,14 @@
     }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  function startOverlay() {
     fetchInitialState();
     initSSE();
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startOverlay);
+  } else {
+    startOverlay();
+  }
 

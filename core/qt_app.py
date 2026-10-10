@@ -16,10 +16,9 @@ def launch_qt_window(url: str, title: str, port: int, browser_mgr=None) -> int:
     Returns el código de salida de la aplicación.
     """
     try:
-        # Deshabilitar GPU para evitar EGL_BAD_CONTEXT en Linux y garantizar renderizado 100% estable
+        # Modo CPU seguro en Linux sin romper el rasterizador por software de Skia/Chromium
         sys.argv.extend([
             "--disable-gpu",
-            "--disable-software-rasterizer",
             "--disable-gpu-compositing",
             "--disable-dev-shm-usage"
         ])
@@ -110,9 +109,16 @@ def launch_qt_window(url: str, title: str, port: int, browser_mgr=None) -> int:
             app.setWindowIcon(QIcon(icon_path))
             window.setWindowIcon(QIcon(icon_path))
         
-        # Barra superior con estilos oscuros
+        # Atajos de teclado rápidos
+        from PyQt5.QtWidgets import QShortcut
+        from PyQt5.QtGui import QKeySequence
+        QShortcut(QKeySequence("F5"), window, lambda: view.reload())
+        QShortcut(QKeySequence("Ctrl+R"), window, lambda: view.reload())
+        
+        # Barra superior con estilos oscuros (oculta por defecto para no duplicar el header interno de la app)
         toolbar = QToolBar("Opciones")
         toolbar.setMovable(False)
+        toolbar.setVisible(False)
         toolbar.setStyleSheet("QToolBar { background-color: #111; border-bottom: 1px solid #333; padding: 5px; } QToolButton { color: white; font-weight: bold; padding: 5px 10px; border-radius: 4px; } QToolButton:hover { background-color: #333; }")
         window.addToolBar(toolbar)
         

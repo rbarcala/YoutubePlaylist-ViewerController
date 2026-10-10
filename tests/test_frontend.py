@@ -53,10 +53,16 @@ class TestFrontendIntegrity(unittest.TestCase):
         """Verifica que los estilos modulares existan y tengan contenido."""
         expected_css = [
             "theme.css",
+            "base.css",
             "controller.css",
             "responsive.css",
             "overlay.css",
             "viewer.css",
+            "views/fondos.css",
+            "views/obs.css",
+            "views/spotify.css",
+            "views/soundboard.css",
+            "views/overlays.css",
         ]
         for css_name in expected_css:
             css_file = self.css_dir / css_name
