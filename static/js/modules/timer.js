@@ -1,6 +1,6 @@
 // ─── OVERLAYS Y TEMPORIZADOR "YA VUELVO" ───
 let timerPhrasesList = [];
-let currentTimerState = { active: false, running: false, remaining: 300, duration: 300, title: 'Ya Vuelvo', phrase: '' };
+let currentTimerState = { active: false, running: false, remaining: 600, duration: 600, title: 'Ya vuelvo', phrase: '' };
 
 function getOverlayUrl() {
   const host = window.location.hostname || 'localhost';
@@ -101,9 +101,22 @@ function updateTimerUI(state) {
 
   const progressFill = document.getElementById('timerProgressFill');
   if (progressFill) {
-    const dur = Math.max(1, parseInt(state.duration || 300, 10));
+    const dur = Math.max(1, parseInt(state.duration || 600, 10));
     const pct = Math.min(100, Math.max(0, (rem / dur) * 100));
     progressFill.style.width = pct + '%';
+  }
+
+  // Sincronizar el slider si el usuario no está arrastrándolo en ese instante
+  const slider = document.getElementById('timerDurationSlider');
+  const sliderValLabel = document.getElementById('timerSliderMinutesVal');
+  if (slider && document.activeElement !== slider) {
+    const activeMins = Math.max(1, Math.round(rem / 60));
+    const maxVal = parseInt(slider.max || '30', 10);
+    if (activeMins > maxVal) {
+      updateTimerSliderMax(activeMins);
+    }
+    slider.value = activeMins;
+    if (sliderValLabel) sliderValLabel.textContent = `${activeMins} min`;
   }
 
   const titleInput = document.getElementById('timerTitleInput');
@@ -131,9 +144,45 @@ function updateTimerUI(state) {
   }
 }
 
+function onTimerSliderChange(val) {
+  const mins = parseInt(val, 10) || 1;
+  const label = document.getElementById('timerSliderMinutesVal');
+  if (label) label.textContent = `${mins} min`;
+
+  const clockEl = document.getElementById('timerClockDisplay');
+  if (clockEl) {
+    clockEl.textContent = `${String(mins).padStart(2, '0')}:00`;
+  }
+
+  // Si está activo en vivo, opcionalmente el usuario puede dar inicio o add
+  if (currentTimerState && !currentTimerState.active) {
+    currentTimerState.duration = mins * 60;
+    currentTimerState.remaining = mins * 60;
+  }
+}
+
+function updateTimerSliderMax(maxVal) {
+  let maxNum = parseInt(maxVal, 10);
+  if (isNaN(maxNum) || maxNum < 1) maxNum = 30;
+
+  const slider = document.getElementById('timerDurationSlider');
+  const maxDisplay = document.getElementById('timerSliderMaxDisplay');
+  const maxInput = document.getElementById('timerSliderMaxInput');
+
+  if (slider) {
+    slider.max = maxNum;
+    if (parseInt(slider.value, 10) > maxNum) {
+      slider.value = maxNum;
+      onTimerSliderChange(maxNum);
+    }
+  }
+  if (maxDisplay) maxDisplay.textContent = `${maxNum} min`;
+  if (maxInput && String(maxInput.value) !== String(maxNum)) maxInput.value = maxNum;
+}
+
 async function startTimerWithMinutes(mins) {
   const titleInput = document.getElementById('timerTitleInput');
-  const title = (titleInput && titleInput.value.trim()) || 'Ya Vuelvo';
+  const title = (titleInput && titleInput.value.trim()) || 'Recreo';
   const phrase = getSelectedOrRandomPhrase();
   const duration = mins * 60;
 
@@ -168,26 +217,37 @@ async function addTimerMinutes(mins) {
       showToast('Error al añadir tiempo');
     }
   } else {
-    // Si está inactivo, solo cambiamos el selector
+    // Si está inactivo, sumamos a la visualización y slider
     let currentMins = 0;
-    const clockText = document.getElementById('timerClockDisplay').textContent;
+    const clockText = document.getElementById('timerClockDisplay')?.textContent || '10:00';
     const parts = clockText.split(':');
     if (parts.length === 2) {
       currentMins = parseInt(parts[0], 10) || 0;
     }
-    const newMins = currentMins + mins;
-    document.getElementById('timerClockDisplay').textContent = `${String(newMins).padStart(2, '0')}:00`;
+    const newMins = Math.max(1, currentMins + mins);
+    const slider = document.getElementById('timerDurationSlider');
+    if (slider) {
+      const maxVal = parseInt(slider.max || '30', 10);
+      if (newMins > maxVal) {
+        updateTimerSliderMax(newMins);
+      }
+      slider.value = newMins;
+    }
+    const label = document.getElementById('timerSliderMinutesVal');
+    if (label) label.textContent = `${newMins} min`;
+    const clockEl = document.getElementById('timerClockDisplay');
+    if (clockEl) clockEl.textContent = `${String(newMins).padStart(2, '0')}:00`;
   }
 }
 
 async function startCustomTimer() {
-  const clockText = document.getElementById('timerClockDisplay').textContent;
+  const clockText = document.getElementById('timerClockDisplay')?.textContent || '10:00';
   const parts = clockText.split(':');
-  let mins = 5;
+  let mins = 10;
   if (parts.length === 2) {
-    mins = parseInt(parts[0], 10) || 5;
+    mins = parseInt(parts[0], 10) || 10;
   }
-  startTimerWithMinutes(mins > 0 ? mins : 5);
+  startTimerWithMinutes(mins > 0 ? mins : 10);
 }
 
 async function pauseOverlayTimer() {
@@ -416,40 +476,54 @@ async function toggleStageObsPreview() {
 
   if (stageObsPreviewActive) {
     showToast('Conectando preview de OBS al lienzo…');
-    // 1. Intentar usar la cámara virtual si ya está activa
-    if (currentCamStream && videoEl) {
-      videoEl.srcObject = currentCamStream;
+
+    // 1. Intentar obtener la cámara virtual de OBS (60 FPS Ultra HD en PC)
+    let stream = (typeof currentCamStream !== 'undefined' && currentCamStream && currentCamStream.active) ? currentCamStream : null;
+    if (!stream && typeof window.getOrAcquireVirtualCamStream === 'function') {
+      try {
+        stream = await window.getOrAcquireVirtualCamStream();
+      } catch(e) {}
+    }
+
+    if (stream && videoEl) {
+      videoEl.srcObject = stream;
       videoEl.style.display = 'block';
       if (imgEl) imgEl.style.display = 'none';
       videoEl.play().catch(() => {});
+      showToast('Preview de OBS conectado a 60 FPS ✓');
       return;
     }
 
-    // 2. Fallback: Captura de pantalla de OBS cada 800ms
+    // 2. Fallback: Transmisión de alta velocidad por red si no hay cámara virtual (móvil o sin permisos)
     if (imgEl) imgEl.style.display = 'block';
+    if (videoEl) videoEl.style.display = 'none';
+
+    let isFetchingStageFrame = false;
     const fetchScreenshot = async () => {
-      if (!stageObsPreviewActive) return;
+      if (!stageObsPreviewActive || isFetchingStageFrame) return;
+      isFetchingStageFrame = true;
       try {
         const scRes = await fetch('/api/obs/status');
         const scData = await scRes.json();
         const currentScene = scData.current_scene || '';
-        if (currentScene) {
-          const res = await fetch('/api/obs/preview?scene=' + encodeURIComponent(currentScene));
-          const pData = await res.json();
-          if (pData.success && pData.imageData) {
-            imgEl.src = pData.imageData;
-            imgEl.style.display = 'block';
-            if (videoEl) videoEl.style.display = 'none';
-          }
+        const sceneParam = currentScene ? `?scene=${encodeURIComponent(currentScene)}` : '';
+        const res = await fetch(`/api/obs/preview${sceneParam}&width=640&height=360&quality=45`, { cache: 'no-store' });
+        const pData = await res.json();
+        if (pData.success && pData.imageData && stageObsPreviewActive) {
+          imgEl.src = pData.imageData;
         }
-      } catch(e) {}
+      } catch(e) {
+      } finally {
+        isFetchingStageFrame = false;
+      }
     };
 
     fetchScreenshot();
     if (stageObsScreenshotInterval) clearInterval(stageObsScreenshotInterval);
-    stageObsScreenshotInterval = setInterval(fetchScreenshot, 800);
+    stageObsScreenshotInterval = setInterval(fetchScreenshot, 80); // ~12 FPS fluido
   } else {
     if (stageObsScreenshotInterval) clearInterval(stageObsScreenshotInterval);
+    stageObsScreenshotInterval = null;
     if (videoEl) {
       videoEl.style.display = 'none';
       videoEl.srcObject = null;

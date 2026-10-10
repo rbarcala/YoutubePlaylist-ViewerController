@@ -7,19 +7,39 @@
             <span class="timer-status-badge timer-status-inactive" id="timerStatusBadge">Inactivo</span>
           </div>
 
-          <div class="timer-clock-display" id="timerClockDisplay">05:00</div>
+          <div class="timer-clock-display" id="timerClockDisplay">10:00</div>
 
           <div class="timer-progress-wrap">
             <div class="timer-progress-fill" id="timerProgressFill" style="width: 100%;"></div>
           </div>
 
-          <div style="width:100%; text-align:left; margin-top:8px;">
-            <label class="form-label">Título en Pantalla</label>
-            <input type="text" id="timerTitleInput" class="form-input" value="Ya Vuelvo" placeholder="Ej: Ya Vuelvo, Recreo, Volvemos enseguida..." style="width:100%;">
+          <!-- SLIDER DE TIEMPO INTERACTIVO CON MÁXIMO CONFIGURABLE -->
+          <div style="width:100%; margin-top:12px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:10px; padding:12px 14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span class="form-label" style="font-weight:700; color:#fff; display:flex; align-items:center; gap:6px;">
+                🎚️ Ajuste de Tiempo: <span id="timerSliderMinutesVal" style="color:var(--accent); font-family:'Space Mono',monospace; font-size:14px;">10 min</span>
+              </span>
+              <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted);">
+                <label for="timerSliderMaxInput" style="cursor:pointer;">Máx:</label>
+                <input type="number" id="timerSliderMaxInput" min="5" max="180" step="5" value="30" class="form-input" style="width:58px; padding:2px 6px; font-size:11px; text-align:center;" oninput="updateTimerSliderMax(this.value)" title="Duración máxima permitida en el slider">
+                <span>min</span>
+              </div>
+            </div>
+            <input type="range" id="timerDurationSlider" min="1" max="30" step="1" value="10" style="width:100%; accent-color:var(--accent); cursor:pointer;" oninput="onTimerSliderChange(this.value)">
+            <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--muted); font-family:'Space Mono',monospace; margin-top:4px;">
+              <span>1 min</span>
+              <span style="color:var(--accent); font-weight:700;" id="timerSliderCenterMark">10 min (Recreo)</span>
+              <span id="timerSliderMaxDisplay">30 min</span>
+            </div>
           </div>
 
-          <div style="width:100%; text-align:center; margin-top:8px;">
-            <div class="form-label" style="margin-bottom:8px;">Duración rápida</div>
+          <div style="width:100%; text-align:left; margin-top:10px;">
+            <label class="form-label">Título en Pantalla</label>
+            <input type="text" id="timerTitleInput" class="form-input" value="Recreo" placeholder="Ej: Recreo, Ya Vuelvo, Volvemos enseguida..." style="width:100%;">
+          </div>
+
+          <div style="width:100%; text-align:center; margin-top:10px;">
+            <div class="form-label" style="margin-bottom:8px;">Añadir tiempo rápido</div>
             <div class="timer-quick-grid">
               <button class="timer-quick-btn" onclick="addTimerMinutes(1)">+1 min</button>
               <button class="timer-quick-btn" onclick="addTimerMinutes(3)">+3 min</button>

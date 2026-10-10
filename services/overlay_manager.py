@@ -18,12 +18,12 @@ class OverlayManager:
         self.timer_state = {
             "active": False,
             "running": False,
-            "total_seconds": 300,
-            "duration": 300,
-            "remaining_seconds": 300,
-            "remaining": 300,
+            "total_seconds": 600,
+            "duration": 600,
+            "remaining_seconds": 600,
+            "remaining": 600,
             "start_epoch": 0,
-            "title": cfg.get("timer_default_title", "Ya vuelvo"),
+            "title": cfg.get("timer_default_title", "Recreo"),
             "phrase": cfg.get("timer_default_phrase", "Compilando cerebro... (42 warnings, 0 errors)"),
             "play_sound": True
         }

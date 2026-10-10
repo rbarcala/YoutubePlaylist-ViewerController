@@ -193,14 +193,40 @@ async function connectSelectedCamera(deviceId) {
     }
 }
 
-function stopObsPreviewLoop() {
-    stopSnapshotPreviewLoop();
-    if (currentCamStream) {
-        currentCamStream.getTracks().forEach(t => t.stop());
-        currentCamStream = null;
+async function getOrAcquireVirtualCamStream() {
+    if (currentCamStream && currentCamStream.active) {
+        return currentCamStream;
+    }
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+        return null;
+    }
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputs = devices.filter(d => d.kind === 'videoinput');
+        const obsDev = videoInputs.find(d => 
+            d.label.toLowerCase().includes('obs') || 
+            d.label.toLowerCase().includes('dummy') || 
+            d.label.toLowerCase().includes('v4l2')
+        );
+        const deviceId = obsDev ? obsDev.deviceId : (videoInputs[0] ? videoInputs[0].deviceId : null);
+        if (!deviceId) return null;
+
+        const constraints = { 
+            video: {
+                deviceId: { exact: deviceId },
+                width: { ideal: 1280, max: 1920 },
+                height: { ideal: 720, max: 1080 },
+                frameRate: { ideal: 60, max: 60 }
+            }
+        };
+        currentCamStream = await navigator.mediaDevices.getUserMedia(constraints);
+        return currentCamStream;
+    } catch(e) {
+        return null;
     }
 }
 
+window.getOrAcquireVirtualCamStream = getOrAcquireVirtualCamStream;
 window.startObsPreviewLoop = startVirtualCameraPreview;
 window.startSnapshotPreviewLoop = startSnapshotPreviewLoop;
 
