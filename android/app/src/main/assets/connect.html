@@ -400,6 +400,11 @@
     const btn = document.getElementById('btnCameraToggle');
 
     try {
+      if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+        alert("La cámara no está disponible en este dispositivo o contexto. Usa el código de dígitos o IP manual para conectar.");
+        return;
+      }
+
       if (window.AndroidBridge && window.AndroidBridge.requestCamera) {
         window.AndroidBridge.requestCamera();
       }

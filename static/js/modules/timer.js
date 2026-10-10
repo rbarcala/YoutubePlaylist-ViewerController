@@ -744,6 +744,37 @@ function setStudioMode(mode) {
   }
 }
 
+function setOverlayMobileView(target) {
+  const container = document.getElementById('studioVisualContainer');
+  const btnControls = document.getElementById('btnMobileOverlayControls');
+  const btnCanvas = document.getElementById('btnMobileOverlayCanvas');
+  if (!container) return;
+
+  if (target === 'canvas') {
+    container.classList.remove('mobile-view-controls');
+    container.classList.add('mobile-view-canvas');
+    if (btnCanvas) {
+      btnCanvas.classList.add('btn-accent', 'active');
+    }
+    if (btnControls) {
+      btnControls.classList.remove('btn-accent', 'active');
+    }
+    if (typeof updateStageMockups === 'function') {
+      requestAnimationFrame(updateStageMockups);
+    }
+  } else {
+    container.classList.remove('mobile-view-canvas');
+    container.classList.add('mobile-view-controls');
+    if (btnCanvas) {
+      btnCanvas.classList.remove('btn-accent', 'active');
+    }
+    if (btnControls) {
+      btnControls.classList.add('btn-accent', 'active');
+    }
+  }
+}
+window.setOverlayMobileView = setOverlayMobileView;
+
 function toggleSimModule(mod, visible) {
   if (mod === 'now_playing') {
     const el = document.getElementById('stageNowPlaying');

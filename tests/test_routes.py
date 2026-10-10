@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
 from server import app
+from services.config_manager import load_config, save_config
 
 
 class TestRoutes(unittest.TestCase):
@@ -15,6 +16,11 @@ class TestRoutes(unittest.TestCase):
 
     def setUp(self):
         self.client = app.test_client()
+        self._orig_cfg = load_config().copy()
+
+    def tearDown(self):
+        if hasattr(self, '_orig_cfg') and self._orig_cfg:
+            save_config(self._orig_cfg)
 
     def test_state_route(self):
         response = self.client.get('/api/state')
@@ -163,6 +169,14 @@ class TestRoutes(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         data = res.get_json()
         self.assertIn('logged_in', data)
+
+    def test_spotify_lyrics_route(self):
+        """Verifica que el endpoint de letras devuelva una estructura JSON válida."""
+        res = self.client.get('/api/spotify/lyrics?artist=Tears%20For%20Fears&title=Shout')
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertIn('lyrics', data)
+        self.assertIn('syncedLyrics', data)
 
 
 if __name__ == '__main__':

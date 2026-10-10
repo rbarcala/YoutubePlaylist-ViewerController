@@ -57,10 +57,11 @@ class OBSController:
 
         identify_payload = {
             "op": 1,
-            "d": {"rpcVersion": 1}
+            "d": {
+                "rpcVersion": 1,
+                "eventSubscriptions": int(event_subscriptions) if event_subscriptions is not None else 0
+            }
         }
-        if event_subscriptions is not None:
-            identify_payload["d"]["eventSubscriptions"] = int(event_subscriptions)
         if auth_response:
             identify_payload["d"]["authentication"] = auth_response
 
@@ -114,6 +115,22 @@ class OBSController:
             return None
         return payload.decode('utf-8', errors='ignore')
 
+    def _recv_response(self, sock, request_id: str = None, max_frames: int = 15):
+        """Descarta frames de eventos (op 5) hasta encontrar la respuesta a una petición (op 7)."""
+        for _ in range(max_frames):
+            frame_str = self._recv_ws_frame(sock)
+            if not frame_str:
+                return None
+            try:
+                frame = json.loads(frame_str)
+                op = frame.get("op")
+                if op == 7:
+                    if request_id is None or frame.get("d", {}).get("requestId") == request_id:
+                        return frame
+            except Exception:
+                continue
+        return None
+
     def switch_scene(self, scene_name: str) -> dict:
         """Cambia la escena actual en OBS Studio."""
         if not scene_name:
@@ -123,21 +140,29 @@ class OBSController:
             if not sock:
                 return {"success": False, "error": "No se pudo conectar a OBS"}
 
+            req_id = "change-scene-" + str(int(time.time() * 1000))
             req_payload = {
                 "op": 6,
                 "d": {
                     "requestType": "SetCurrentProgramScene",
-                    "requestId": "change-scene-" + str(int(time.time())),
+                    "requestId": req_id,
                     "requestData": {"sceneName": scene_name}
                 }
             }
             self._send_ws_frame(sock, json.dumps(req_payload))
-            resp_str = self._recv_ws_frame(sock)
+            resp = self._recv_response(sock, req_id)
             sock.close()
-            resp = json.loads(resp_str or "{}")
-            status = resp.get("d", {}).get("requestStatus", {})
-            if status.get("result", False):
+
+            if not resp:
+                # Si no llegó frame op 7 pero se envió la trama sin error
                 return {"success": True, "scene": scene_name}
+
+            status = resp.get("d", {}).get("requestStatus", {})
+            code = status.get("code", 0)
+            result = status.get("result", False)
+            if result or code == 100:
+                return {"success": True, "scene": scene_name}
+
             comment = status.get("comment", "Error al cambiar de escena en OBS")
             return {"success": False, "error": comment}
         except Exception as e:
@@ -152,16 +177,16 @@ class OBSController:
             if not sock:
                 return {"success": False, "scenes": [], "current_scene": ""}
 
-            # GetSceneList
+            req_id = "scenes-" + str(int(time.time() * 1000))
             req1 = {
                 "op": 6,
                 "d": {
                     "requestType": "GetSceneList",
-                    "requestId": "scenes-" + str(int(time.time()))
+                    "requestId": req_id
                 }
             }
             self._send_ws_frame(sock, json.dumps(req1))
-            resp1 = json.loads(self._recv_ws_frame(sock) or "{}")
+            resp1 = self._recv_response(sock, req_id) or {}
             current_program = resp1.get("d", {}).get("responseData", {}).get("currentProgramSceneName", "")
             scenes_data = resp1.get("d", {}).get("responseData", {}).get("scenes", [])
             names = [s.get("sceneName") for s in reversed(scenes_data) if "sceneName" in s]

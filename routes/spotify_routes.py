@@ -1,6 +1,12 @@
+import json
+import re
+import urllib.request
+import urllib.parse
 from flask import Blueprint, request, jsonify
 
 spotify_bp = Blueprint('spotify', __name__)
+
+_lyrics_cache = {}
 
 # Variables que se inyectan desde server.py
 spotify_mgr = None
@@ -214,12 +220,100 @@ def spotify_playlist():
 
 @spotify_bp.route('/api/spotify/lyrics')
 def spotify_lyrics():
-    track_id = request.args.get('track_id')
-    if not track_id:
-        return jsonify({'lyrics': ''})
-    
-    lyrics = spotify_mgr.get_lyrics(track_id)
-    return jsonify({'lyrics': lyrics})
+    artist = (request.args.get('artist') or '').strip()
+    title = (request.args.get('title') or '').strip()
+
+    # Si no se pasó artist ni title, intentar obtenerlo de la reproducción en vivo
+    if not artist and not title and spotify_mgr:
+        st = spotify_mgr.get_playback_state()
+        if st and (st.get('is_playing') or st.get('available')):
+            artist = (st.get('artist') or '').strip()
+            title = (st.get('title') or '').strip()
+
+    if not artist and not title:
+        return jsonify({'lyrics': '', 'syncedLyrics': ''})
+
+    cache_key = f"{artist.lower()}|||{title.lower()}"
+    if cache_key in _lyrics_cache:
+        cached = _lyrics_cache[cache_key]
+        return jsonify(cached if isinstance(cached, dict) else {'lyrics': cached, 'syncedLyrics': ''})
+
+    # Candidatos de artista
+    artist_candidates = []
+    if ',' in artist:
+        artist_candidates.append(artist.split(',')[0].strip())
+    if ';' in artist:
+        artist_candidates.append(artist.split(';')[0].strip())
+    if ' feat' in artist.lower():
+        artist_candidates.append(re.split(r'\s+feat\.?', artist, flags=re.IGNORECASE)[0].strip())
+    if ' ft.' in artist.lower():
+        artist_candidates.append(re.split(r'\s+ft\.?', artist, flags=re.IGNORECASE)[0].strip())
+    if artist and artist not in artist_candidates:
+        artist_candidates.insert(0, artist)
+
+    # Limpieza de título
+    clean_title = re.sub(r'\(feat\..*?\)', '', title, flags=re.IGNORECASE)
+    clean_title = re.sub(r'\[.*?\]', '', clean_title)
+    clean_title = re.sub(r'-\s*(remastered|live|radio edit|bonus track|deluxe).*?$', '', clean_title, flags=re.IGNORECASE).strip()
+    title_candidates = [clean_title] if clean_title != title else [title]
+    if title and title not in title_candidates:
+        title_candidates.append(title)
+
+    ua = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+    # 1. Consultar lrclib.net get directo
+    for art in artist_candidates:
+        for tit in title_candidates:
+            if not art or not tit:
+                continue
+            try:
+                params = urllib.parse.urlencode({'artist_name': art, 'track_name': tit})
+                url = f"https://lrclib.net/api/get?{params}"
+                req = urllib.request.Request(url, headers={'User-Agent': ua})
+                with urllib.request.urlopen(req, timeout=3.5) as r:
+                    d = json.loads(r.read().decode('utf-8'))
+                    synced_lyrics = d.get('syncedLyrics') or ''
+                    plain_lyrics = d.get('plainLyrics') or ''
+                    if synced_lyrics.strip():
+                        if not plain_lyrics.strip():
+                            plain_lyrics = re.sub(r'\[\d{2}:\d{2}(?:\.\d{2,3})?\]\s*', '', synced_lyrics).strip()
+                        result = {"lyrics": plain_lyrics, "syncedLyrics": synced_lyrics, "source": "lrclib"}
+                        _lyrics_cache[cache_key] = result
+                        return jsonify(result)
+                    if plain_lyrics.strip():
+                        result = {"lyrics": plain_lyrics.strip(), "syncedLyrics": "", "source": "lrclib"}
+                        _lyrics_cache[cache_key] = result
+                        return jsonify(result)
+            except Exception:
+                pass
+
+    # 2. Fallback de búsqueda abierta
+    for art in artist_candidates[:1]:
+        for tit in title_candidates[:1]:
+            try:
+                q_params = urllib.parse.urlencode({'q': f'{art} {tit}'})
+                search_url = f"https://lrclib.net/api/search?{q_params}"
+                req = urllib.request.Request(search_url, headers={'User-Agent': ua})
+                with urllib.request.urlopen(req, timeout=3.5) as r:
+                    items = json.loads(r.read().decode('utf-8'))
+                    if items and isinstance(items, list) and len(items) > 0:
+                        top = items[0]
+                        synced = top.get('syncedLyrics') or ''
+                        plain = top.get('plainLyrics') or ''
+                        if synced.strip():
+                            if not plain.strip():
+                                plain = re.sub(r'\[\d{2}:\d{2}(?:\.\d{2,3})?\]\s*', '', synced).strip()
+                            result = {"lyrics": plain, "syncedLyrics": synced, "source": "lrclib"}
+                            _lyrics_cache[cache_key] = result
+                            return jsonify(result)
+                        if plain.strip():
+                            result = {"lyrics": plain.strip(), "syncedLyrics": "", "source": "lrclib"}
+                            _lyrics_cache[cache_key] = result
+                            return jsonify(result)
+            except Exception:
+                pass
+
+    return jsonify({'lyrics': '', 'syncedLyrics': ''})
 
 
 @spotify_bp.route('/api/spotify/queue', methods=['POST'])

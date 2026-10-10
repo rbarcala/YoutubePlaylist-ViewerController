@@ -48,9 +48,9 @@
   </div>
 
   <div class="header-actions">
-    <button class="btn" onclick="openWebController()" title="Abrir en navegador">🌐 <span class="btn-label">Web</span></button>
-    <button class="btn" onclick="openViewer()" title="Abrir pantalla completa del Viewer">📺 <span class="btn-label">Viewer</span></button>
-    <button class="btn" onclick="openQRModal()" title="Código QR para conectar celular">📱</button>
+    <button class="btn btn-header-web" onclick="openWebController()" title="Abrir en navegador">🌐 <span class="btn-label">Web</span></button>
+    <button class="btn btn-header-viewer" onclick="openViewer()" title="Abrir pantalla completa del Viewer">📺 <span class="btn-label">Viewer</span></button>
+    <button class="btn btn-header-qr" onclick="openQRModal()" title="Código QR para conectar celular">📱</button>
     <button class="btn" onclick="openSettingsModal()" title="Configuración">⚙️</button>
   </div>
 </header>
@@ -418,6 +418,16 @@
       <button class="btn btn-sm" onclick="copyObsOverlayUrl()" title="Copiar enlace para la fuente de OBS">📋 URL OBS</button>
       <button class="btn btn-sm btn-accent" onclick="saveAllModularOverlay(true)" style="font-weight:800;">💾 Guardar Todo</button>
     </div>
+  </div>
+
+  <!-- SELECTOR DE VISTA MÓVIL (LIENZO 16:9 VS CONTROLES) -->
+  <div class="overlay-mobile-switcher" id="overlayMobileSwitcher">
+    <button class="btn btn-sm btn-accent active" id="btnMobileOverlayControls" onclick="setOverlayMobileView('controls')">
+      ⚙️ Controles del Módulo
+    </button>
+    <button class="btn btn-sm" id="btnMobileOverlayCanvas" onclick="setOverlayMobileView('canvas')">
+      🖼️ Ver Lienzo (16:9)
+    </button>
   </div>
 
   <!-- CUERPO PRINCIPAL DEL ESTUDIO -->

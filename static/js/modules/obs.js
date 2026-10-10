@@ -7,6 +7,13 @@ async function startVirtualCameraPreview() {
   const btn = document.getElementById('btnStartVirtualCam');
   let camSelect = document.getElementById('obsCamSelect');
 
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    if (msg) msg.textContent = "Vista previa de cámara virtual disponible en el equipo local.";
+    if (btn) btn.style.display = "none";
+    if (camSelect) camSelect.style.display = "none";
+    return;
+  }
+
   try {
     if (!camSelect.options || camSelect.options.length === 0) {
       msg.textContent = "Solicitando permisos de cámara...";

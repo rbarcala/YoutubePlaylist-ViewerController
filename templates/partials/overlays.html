@@ -29,6 +29,16 @@
     </div>
   </div>
 
+  <!-- SELECTOR DE VISTA MÓVIL (LIENZO 16:9 VS CONTROLES) -->
+  <div class="overlay-mobile-switcher" id="overlayMobileSwitcher">
+    <button class="btn btn-sm btn-accent active" id="btnMobileOverlayControls" onclick="setOverlayMobileView('controls')">
+      ⚙️ Controles del Módulo
+    </button>
+    <button class="btn btn-sm" id="btnMobileOverlayCanvas" onclick="setOverlayMobileView('canvas')">
+      🖼️ Ver Lienzo (16:9)
+    </button>
+  </div>
+
   <!-- CUERPO PRINCIPAL DEL ESTUDIO -->
   <div class="overlay-studio-body">
     <!-- SUB-VISTA 1: LIENZO INTERACTIVO + INSPECTOR MODULAR -->
