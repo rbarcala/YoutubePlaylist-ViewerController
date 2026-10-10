@@ -209,3 +209,13 @@ def generate_obs_auth():
     if broadcast_event:
         broadcast_event('config_updated', cfg)
     return jsonify({'ok': True, 'password': pwd})
+
+
+@obs_bp.route('/api/obs/sync_bpm', methods=['POST'])
+def obs_sync_bpm():
+    data = request.get_json(force=True, silent=True) or {}
+    bpm_val = float(data.get("bpm", 128.0))
+    progress_ms = int(data.get("progress_ms", 0))
+    from core.monitors import sync_bpm_to_obs
+    sync_bpm_to_obs(load_config, bpm_val, progress_ms)
+    return jsonify({"success": True, "bpm": bpm_val, "progress_ms": progress_ms})

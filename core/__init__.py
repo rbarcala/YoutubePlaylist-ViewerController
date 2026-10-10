@@ -4,7 +4,7 @@ from .qt_app import launch_qt_window
 from .gtk_app import launch_webkit_window
 from .websocket_manager import ws_manager, broadcast_event, WebSocketManager
 from .video_manager import VideoManager
-from .monitors import start_spotify_monitor, start_obs_monitor
+from .monitors import start_spotify_monitor, start_obs_monitor, sync_bpm_to_obs
 
 __all__ = [
     'check_and_install_dependencies',
@@ -17,4 +17,5 @@ __all__ = [
     'VideoManager',
     'start_spotify_monitor',
     'start_obs_monitor',
+    'sync_bpm_to_obs',
 ]

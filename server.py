@@ -124,7 +124,7 @@ app.register_blueprint(video_bp)
 app.video_cache = video_mgr.video_url_cache
 
 # Iniciar monitores en background
-start_spotify_monitor(spotify_mgr, broadcast_event)
+start_spotify_monitor(spotify_mgr, broadcast_event, load_config)
 start_obs_monitor(load_config, broadcast_event, obs_scenes_cache, obs_scenes_lock, ws_manager)
 
 # ─── Punto de entrada principal ───

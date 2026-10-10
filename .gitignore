@@ -48,7 +48,8 @@ debian/DEBIAN/
 android/.gradle/
 android/build/
 android/app/build/
-android/app/.cxx/
-android/.idea/
-android/local.properties
 *.iml
+
+# Qt WebEngine Cache
+QtWebEngine/
+

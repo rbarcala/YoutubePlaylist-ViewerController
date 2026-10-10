@@ -20,6 +20,7 @@ class SpotifyManager:
         self._last_volume = 50
         self._state_cache = None
         self._state_cache_time = 0
+        self._bpm_cache = {}
 
     def _get_tokens(self):
         cfg = self.get_config()
@@ -186,9 +187,14 @@ class SpotifyManager:
             if (now - self._last_volume_time) < 3.0:
                 volume_pct = self._last_volume
 
+            track_id = item.get("id", "")
+            bpm = self.get_track_bpm(track_id)
+
             return {
                 "available": True,
                 "is_playing": is_playing,
+                "track_id": track_id,
+                "bpm": bpm,
                 "title": item.get("name", "Desconocido"),
                 "artist": artists,
                 "album": item.get("album", {}).get("name", ""),
@@ -199,7 +205,7 @@ class SpotifyManager:
                 "device_name": res.get("device", {}).get("name", "PC")
             }
 
-        return {"available": False, "is_playing": False, "title": "Sin reproducción", "artist": "", "album_art": ""}
+        return {"available": False, "is_playing": False, "title": "Sin reproducción", "artist": "", "album_art": "", "bpm": 128.0}
 
     def play(self, context_uri: str = None, track_uris: list = None) -> dict:
         body = {}
@@ -432,6 +438,26 @@ class SpotifyManager:
         self._playlist_cache[playlist_id] = (out, now + 3600)
         return out
 
+    def get_track_bpm(self, track_id: str) -> float:
+        """Obtiene el tempo (BPM) de la pista desde Spotify Web API."""
+        if not track_id:
+            return 128.0
+
+        if track_id in self._bpm_cache:
+            return self._bpm_cache[track_id]
+
+        try:
+            res = self._api_request(f"audio-features/{track_id}")
+            if res and isinstance(res, dict) and "tempo" in res:
+                bpm = float(res.get("tempo") or 128.0)
+                if bpm > 0:
+                    self._bpm_cache[track_id] = round(bpm, 1)
+                    return self._bpm_cache[track_id]
+        except Exception:
+            pass
+
+        return 128.0
+
     # ─── FALLBACK MPRIS PARA SPOTIFY LOCAL EN LINUX ───
     def _mpris_call(self, method: str):
         cmd = ["gdbus", "call", "--session", "--dest", "org.mpris.MediaPlayer2.spotify",
@@ -467,6 +493,7 @@ class SpotifyManager:
                     artist = "Unknown Artist"
                     art_url = ""
                     
+                    track_id = ""
                     for line in meta_res.stdout.splitlines():
                         if "xesam:title" in line:
                             title = line.split("xesam:title")[-1].strip()
@@ -474,6 +501,9 @@ class SpotifyManager:
                             artist = line.split("xesam:artist")[-1].strip()
                         elif "mpris:artUrl" in line:
                             art_url = line.split("mpris:artUrl")[-1].strip()
+                        elif "mpris:trackid" in line:
+                            tid = line.split("mpris:trackid")[-1].strip()
+                            track_id = tid.split("/")[-1].strip()
                             
                     if title.startswith("http"):
                         title = "Reproduciendo (Sin título)"
@@ -494,9 +524,13 @@ class SpotifyManager:
                             duration_ms = int(int(len_res.stdout.strip()) / 1000)
                         except: pass
                         
+                    bpm = self.get_track_bpm(track_id)
+
                     m_state = {
                         "available": True,
                         "is_playing": is_playing,
+                        "track_id": track_id,
+                        "bpm": bpm,
                         "title": title,
                         "artist": artist,
                         "album_art": art_url,

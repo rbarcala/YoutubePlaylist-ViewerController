@@ -471,3 +471,47 @@ class OBSController:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def get_source_filters(self, source_name: str) -> dict:
+        try:
+            sock = self._connect_and_identify()
+            if not sock: return {"success": False, "filters": []}
+            self._send_ws_frame(sock, json.dumps({
+                "op": 6,
+                "d": {
+                    "requestType": "GetSourceFilterList",
+                    "requestId": "get-filter-list",
+                    "requestData": {
+                        "sourceName": source_name
+                    }
+                }
+            }))
+            resp = json.loads(self._recv_ws_frame(sock) or "{}")
+            sock.close()
+            filters = resp.get("d", {}).get("responseData", {}).get("filters", [])
+            return {"success": True, "filters": filters}
+        except Exception as e:
+            return {"success": False, "error": str(e), "filters": []}
+
+    def set_source_filter_settings(self, source_name: str, filter_name: str, filter_settings: dict, overlay: bool = True) -> dict:
+        try:
+            sock = self._connect_and_identify()
+            if not sock: return {"success": False}
+            self._send_ws_frame(sock, json.dumps({
+                "op": 6,
+                "d": {
+                    "requestType": "SetSourceFilterSettings",
+                    "requestId": "set-filter-settings",
+                    "requestData": {
+                        "sourceName": source_name,
+                        "filterName": filter_name,
+                        "filterSettings": filter_settings,
+                        "overlay": overlay
+                    }
+                }
+            }))
+            resp = json.loads(self._recv_ws_frame(sock) or "{}")
+            sock.close()
+            return {"success": True, "response": resp.get("d", {})}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+

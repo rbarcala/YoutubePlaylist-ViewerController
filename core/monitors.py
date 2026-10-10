@@ -3,19 +3,81 @@ import time
 import threading
 from services.obs_client import OBSController
 
-def start_spotify_monitor(spotify_mgr, broadcast_event):
-    """Monitoriza el estado de Spotify y lo difunde."""
+_last_synced_bpm = None
+_last_synced_track = None
+
+def sync_bpm_to_obs(load_config, bpm_val: float, progress_ms: int = 0):
+    """Sincroniza el BPM y la fase (progreso) de Spotify con los filtros de shader activos en OBS."""
+    global _last_synced_bpm
+    if not bpm_val or bpm_val <= 0:
+        return
+
+    cfg = load_config() if callable(load_config) else {}
+    if not cfg.get("obs_enabled", True):
+        return
+
+    obs = OBSController(
+        host=cfg.get("obs_host", "localhost"),
+        port=cfg.get("obs_port", 4455),
+        password=cfg.get("obs_password", "")
+    )
+
+    # Calcular beat_offset normalizado al período del compás (evita desfases por números grandes)
+    progress_s = float(progress_ms) / 1000.0 if progress_ms > 0 else 0.0
+    beat_period = 60.0 / float(bpm_val)
+    beat_offset = (progress_s % beat_period)
+
+    # Fuentes o escenas objetivo habituales para filtros de baile
+    candidate_sources = ["Baile tuneado", "Baile", "BAILE", "Camara", "Cámara"]
+    current_scene = cfg.get("obs_scene_on_play")
+    if current_scene and current_scene not in candidate_sources:
+        candidate_sources.insert(0, current_scene)
+
+    updated_any = False
+    for source in candidate_sources:
+        filter_res = obs.get_source_filters(source)
+        if filter_res.get("success"):
+            for f in filter_res.get("filters", []):
+                fname = f.get("filterName")
+                fkind = f.get("filterKind")
+                if fkind == "shader_filter" or "shader" in fname.lower():
+                    settings_payload = {
+                        "bpm": float(bpm_val),
+                        "beat_offset": float(beat_offset)
+                    }
+                    obs.set_source_filter_settings(source, fname, settings_payload, overlay=True)
+                    updated_any = True
+
+    _last_synced_bpm = bpm_val
+    if updated_any:
+        print(f"[spotify-bpm] Sincronizado a OBS: {bpm_val} BPM | Progreso: {round(progress_s, 2)}s")
+
+def start_spotify_monitor(spotify_mgr, broadcast_event, load_config=None):
+    """Monitoriza el estado de Spotify y lo difunde, sincronizando BPM con OBS."""
     def _loop():
+        global _last_synced_track, _last_synced_bpm
         time.sleep(2)
         while True:
             try:
-                time.sleep(6)
+                time.sleep(4)
                 st = spotify_mgr.get_playback_state()
                 if st and st.get("available"):
                     broadcast_event("spotify_state", st)
+
+                    track_id = st.get("track_id") or st.get("title")
+                    bpm = float(st.get("bpm") or 128.0)
+                    progress_ms = int(st.get("progress_ms") or 0)
+                    is_playing = st.get("is_playing", False)
+
+                    # Sincronizar al cambiar de canción o si el BPM cambió
+                    if is_playing and (track_id != _last_synced_track or bpm != _last_synced_bpm):
+                        _last_synced_track = track_id
+                        if load_config:
+                            threading.Thread(target=sync_bpm_to_obs, args=(load_config, bpm, progress_ms), daemon=True).start()
             except Exception:
                 pass
     threading.Thread(target=_loop, daemon=True, name="spotify-monitor").start()
+
 
 def start_obs_monitor(load_config, broadcast_event, obs_scenes_cache, obs_scenes_lock, ws_manager):
     """Monitoriza el estado de OBS Studio (niveles de audio, escenas, etc.) y lo difunde."""
