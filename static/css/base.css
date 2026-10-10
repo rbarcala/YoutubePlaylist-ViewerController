@@ -7,17 +7,16 @@
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border);
-    padding: 0 16px;
+    padding: 0 10px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
     flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    height: 52px;
-    min-height: 52px;
-    max-height: 52px;
+    overflow-x: hidden;
+    height: 48px;
+    min-height: 48px;
+    max-height: 48px;
     box-sizing: border-box;
     width: 100%;
     flex-shrink: 0;
@@ -27,7 +26,7 @@
   .logo-group {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
     flex-shrink: 0;
   }
 
@@ -38,7 +37,7 @@
     color: var(--accent);
     font-family: 'Space Mono', monospace;
     font-size: 11px;
-    padding: 5px 10px;
+    padding: 4px 8px;
     border-radius: var(--radius);
     cursor: pointer;
     text-transform: uppercase;
@@ -50,9 +49,9 @@
 
   .logo {
     font-family: 'Syne', sans-serif;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 800;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.04em;
     color: var(--accent);
     cursor: pointer;
     white-space: nowrap;
@@ -61,7 +60,7 @@
 
   .nav-pills {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     align-items: center;
     overflow-x: auto;
     scrollbar-width: none;
@@ -76,8 +75,8 @@
     border: 1px solid var(--border);
     color: var(--muted);
     font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    padding: 5px 10px;
+    font-size: 10.5px;
+    padding: 4px 7px;
     border-radius: var(--radius);
     cursor: pointer;
     transition: all 0.15s;
@@ -95,9 +94,9 @@
   .status-indicators {
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 11px;
-    letter-spacing: 0.06em;
+    gap: 6px;
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     white-space: nowrap;
     flex-shrink: 0;
@@ -106,15 +105,16 @@
   .status-dot {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     color: var(--muted);
     cursor: pointer;
-    padding: 4px 8px;
+    padding: 3px 6px;
     border-radius: 4px;
+    font-size: 10.5px;
   }
   .status-dot::before {
     content: '';
-    width: 8px; height: 8px;
+    width: 7px; height: 7px;
     border-radius: 50%;
     background: var(--muted);
     transition: all 0.3s;
@@ -128,9 +128,35 @@
   .header-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     flex-shrink: 0;
     white-space: nowrap;
+  }
+
+  .header-actions .btn {
+    padding: 4px 7px;
+    font-size: 10px;
+    gap: 3px;
+  }
+
+  @media (max-width: 1100px) {
+    .nav-pill {
+      font-size: 10px;
+      padding: 3px 6px;
+    }
+    .logo {
+      font-size: 13px;
+    }
+  }
+
+  @media (max-width: 960px) {
+    .nav-pill span.pill-text,
+    .header-actions .btn span.btn-label {
+      display: none;
+    }
+    .nav-pill, .header-actions .btn {
+      padding: 4px 6px;
+    }
   }
 
   .btn {
@@ -141,13 +167,13 @@
     font-size: 11px;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    padding: 6px 12px;
+    padding: 5px 10px;
     cursor: pointer;
     border-radius: var(--radius);
     transition: all 0.15s;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
   }
   .btn:hover { border-color: var(--accent); color: var(--accent); }
   .btn-accent { background: var(--accent); color: #000; font-weight: 700; border-color: var(--accent); }
