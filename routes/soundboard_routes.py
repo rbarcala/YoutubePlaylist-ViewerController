@@ -83,10 +83,76 @@ def open_browser():
     return jsonify({'ok': True, 'url': target_url})
 
 
+from services.browser_cookie_detector import (
+    detect_myinstants_session,
+    SessionLoginWatcher
+)
+
+active_login_watcher = None
+
+
+def _handle_session_detected(session_data, client_id=None):
+    username = session_data.get("username", "")
+    sessionid = session_data.get("sessionid", "")
+    csrftoken = session_data.get("csrftoken", "")
+    res = soundboard_mgr.save_auth(username, sessionid, csrftoken)
+    if broadcast_event:
+        broadcast_event("soundboard_auth_success", {
+            "username": res.get("username", ""),
+            "has_session": res.get("has_session", False),
+            "clientId": client_id,
+            "browser": session_data.get("browser", "Navegador")
+        })
+        favs = soundboard_mgr.get_saved_favorites()
+        broadcast_event("soundboard_favorites_updated", {"favorites": favs, "clientId": client_id})
+    return res
+
+
+@soundboard_bp.route('/api/soundboard/detect_browser_session', methods=['GET'])
+def detect_browser_session_route():
+    try:
+        session_info = detect_myinstants_session()
+        return jsonify(session_info)
+    except Exception as e:
+        return jsonify({"found": False, "error": str(e)})
+
+
+@soundboard_bp.route('/api/soundboard/import_browser_session', methods=['POST'])
+def import_browser_session_route():
+    data = request.get_json(force=True, silent=True) or {}
+    client_id = data.get("clientId") or data.get("client_id")
+    try:
+        session_info = detect_myinstants_session()
+        if session_info.get("found"):
+            res = _handle_session_detected(session_info, client_id=client_id)
+            return jsonify({
+                "success": True,
+                "username": res.get("username", ""),
+                "has_session": res.get("has_session", False),
+                "browser": session_info.get("browser", "Navegador")
+            })
+        return jsonify({
+            "success": False,
+            "error": "No se encontró ninguna sesión activa en los navegadores del sistema."
+        }), 404
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @soundboard_bp.route('/api/soundboard/auth', methods=['GET', 'POST'])
 def soundboard_auth():
     if request.method == 'GET':
-        return jsonify(soundboard_mgr.get_auth_status())
+        status = soundboard_mgr.get_auth_status()
+        if not status.get("has_session"):
+            try:
+                det = detect_myinstants_session()
+                if det.get("found"):
+                    status["browser_session_available"] = True
+                    status["detected_username"] = det.get("username", "")
+                    status["detected_browser"] = det.get("browser", "Navegador")
+            except Exception:
+                pass
+        return jsonify(status)
 
     data = request.get_json(force=True, silent=True) or {}
     username = data.get("username", "").strip()
@@ -108,22 +174,54 @@ def soundboard_auth():
 
 @soundboard_bp.route('/api/soundboard/login_window', methods=['POST'])
 def soundboard_login_window():
-    """Abre la ventana nativa de escritorio o navegador para iniciar sesión en MyInstants."""
+    """Abre el navegador para iniciar sesión y vigila en segundo plano para vincular la sesión automáticamente."""
+    global active_login_watcher
+    data = request.get_json(force=True, silent=True) or {}
+    client_id = data.get("clientId") or data.get("client_id")
+
+    # 1. Comprobar si ya existe una sesión activa en el navegador
     try:
-        import importlib
-        app_mod = importlib.import_module("app")
-        if hasattr(app_mod, "open_myinstants_login_window"):
-            success = app_mod.open_myinstants_login_window()
-            return jsonify({"success": success})
+        existing = detect_myinstants_session()
+        if existing.get("found"):
+            res = _handle_session_detected(existing, client_id=client_id)
+            return jsonify({
+                "success": True,
+                "auto_imported": True,
+                "username": res.get("username", ""),
+                "browser": existing.get("browser", "Navegador")
+            })
     except Exception:
         pass
 
-    if browser_mgr and hasattr(browser_mgr, "open_myinstants_login"):
-        threading.Thread(target=browser_mgr.open_myinstants_login, daemon=True).start()
-        return jsonify({"success": True})
+    # 2. Iniciar watcher para capturar la sesión en segundo plano
+    if active_login_watcher:
+        try:
+            active_login_watcher.stop()
+        except Exception:
+            pass
 
-    webbrowser.open("https://www.myinstants.com/en/favorites/")
-    return jsonify({"success": True, "fallback": "browser"})
+    def on_detected(sess_info):
+        _handle_session_detected(sess_info, client_id=client_id)
+
+    active_login_watcher = SessionLoginWatcher(on_detected, poll_interval=1.5, timeout=180.0)
+    active_login_watcher.start()
+
+    # 3. Abrir la página de favoritos / login de MyInstants en el navegador del sistema
+    target_url = "https://www.myinstants.com/en/favorites/"
+    if browser_mgr and hasattr(browser_mgr, "open_url"):
+        browser_mgr.open_url(target_url)
+    elif browser_mgr and hasattr(browser_mgr, "open_myinstants_tab"):
+        browser_mgr.open_myinstants_tab()
+    else:
+        try:
+            if shutil.which("xdg-open"):
+                subprocess.Popen(["xdg-open", target_url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                webbrowser.open(target_url)
+        except Exception:
+            webbrowser.open(target_url)
+
+    return jsonify({"success": True, "fallback": "browser", "watching": True})
 
 
 @soundboard_bp.route('/api/soundboard/favorites', methods=['GET', 'POST'])

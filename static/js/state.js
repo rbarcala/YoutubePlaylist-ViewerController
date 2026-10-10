@@ -311,12 +311,22 @@ function initSSE() {
       if (data && data.username) {
         config.soundboard_username = data.username;
       }
-      showToast(`¡Sesión de MyInstants vinculada como @${data.username || 'usuario'}! 🎉`);
-      updateSoundboardAccountDisplay();
-      loadSoundboardAuthStatus();
-      if (currentSbTab === 'favorites') {
-        loadSoundboardTab('favorites', 1);
+      showToast(`¡Sesión de MyInstants vinculada como @${data.username || 'usuario'}! 🎉`, 'success');
+      if (typeof updateSoundboardAccountDisplay === 'function') updateSoundboardAccountDisplay();
+      if (typeof loadSoundboardAuthStatus === 'function') loadSoundboardAuthStatus();
+      if (typeof closeMyInstantsAuthModal === 'function') closeMyInstantsAuthModal();
+      if (typeof currentSbTab !== 'undefined' && currentSbTab === 'favorites') {
+        if (typeof loadSoundboardTab === 'function') loadSoundboardTab('favorites', 1);
       }
+    } catch(err) {}
+  });
+
+  // Notificación de autorización de Spotify completada
+  evtSource.addEventListener('spotify_auth', () => {
+    try {
+      showToast('¡Spotify vinculado exitosamente! 🎵', 'success');
+      if (typeof loadSpotifyState === 'function') loadSpotifyState();
+      if (typeof loadSpotifyData === 'function') loadSpotifyData();
     } catch(err) {}
   });
 

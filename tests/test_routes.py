@@ -143,6 +143,27 @@ class TestRoutes(unittest.TestCase):
         self.assertIn('auth_url', data)
         self.assertIn('client_id=test_id', data['auth_url'])
 
+    def test_soundboard_detect_browser_session(self):
+        """Verifica que el endpoint de detección de sesión de navegador responda correctamente."""
+        res = self.client.get('/api/soundboard/detect_browser_session')
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertIn('found', data)
+
+    def test_soundboard_login_window_route(self):
+        """Verifica que /api/soundboard/login_window responda exitosamente."""
+        res = self.client.post('/api/soundboard/login_window', json={'client_id': 'test_client'})
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data.get('success'))
+
+    def test_soundboard_auth_status_route(self):
+        """Verifica que /api/soundboard/auth devuelva el estado de sesión."""
+        res = self.client.get('/api/soundboard/auth')
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertIn('logged_in', data)
+
 
 if __name__ == '__main__':
     unittest.main()

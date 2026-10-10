@@ -49,13 +49,14 @@
 
   .logo {
     font-family: 'Syne', sans-serif;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 800;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
     color: var(--accent);
     cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
+    text-transform: uppercase;
   }
 
   .nav-pills {
@@ -195,11 +196,30 @@
   /* ─── 1. MENÚ PRINCIPAL (HUB DASHBOARD) ─── */
   .hub-header {
     text-align: center;
-    margin: 24px 0 32px;
+    margin: 20px 0 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .hub-brand-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    background: rgba(232, 255, 71, 0.08);
+    border: 1px solid rgba(232, 255, 71, 0.25);
+    padding: 3px 12px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
   }
   .hub-header h1 {
     font-family: 'Syne', sans-serif;
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 800;
     color: var(--accent);
     margin-bottom: 8px;
@@ -207,6 +227,7 @@
   .hub-header p {
     color: var(--muted);
     font-size: 13px;
+    max-width: 600px;
   }
 
   .hub-grid {
@@ -250,6 +271,8 @@
   }
   .hub-card-badge {
     align-self: flex-start;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
     font-size: 10px;
     padding: 3px 8px;
     border-radius: 4px;

@@ -49,7 +49,14 @@ from routes import (
 app = Flask(__name__, static_folder='static', static_url_path='')
 
 # Directorio de cache de videos
-VIDEO_CACHE_DIR = Path.home() / '.cache' / 'youtube-playlist-vc' / 'videos'
+LEGACY_VIDEO_CACHE_DIR = Path.home() / '.cache' / 'youtube-playlist-vc' / 'videos'
+VIDEO_CACHE_DIR = Path.home() / '.cache' / 'youtube-stream-controller' / 'videos'
+if LEGACY_VIDEO_CACHE_DIR.exists() and not VIDEO_CACHE_DIR.exists():
+    try:
+        VIDEO_CACHE_DIR.parent.mkdir(parents=True, exist_ok=True)
+        LEGACY_VIDEO_CACHE_DIR.rename(VIDEO_CACHE_DIR)
+    except Exception:
+        VIDEO_CACHE_DIR = LEGACY_VIDEO_CACHE_DIR
 video_mgr = VideoManager(VIDEO_CACHE_DIR)
 
 # ─── Inicializar managers ───

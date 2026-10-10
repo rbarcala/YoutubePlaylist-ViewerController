@@ -94,30 +94,63 @@ DEFAULT_CONFIG = {
     ]
 }
 
-USER_CONFIG_DIR = Path.home() / ".config" / "youtube-playlist-vc"
+USER_CONFIG_DIR = Path.home() / ".config" / "youtube-stream-controller"
 USER_CONFIG_PATH = USER_CONFIG_DIR / "config.json"
+LEGACY_USER_CONFIG_DIR = Path.home() / ".config" / "youtube-playlist-vc"
+LEGACY_USER_CONFIG_PATH = LEGACY_USER_CONFIG_DIR / "config.json"
 LOCAL_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.json"
 
+PROTECTED_SECRET_KEYS = {
+    "youtube_api_key",
+    "spotify_client_secret",
+    "spotify_access_token",
+    "spotify_refresh_token",
+    "soundboard_session_cookie",
+    "soundboard_csrf_token"
+}
+
 def get_config_file_path() -> Path:
-    """Devuelve la ruta activa del archivo de configuración."""
+    """Devuelve la ruta activa del archivo de configuración prioritario."""
+    if USER_CONFIG_PATH.exists():
+        return USER_CONFIG_PATH
     if LOCAL_CONFIG_PATH.exists():
         return LOCAL_CONFIG_PATH
-    return USER_CONFIG_PATH
+    return LEGACY_USER_CONFIG_PATH
 
 def load_config() -> dict:
-    """Carga la configuración combinando defaults con el archivo persistido."""
+    """Carga la configuración combinando defaults con el archivo persistido del usuario como fuente suprema."""
     cfg = DEFAULT_CONFIG.copy()
     
-    # Intentar leer desde config local o desde ~/.config/youtube-playlist-vc/config.json
-    for path in [LOCAL_CONFIG_PATH, USER_CONFIG_PATH]:
-        if path.exists():
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    user_data = json.load(f)
+    # 1. Cargar desde el archivo local del proyecto (si existe, para defaults o desarrollo)
+    if LOCAL_CONFIG_PATH.exists():
+        try:
+            with open(LOCAL_CONFIG_PATH, "r", encoding="utf-8") as f:
+                local_data = json.load(f)
+                if isinstance(local_data, dict):
+                    cfg.update(local_data)
+        except Exception as e:
+            logger.error(f"[config] Error al leer {LOCAL_CONFIG_PATH}: {e}")
+
+    # 2. Cargar desde ruta legacy si existe
+    if LEGACY_USER_CONFIG_PATH.exists():
+        try:
+            with open(LEGACY_USER_CONFIG_PATH, "r", encoding="utf-8") as f:
+                user_data = json.load(f)
+                if isinstance(user_data, dict):
                     cfg.update(user_data)
-                break
-            except Exception as e:
-                logger.error(f"[config] Error al leer {path}: {e}")
+        except Exception as e:
+            logger.error(f"[config] Error al leer {LEGACY_USER_CONFIG_PATH}: {e}")
+
+    # 3. Cargar desde la copia canónica del usuario (~/.config/youtube-stream-controller/config.json)
+    # Esta es la fuente de verdad definitiva y sobreescribe cualquier archivo local o legacy
+    if USER_CONFIG_PATH.exists():
+        try:
+            with open(USER_CONFIG_PATH, "r", encoding="utf-8") as f:
+                user_data = json.load(f)
+                if isinstance(user_data, dict):
+                    cfg.update(user_data)
+        except Exception as e:
+            logger.error(f"[config] Error al leer {USER_CONFIG_PATH}: {e}")
 
     # Variables de entorno opcionales como override
     if "YOUTUBE_API_KEY" in os.environ and os.environ["YOUTUBE_API_KEY"]:
@@ -128,25 +161,38 @@ def load_config() -> dict:
     return cfg
 
 def save_config(new_config: dict) -> dict:
-    """Guarda la configuración persistente en disco."""
+    """Guarda la configuración persistente protegiendo credenciales y respaldando en ~/.config."""
     current = load_config()
-    current.update(new_config)
 
-    # Aseguramos el directorio de usuario si guardamos allí
-    target_path = LOCAL_CONFIG_PATH
-    try:
-        with open(target_path, "w", encoding="utf-8") as f:
-            json.dump(current, f, indent=2, ensure_ascii=False)
-        return current
-    except (PermissionError, OSError):
-        pass
+    # Proteger contra borrado accidental de secretos si se envían strings vacíos o None
+    for k, v in new_config.items():
+        if k in PROTECTED_SECRET_KEYS and (v is None or (isinstance(v, str) and not v.strip())):
+            # Si ya teníamos una clave guardada y el payload viene vacío, conservar la existente
+            if current.get(k):
+                continue
+        current[k] = v
 
-    # Fallback a ~/.config/youtube-playlist-vc/config.json
+    # 1. Guardar SIEMPRE primero en USER_CONFIG_PATH (~/.config/youtube-stream-controller/)
     try:
         USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         with open(USER_CONFIG_PATH, "w", encoding="utf-8") as f:
             json.dump(current, f, indent=2, ensure_ascii=False)
     except Exception as e:
         logger.error(f"[config] Error guardando config en {USER_CONFIG_PATH}: {e}")
+
+    # 2. Respaldar en ruta legacy si es posible
+    try:
+        LEGACY_USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        with open(LEGACY_USER_CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(current, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        logger.debug(f"[config] No se pudo respaldar en {LEGACY_USER_CONFIG_PATH}: {e}")
+
+    # 3. Guardar en LOCAL_CONFIG_PATH si es posible
+    try:
+        with open(LOCAL_CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(current, f, indent=2, ensure_ascii=False)
+    except (PermissionError, OSError) as e:
+        logger.debug(f"[config] No se pudo escribir en {LOCAL_CONFIG_PATH}: {e}")
 
     return current

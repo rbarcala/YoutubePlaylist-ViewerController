@@ -1,6 +1,6 @@
 {
   "name": "YouTube Stream Controller",
-  "short_name": "StreamCtrl",
+  "short_name": "StreamController",
   "description": "Controlador en tiempo real de fondos de video para streaming, Google Meet y OBS",
   "start_url": "/controller.html",
   "display": "standalone",

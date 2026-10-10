@@ -2,7 +2,7 @@
 <div class="modal-overlay" id="settingsModal">
   <div class="modal-content">
     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px;">
-      <div style="font-family:'Syne',sans-serif; font-size:18px; font-weight:700; color:var(--accent);">⚙️ Configuración del Sistema</div>
+      <div style="font-family:'Syne',sans-serif; font-size:18px; font-weight:700; color:var(--accent);">⚙️ Configuración — YouTube Stream Controller</div>
       <button onclick="closeSettingsModal()" style="background:none; border:none; color:#aaa; font-size:20px; cursor:pointer;">&times;</button>
     </div>
 
@@ -152,18 +152,34 @@
       </div>
     </div>
 
+    <!-- Banner de sesión detectada automáticamente en el navegador -->
+    <div id="detectedBrowserSessionBox" style="display:none; margin-bottom:16px; background:rgba(0,240,255,0.08); border:1px solid rgba(0,240,255,0.4); border-radius:10px; padding:12px 14px; align-items:center; justify-content:space-between; gap:12px;">
+      <div>
+        <div style="font-size:13px; font-weight:bold; color:var(--accent);">⚡ Sesión detectada en el navegador</div>
+        <div style="font-size:12px; color:#ddd; margin-top:2px;">
+          Usuario: <strong style="color:#fff;" id="detectedBrowserUsername">@usuario</strong> (<span id="detectedBrowserName">Navegador</span>)
+        </div>
+      </div>
+      <button class="btn btn-accent" type="button" onclick="importDetectedBrowserSession()" style="white-space:nowrap; padding:8px 14px; font-size:12px; font-weight:bold;">
+        ✨ Vincular en 1 Clic
+      </button>
+    </div>
+
     <!-- Opción 1: Iniciar Sesión con Google / MyInstants en PC -->
     <div style="margin-bottom:16px;">
-      <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#fff;">Opción 1: Iniciar Sesión en la PC (Recomendado)</div>
+      <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#fff;">Opción 1: Iniciar Sesión o Detectar en Navegador (Recomendado)</div>
       <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">
-        Abre una ventana para iniciar sesión con Google o tu usuario en MyInstants. La sesión y tus favoritos se vincularán automáticamente al terminar.
+        Inicia sesión con Google o tu usuario en MyInstants en tu navegador. La sesión y tus favoritos se vincularán automáticamente al terminar.
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <button class="btn btn-accent" type="button" onclick="startDesktopLoginWindow()" style="flex:1;">
-          🚀 Iniciar Sesión con Google (Ventana PC)
+          🚀 Iniciar Sesión / Detectar Automáticamente
         </button>
-        <button class="btn" type="button" onclick="openMyInstantsInBrowser()" style="flex:1;">
-          🌐 Abrir en Navegador
+        <button class="btn" type="button" onclick="checkDetectedBrowserSession()" style="flex:0 0 auto;">
+          🔄 Escanear Navegador
+        </button>
+        <button class="btn" type="button" onclick="openMyInstantsInBrowser()" style="flex:0 0 auto;">
+          🌐 Ir a MyInstants
         </button>
       </div>
     </div>

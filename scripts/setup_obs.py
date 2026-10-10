@@ -36,7 +36,7 @@ except ImportError:
         def load_config(): return {}
         def save_config(cfg): return cfg
 
-OVERLAY_SOURCE_NAME = "Overlay Stream Hub"
+OVERLAY_SOURCE_NAME = "Overlay Stream Controller"
 OVERLAY_WIDTH = 1920
 OVERLAY_HEIGHT = 1080
 OVERLAY_CSS = "body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }"
@@ -250,7 +250,8 @@ def inject_overlay_into_scene_json(json_path: Path, overlay_url: str) -> bool:
     # Buscar si ya existe la fuente
     source_uuid = None
     for s in sources:
-        if s.get("name") == OVERLAY_SOURCE_NAME:
+        if s.get("name") in (OVERLAY_SOURCE_NAME, "Overlay Stream Hub"):
+            s["name"] = OVERLAY_SOURCE_NAME
             source_uuid = s.get("uuid")
             # Actualizar settings
             s.setdefault("settings", {})["url"] = overlay_url
@@ -323,7 +324,7 @@ def inject_overlay_into_scene_json(json_path: Path, overlay_url: str) -> bool:
             items = scene_settings.setdefault("items", [])
 
             # Comprobar si ya está en esta escena
-            has_item = any(it.get("source_uuid") == source_uuid or it.get("name") == OVERLAY_SOURCE_NAME for it in items)
+            has_item = any(it.get("source_uuid") == source_uuid or it.get("name") in (OVERLAY_SOURCE_NAME, "Overlay Stream Hub") for it in items)
             if not has_item:
                 current_id_counter = scene_settings.get("id_counter", 1)
                 next_id = max([it.get("id", 0) for it in items], default=0) + 1

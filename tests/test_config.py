@@ -21,8 +21,10 @@ class TestConfigManager(unittest.TestCase):
         self.temp_config = Path(self.temp_dir) / "test_config.json"
         
         # Guardar las rutas originales de config
-        self.original_local_config = LOCAL_CONFIG_PATH
-        self.original_user_config = USER_CONFIG_PATH
+        import services.config_manager as config_manager
+        self.original_local_config = config_manager.LOCAL_CONFIG_PATH
+        self.original_user_config = config_manager.USER_CONFIG_PATH
+        self.original_legacy_config = config_manager.LEGACY_USER_CONFIG_PATH
         
         # Crear config de prueba
         test_config = {
@@ -38,18 +40,20 @@ class TestConfigManager(unittest.TestCase):
             json.dump(test_config, f, indent=2)
         
         # Sobrescribir las rutas de config para usar el temporal
-        import services.config_manager as config_manager
         config_manager.LOCAL_CONFIG_PATH = self.temp_config
         config_manager.USER_CONFIG_PATH = Path(self.temp_dir) / "user_config.json"
+        config_manager.LEGACY_USER_CONFIG_PATH = Path(self.temp_dir) / "legacy_user_config.json"
 
     def tearDown(self):
         """Limpiar entorno de prueba."""
         import services.config_manager as config_manager
         config_manager.LOCAL_CONFIG_PATH = self.original_local_config
         config_manager.USER_CONFIG_PATH = self.original_user_config
+        config_manager.LEGACY_USER_CONFIG_PATH = self.original_legacy_config
         
-        if self.temp_config.exists():
-            self.temp_config.unlink()
+        for f in [Path(self.temp_dir) / "user_config.json", Path(self.temp_dir) / "legacy_user_config.json", self.temp_config]:
+            if f.exists():
+                f.unlink()
         if Path(self.temp_dir).exists():
             Path(self.temp_dir).rmdir()
 
@@ -92,9 +96,9 @@ class TestConfigManager(unittest.TestCase):
 
     def test_load_config_with_defaults(self):
         """Probar que se cargan valores por defecto si el archivo no existe."""
-        # Eliminar config temporal
-        if self.temp_config.exists():
-            self.temp_config.unlink()
+        for f in [self.temp_config, Path(self.temp_dir) / "user_config.json", Path(self.temp_dir) / "legacy_user_config.json"]:
+            if f.exists():
+                f.unlink()
         
         # Crear config vacío
         config = load_config()

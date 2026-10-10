@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>🎛️ CONTROLLER — Fondos & Stream Hub</title>
+<title>🎛️ YouTube Stream Controller</title>
 
 <!-- Favicon compatible con Firefox, Chrome y navegadores modernos -->
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎛️</text></svg>">
@@ -30,7 +30,7 @@
 <header>
   <div class="logo-group">
     <button class="btn-back-hub" id="btnBackHub" onclick="navigateTo('menu')">← Menú</button>
-    <div class="logo" onclick="navigateTo('menu')">⬡ STREAM HUB</div>
+    <div class="logo" onclick="navigateTo('menu')">⬡ STREAM CONTROLLER</div>
   </div>
 
   <!-- Pestañas de acceso directo en PC -->
@@ -58,8 +58,9 @@
 <!-- ─── 1. PANTALLA PRINCIPAL (MENÚ / HUB) ─── -->
 <div class="view-container active" id="view-menu">
   <div class="hub-header">
+    <div class="hub-brand-badge">⬡ YOUTUBE STREAM CONTROLLER</div>
     <h1>Panel de Control Principal</h1>
-    <p>Selecciona la función que deseas controlar en tu sesión de streaming</p>
+    <p>Centro unificado de control en vivo para fondos, OBS, Spotify, botonera y overlays</p>
   </div>
 
   <div class="hub-grid">
@@ -68,15 +69,15 @@
       <div class="hub-card-icon">🎬</div>
       <div class="hub-card-title">Fondos &amp; Videos (Viewer)</div>
       <div class="hub-card-desc">Playlist y fondos en 1080p con velocidad y audio sincronizados.</div>
-      <span class="hub-card-badge">Función Controller</span>
+      <span class="hub-card-badge">🎬 Viewer 1080p</span>
     </div>
 
     <!-- Opción 2: OBS Studio y monitor de directo -->
     <div class="hub-card" onclick="navigateTo('obs')">
       <div class="hub-card-icon">🎥</div>
-      <div class="hub-card-title">OBS + Monitor de Directo</div>
+      <div class="hub-card-title">OBS Studio &amp; Directo</div>
       <div class="hub-card-desc">Cambia escenas, controla la transmisión y monitorea el directo de YouTube.</div>
-      <span class="hub-card-badge" id="hubObsBadge">OBS Studio + YouTube Live</span>
+      <span class="hub-card-badge" id="hubObsBadge">🎥 OBS WebSocket v5</span>
     </div>
 
     <!-- Opción 3: Spotify Remote -->
@@ -84,7 +85,7 @@
       <div class="hub-card-icon">🎵</div>
       <div class="hub-card-title">Spotify Remote (PC)</div>
       <div class="hub-card-desc">Control de música en tu PC, buscador de temas y cola.</div>
-      <span class="hub-card-badge" id="hubSpotifyBadge">Spotify Connect</span>
+      <span class="hub-card-badge" id="hubSpotifyBadge">🎵 Spotify Connect</span>
     </div>
 
     <!-- Opción 4: Botonera / Soundboard (MyInstants) -->
@@ -92,15 +93,15 @@
       <div class="hub-card-icon">🔊</div>
       <div class="hub-card-title">Botonera (MyInstants)</div>
       <div class="hub-card-desc">Efectos de sonido y memes reproducidos en tu PC.</div>
-      <span class="hub-card-badge">MyInstants SFX</span>
+      <span class="hub-card-badge">🔊 MyInstants SFX</span>
     </div>
 
-    <!-- Opción 6: Overlays & Recreo -->
+    <!-- Opción 5: Estudio Visual de Overlays -->
     <div class="hub-card" onclick="navigateTo('overlays')">
       <div class="hub-card-icon">📺</div>
-      <div class="hub-card-title">Overlays &amp; Ya Vuelvo</div>
-      <div class="hub-card-desc">Temporizador con memes de ingeniería y barra Now Playing.</div>
-      <span class="hub-card-badge">OBS Browser</span>
+      <div class="hub-card-title">Estudio de Overlays</div>
+      <div class="hub-card-desc">Lienzo 16:9 interactivo con Now Playing, timer, letras y textos en vivo.</div>
+      <span class="hub-card-badge">📺 OBS Browser 1080p</span>
     </div>
   </div>
 </div>
@@ -394,26 +395,26 @@
   <div class="overlay-studio-toolbar">
     <div style="display:flex; align-items:center; gap:8px;">
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:var(--accent); display:flex; align-items:center; gap:6px;">
-        <span>🎨 ESTUDIO VISUAL OVERLAYS</span>
-        <span style="font-size:10px; font-weight:700; color:var(--muted); background:#222; padding:2px 6px; border-radius:4px;">1920×1080</span>
+        <span>🎨 OVERLAYS OBS</span>
+        <span style="font-size:10px; font-weight:700; color:var(--muted); background:#1a1e28; padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.08);">1080p</span>
       </div>
       <div style="display:flex; gap:4px; margin-left:10px;">
         <button class="btn btn-sm btn-accent" id="btnStudioModeVisual" onclick="setStudioMode('visual')">🎨 Lienzo 16:9</button>
-        <button class="btn btn-sm" id="btnStudioModeTimer" onclick="setStudioMode('timer')">⏱️ Operar Temporizador</button>
+        <button class="btn btn-sm" id="btnStudioModeTimer" onclick="setStudioMode('timer')">⏱️ Operar Timer</button>
       </div>
     </div>
 
     <!-- Toggles de Simulación para previsualizar en el lienzo -->
-    <div style="display:flex; align-items:center; gap:14px; font-size:11px; color:#ddd;" id="studioSimToggles">
-      <span style="color:var(--muted); font-size:10px; text-transform:uppercase; font-weight:800;">Simular:</span>
-      <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="simNowPlayingToggle" checked onchange="toggleSimModule('now_playing', this.checked)"> 🎵 Now Playing</label>
-      <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="simTimerToggle" checked onchange="toggleSimModule('timer', this.checked)"> ⏱️ Temporizador</label>
-      <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="simLyricsToggle" checked onchange="toggleSimModule('lyrics', this.checked)"> 📜 Letras</label>
+    <div class="studio-sim-group" id="studioSimToggles">
+      <span class="studio-sim-label">SIMULAR:</span>
+      <label class="studio-sim-pill"><input type="checkbox" id="simNowPlayingToggle" checked onchange="toggleSimModule('now_playing', this.checked)"> 🎵 Música</label>
+      <label class="studio-sim-pill"><input type="checkbox" id="simTimerToggle" checked onchange="toggleSimModule('timer', this.checked)"> ⏱️ Timer</label>
+      <label class="studio-sim-pill"><input type="checkbox" id="simLyricsToggle" checked onchange="toggleSimModule('lyrics', this.checked)"> 📜 Letras</label>
     </div>
 
-    <div style="display:flex; align-items:center; gap:8px;">
-      <button class="btn btn-sm" onclick="addCustomText()" style="font-weight:700; background:#222;">➕ Agregar Texto</button>
-      <button class="btn btn-sm" onclick="resetOverlayPositions()" title="Restaurar las posiciones iniciales de todos los carteles">↺ Resetear posiciones</button>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <button class="btn btn-sm" onclick="addCustomText()" style="font-weight:700;">➕ Texto</button>
+      <button class="btn btn-sm" onclick="resetOverlayPositions()" title="Restaurar las posiciones iniciales de todos los carteles">↺ Reset</button>
       <button class="btn btn-sm" onclick="copyObsOverlayUrl()" title="Copiar enlace para la fuente de OBS">📋 URL OBS</button>
       <button class="btn btn-sm btn-accent" onclick="saveAllModularOverlay(true)" style="font-weight:800;">💾 Guardar Todo</button>
     </div>
@@ -532,12 +533,39 @@ Warm smell of colitas, rising up through the air...</div>
 
       <!-- PANEL INSPECTOR DE PROPIEDADES MODULAR (DERECHA) -->
       <div class="overlay-inspector-panel">
-        <div class="inspector-tabs">
-          <div class="inspector-tab" id="tabInspLayers" onclick="switchInspectorTab('layers')">📑 Capas</div>
-          <div class="inspector-tab active" id="tabInspNp" onclick="switchInspectorTab('now_playing')">🎵 Now Playing</div>
-          <div class="inspector-tab" id="tabInspTimer" onclick="switchInspectorTab('timer')">⏱️ Temporizador</div>
-          <div class="inspector-tab" id="tabInspLyrics" onclick="switchInspectorTab('lyrics')">📜 Letras</div>
-          <div class="inspector-tab" id="tabInspTexts" onclick="switchInspectorTab('custom_texts')">🔤 Textos (<span id="txtCountBadge">0</span>)</div>
+        <!-- CABECERA DEL INSPECTOR & SELECTOR DE MÓDULOS (SIN SLIDER) -->
+        <div class="inspector-header-box">
+          <div class="inspector-header-top">
+            <div class="inspector-header-title">
+              <span class="insp-title-dot"></span>
+              <span class="insp-header-label">MÓDULO:</span>
+              <strong id="inspectorActiveModuleTag" class="insp-header-name">🎵 Música (Now Playing)</strong>
+            </div>
+            <span id="inspectorActiveStatusBadge" class="insp-status-badge">🟢 Visible</span>
+          </div>
+
+          <div class="inspector-tabs" id="inspectorTabsGrid">
+            <button class="inspector-tab active" id="tabInspNp" onclick="switchInspectorTab('now_playing')" title="Cartel de música y canción activa en Spotify">
+              <span class="tab-icon">🎵</span>
+              <span class="tab-text">Música</span>
+            </button>
+            <button class="inspector-tab" id="tabInspTimer" onclick="switchInspectorTab('timer')" title="Cronómetro / Temporizador con frases">
+              <span class="tab-icon">⏱️</span>
+              <span class="tab-text">Timer</span>
+            </button>
+            <button class="inspector-tab" id="tabInspLyrics" onclick="switchInspectorTab('lyrics')" title="Letras sincronizadas en vivo">
+              <span class="tab-icon">📜</span>
+              <span class="tab-text">Letras</span>
+            </button>
+            <button class="inspector-tab" id="tabInspTexts" onclick="switchInspectorTab('custom_texts')" title="Textos y carteles personalizados">
+              <span class="tab-icon">🔤</span>
+              <span class="tab-text">Textos</span>
+            </button>
+            <button class="inspector-tab" id="tabInspLayers" onclick="switchInspectorTab('layers')" title="Orden de profundidad de capas (Z-Index)">
+              <span class="tab-icon">📑</span>
+              <span class="tab-text">Capas</span>
+            </button>
+          </div>
         </div>
 
         <div class="inspector-content">
@@ -1067,7 +1095,7 @@ Warm smell of colitas, rising up through the air...</div>
 <div class="modal-overlay" id="settingsModal">
   <div class="modal-content">
     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px;">
-      <div style="font-family:'Syne',sans-serif; font-size:18px; font-weight:700; color:var(--accent);">⚙️ Configuración del Sistema</div>
+      <div style="font-family:'Syne',sans-serif; font-size:18px; font-weight:700; color:var(--accent);">⚙️ Configuración — YouTube Stream Controller</div>
       <button onclick="closeSettingsModal()" style="background:none; border:none; color:#aaa; font-size:20px; cursor:pointer;">&times;</button>
     </div>
 
@@ -1217,18 +1245,34 @@ Warm smell of colitas, rising up through the air...</div>
       </div>
     </div>
 
+    <!-- Banner de sesión detectada automáticamente en el navegador -->
+    <div id="detectedBrowserSessionBox" style="display:none; margin-bottom:16px; background:rgba(0,240,255,0.08); border:1px solid rgba(0,240,255,0.4); border-radius:10px; padding:12px 14px; align-items:center; justify-content:space-between; gap:12px;">
+      <div>
+        <div style="font-size:13px; font-weight:bold; color:var(--accent);">⚡ Sesión detectada en el navegador</div>
+        <div style="font-size:12px; color:#ddd; margin-top:2px;">
+          Usuario: <strong style="color:#fff;" id="detectedBrowserUsername">@usuario</strong> (<span id="detectedBrowserName">Navegador</span>)
+        </div>
+      </div>
+      <button class="btn btn-accent" type="button" onclick="importDetectedBrowserSession()" style="white-space:nowrap; padding:8px 14px; font-size:12px; font-weight:bold;">
+        ✨ Vincular en 1 Clic
+      </button>
+    </div>
+
     <!-- Opción 1: Iniciar Sesión con Google / MyInstants en PC -->
     <div style="margin-bottom:16px;">
-      <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#fff;">Opción 1: Iniciar Sesión en la PC (Recomendado)</div>
+      <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#fff;">Opción 1: Iniciar Sesión o Detectar en Navegador (Recomendado)</div>
       <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">
-        Abre una ventana para iniciar sesión con Google o tu usuario en MyInstants. La sesión y tus favoritos se vincularán automáticamente al terminar.
+        Inicia sesión con Google o tu usuario en MyInstants en tu navegador. La sesión y tus favoritos se vincularán automáticamente al terminar.
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <button class="btn btn-accent" type="button" onclick="startDesktopLoginWindow()" style="flex:1;">
-          🚀 Iniciar Sesión con Google (Ventana PC)
+          🚀 Iniciar Sesión / Detectar Automáticamente
         </button>
-        <button class="btn" type="button" onclick="openMyInstantsInBrowser()" style="flex:1;">
-          🌐 Abrir en Navegador
+        <button class="btn" type="button" onclick="checkDetectedBrowserSession()" style="flex:0 0 auto;">
+          🔄 Escanear Navegador
+        </button>
+        <button class="btn" type="button" onclick="openMyInstantsInBrowser()" style="flex:0 0 auto;">
+          🌐 Ir a MyInstants
         </button>
       </div>
     </div>

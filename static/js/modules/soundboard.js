@@ -555,6 +555,7 @@ function openMyInstantsAuthModal() {
   const modal = document.getElementById('myinstantsAuthModal');
   if (modal) modal.classList.add('active');
   loadSoundboardAuthStatus();
+  checkDetectedBrowserSession();
 }
 
 function closeMyInstantsAuthModal() {
@@ -569,6 +570,58 @@ function toggleCookieHelp() {
   }
 }
 
+async function checkDetectedBrowserSession() {
+  const card = document.getElementById('detectedBrowserSessionBox');
+  const userSpan = document.getElementById('detectedBrowserUsername');
+  const browserSpan = document.getElementById('detectedBrowserName');
+  if (!card) return;
+
+  try {
+    const res = await fetch('/api/soundboard/detect_browser_session');
+    const data = await res.json();
+    if (data && data.found && data.username) {
+      if (userSpan) userSpan.textContent = '@' + data.username;
+      if (browserSpan) browserSpan.textContent = data.browser || 'Navegador';
+      card.style.display = 'flex';
+
+      const inputUser = document.getElementById('modalInputUsername');
+      const inputSession = document.getElementById('modalInputSessionCookie');
+      if (inputUser && !inputUser.value) inputUser.value = data.username;
+      if (inputSession && !inputSession.value && data.sessionid) inputSession.value = data.sessionid;
+    } else {
+      card.style.display = 'none';
+    }
+  } catch(e) {
+    card.style.display = 'none';
+  }
+}
+
+async function importDetectedBrowserSession() {
+  showToast('Vinculando sesión detectada...', 'info');
+  try {
+    const res = await fetch('/api/soundboard/import_browser_session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId: myClientId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      config.soundboard_username = data.username;
+      showToast(`¡Sesión de MyInstants vinculada como @${data.username}! 🎉`, 'success');
+      loadSoundboardAuthStatus();
+      updateSoundboardAccountDisplay();
+      closeMyInstantsAuthModal();
+      if (currentSbTab === 'favorites') {
+        loadSoundboardTab('favorites', 1);
+      }
+    } else {
+      showToast(data.error || 'No se pudo vincular la sesión detectada', 'error');
+    }
+  } catch(e) {
+    showToast('Error conectando con el servidor', 'error');
+  }
+}
+
 async function loadSoundboardAuthStatus() {
   try {
     const res = await fetch('/api/soundboard/auth');
@@ -580,7 +633,7 @@ async function loadSoundboardAuthStatus() {
     if (userText) userText.textContent = user ? '@' + user : 'Sin configurar';
 
     const inputUser = document.getElementById('modalInputUsername');
-    if (inputUser) inputUser.value = user;
+    if (inputUser && !inputUser.value) inputUser.value = user;
 
     const badge = document.getElementById('modalAuthStatusBadge');
     if (badge) {
@@ -617,10 +670,34 @@ async function loadSoundboardAuthStatus() {
 let sbLoginPollInterval = null;
 
 async function startDesktopLoginWindow() {
-  showToast('Abriendo ventana de inicio de sesión de MyInstants...');
+  showToast('Comprobando sesión del navegador...');
   if (sbLoginPollInterval) clearInterval(sbLoginPollInterval);
 
-  // Consultar periódicamente mientras el usuario se loguea en la ventana
+  try {
+    const res = await fetch('/api/soundboard/login_window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId: myClientId })
+    });
+    const data = await res.json();
+    if (data.auto_imported) {
+      config.soundboard_username = data.username;
+      showToast(`¡Sesión detectada en ${data.browser || 'navegador'} (@${data.username})! 🎉`, 'success');
+      loadSoundboardAuthStatus();
+      updateSoundboardAccountDisplay();
+      closeMyInstantsAuthModal();
+      if (currentSbTab === 'favorites') {
+        loadSoundboardTab('favorites', 1);
+      }
+      return;
+    }
+
+    showToast('Inicia sesión en MyInstants en tu navegador. Al terminar se vinculará automáticamente.', 'info');
+  } catch(e) {
+    openMyInstantsInBrowser();
+  }
+
+  // Polling periódico para detectar cuando el usuario termina de loguearse en el navegador
   sbLoginPollInterval = setInterval(async () => {
     try {
       const res = await fetch('/api/soundboard/auth');
@@ -631,12 +708,23 @@ async function startDesktopLoginWindow() {
         config.soundboard_username = data.username;
         loadSoundboardAuthStatus();
         updateSoundboardAccountDisplay();
+        closeMyInstantsAuthModal();
         if (currentSbTab === 'favorites') {
           loadSoundboardTab('favorites', 1);
         }
+        return;
+      }
+
+      // Probar si la sesión ya fue escrita en cookies del navegador
+      const detRes = await fetch('/api/soundboard/detect_browser_session');
+      const detData = await detRes.json();
+      if (detData && detData.found) {
+        clearInterval(sbLoginPollInterval);
+        sbLoginPollInterval = null;
+        await importDetectedBrowserSession();
       }
     } catch(e) {}
-  }, 1200);
+  }, 1500);
 
   // Detener el polling tras 3 minutos si no hubo respuesta
   setTimeout(() => {
@@ -645,19 +733,6 @@ async function startDesktopLoginWindow() {
       sbLoginPollInterval = null;
     }
   }, 180000);
-
-  try {
-    const res = await fetch('/api/soundboard/login_window', { method: 'POST' });
-    const data = await res.json();
-    if (data.fallback === 'browser') {
-      showToast('Inicia sesión en tu navegador y copia tu usuario o cookie.');
-      openMyInstantsInBrowser();
-    } else {
-      showToast('Completa el inicio de sesión en la ventana en pantalla.');
-    }
-  } catch(e) {
-    openMyInstantsInBrowser();
-  }
 }
 
 function openMyInstantsInBrowser() {

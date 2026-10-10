@@ -24,6 +24,48 @@
     flex-shrink: 0;
     z-index: 20;
   }
+  .studio-sim-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 12px;
+  }
+  .studio-sim-label {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    font-family: 'Space Mono', monospace;
+  }
+  .studio-sim-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    color: var(--text);
+    font-size: 11px;
+    user-select: none;
+  }
+  .studio-sim-pill input[type="checkbox"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .stage-align-group {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1px;
+  }
+  .stage-align-group .btn {
+    border: none;
+    border-radius: 4px;
+  }
   .overlay-studio-body {
     flex: 1;
     display: flex;
@@ -289,40 +331,139 @@
   }
   .overlay-inspector-panel {
     width: 440px;
-    background: #0f1218;
+    background: #0c0f14;
     border-left: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     flex-shrink: 0;
   }
-  .inspector-tabs {
-    display: flex;
-    background: #161616;
+  .inspector-header-box {
+    background: #11141a;
     border-bottom: 1px solid var(--border);
-    overflow-x: auto;
+    padding: 10px 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     flex-shrink: 0;
   }
-  .inspector-tab {
-    padding: 10px 14px;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--muted);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    white-space: nowrap;
+  .inspector-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+  }
+  .inspector-header-title {
     display: flex;
     align-items: center;
     gap: 6px;
-    transition: color 0.15s, background 0.15s;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .insp-title-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    flex-shrink: 0;
+  }
+  .insp-header-label {
+    font-size: 10.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+  .insp-header-name {
+    color: var(--accent);
+    font-size: 11.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .insp-status-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: rgba(46, 204, 113, 0.15);
+    color: #2ecc71;
+    border: 1px solid rgba(46, 204, 113, 0.3);
+    white-space: nowrap;
+    transition: all 0.2s ease;
+  }
+  .insp-status-badge.disabled {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--muted);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .inspector-tabs {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+    width: 100%;
+    overflow: hidden !important;
+    scrollbar-width: none;
+    padding: 0;
+    background: transparent;
+    border: none;
+    flex-shrink: 0;
+  }
+  .inspector-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .inspector-tab {
+    padding: 6px 2px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--muted);
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    transition: all 0.15s ease;
+    user-select: none;
+    text-align: center;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .inspector-tab .tab-icon {
+    font-size: 13px;
+    line-height: 1;
+  }
+  .inspector-tab .tab-text {
+    font-size: 10px;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
   .inspector-tab:hover {
-    color: #fff;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
   }
   .inspector-tab.active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
-    background: rgba(232, 255, 71, 0.04);
+    color: #000 !important;
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    font-weight: 800;
+    box-shadow: 0 2px 10px rgba(232, 255, 71, 0.3);
+  }
+  .inspector-tab.active .tab-icon,
+  .inspector-tab.active .tab-text {
+    color: #000 !important;
   }
   .inspector-content {
     flex: 1;
@@ -331,12 +472,13 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
+    scrollbar-width: thin;
   }
   .inspector-section {
-    background: rgba(255, 255, 255, 0.02);
+    background: #11141a;
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 12px;
+    padding: 14px;
     display: flex;
     flex-direction: column;
     gap: 10px;

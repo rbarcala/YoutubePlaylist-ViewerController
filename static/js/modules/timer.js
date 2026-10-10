@@ -759,11 +759,11 @@ function toggleSimModule(mod, visible) {
 
 function switchInspectorTab(tabKey, updateSelection = true) {
   const tabs = {
-    'layers': { tab: 'tabInspLayers', pane: 'paneInspLayers', stageId: null },
-    'now_playing': { tab: 'tabInspNp', pane: 'paneInspNowPlaying', stageId: 'stageNowPlaying' },
-    'timer': { tab: 'tabInspTimer', pane: 'paneInspTimer', stageId: 'stageTimer' },
-    'lyrics': { tab: 'tabInspLyrics', pane: 'paneInspLyrics', stageId: 'stageLyrics' },
-    'custom_texts': { tab: 'tabInspTexts', pane: 'paneInspTexts', stageId: null }
+    'layers': { tab: 'tabInspLayers', pane: 'paneInspLayers', stageId: null, label: '📑 Orden de Capas (Z-Index)' },
+    'now_playing': { tab: 'tabInspNp', pane: 'paneInspNowPlaying', stageId: 'stageNowPlaying', label: '🎵 Música (Now Playing)' },
+    'timer': { tab: 'tabInspTimer', pane: 'paneInspTimer', stageId: 'stageTimer', label: '⏱️ Temporizador' },
+    'lyrics': { tab: 'tabInspLyrics', pane: 'paneInspLyrics', stageId: 'stageLyrics', label: '📜 Letras en Pantalla' },
+    'custom_texts': { tab: 'tabInspTexts', pane: 'paneInspTexts', stageId: null, label: '🔤 Textos Modulares' }
   };
 
   Object.entries(tabs).forEach(([k, info]) => {
@@ -772,6 +772,28 @@ function switchInspectorTab(tabKey, updateSelection = true) {
     if (t) t.classList.toggle('active', k === tabKey);
     if (p) p.style.display = (k === tabKey) ? 'flex' : 'none';
   });
+
+  const activeLabelEl = document.getElementById('inspectorActiveModuleTag');
+  if (activeLabelEl && tabs[tabKey]) {
+    activeLabelEl.textContent = tabs[tabKey].label;
+  }
+
+  const statusBadge = document.getElementById('inspectorActiveStatusBadge');
+  if (statusBadge) {
+    let isVis = true;
+    if (tabKey === 'now_playing') {
+      const chk = document.getElementById('modNpEnabled');
+      isVis = chk ? chk.checked : true;
+    } else if (tabKey === 'timer') {
+      const chk = document.getElementById('modTmEnabled');
+      isVis = chk ? chk.checked : true;
+    } else if (tabKey === 'lyrics') {
+      const chk = document.getElementById('modLyEnabled');
+      isVis = chk ? chk.checked : true;
+    }
+    statusBadge.textContent = isVis ? '🟢 Visible' : '⚪ Oculto';
+    statusBadge.classList.toggle('disabled', !isVis);
+  }
 
   if (tabKey === 'layers') {
     renderLayersList();
@@ -811,6 +833,8 @@ function selectStageElement(modId) {
   if (targetEl) targetEl.classList.add('selected');
   const badge = document.getElementById('stageActiveElementName');
   if (badge) badge.textContent = label;
+  const inspTag = document.getElementById('inspectorActiveModuleTag');
+  if (inspTag) inspTag.textContent = label;
   renderLayersList();
 }
 
