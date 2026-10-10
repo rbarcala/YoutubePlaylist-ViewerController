@@ -5,8 +5,16 @@ Registra Blueprints por dominio y gestiona estado compartido.
 """
 
 import sys
+import logging
 from pathlib import Path
 from flask import Flask
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
+    datefmt="%H:%M:%S"
+)
+logger = logging.getLogger("server")
 
 # ─── Configuración inicial ───
 BASE_DIR = Path(__file__).resolve().parent
@@ -117,9 +125,9 @@ if __name__ == '__main__':
     cfg = load_config()
     puerto = int(sys.argv[1]) if len(sys.argv) > 1 else int(cfg.get("port", 8000))
     host = cfg.get("host", "0.0.0.0")
-    print(f"[fondos-stream] Iniciando servidor en http://{host}:{puerto}")
+    logger.info(f"[fondos-stream] Iniciando servidor en http://{host}:{puerto}")
     try:
         start_mdns_publisher(puerto)
     except Exception as e:
-        print(f"[mDNS] No se pudo iniciar publicador mDNS: {e}")
+        logger.error(f"[mDNS] No se pudo iniciar publicador mDNS: {e}")
     app.run(host=host, port=puerto, threaded=True)

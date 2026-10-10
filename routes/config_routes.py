@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from config_manager import load_config, save_config
+from services.config_manager import load_config, save_config
 
 config_bp = Blueprint('config', __name__)
 

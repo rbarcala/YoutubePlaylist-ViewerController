@@ -4,7 +4,10 @@ import sys
 import signal
 import webbrowser
 import threading
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def launch_qt_window(url: str, title: str, port: int, browser_mgr=None) -> int:
@@ -29,7 +32,7 @@ def launch_qt_window(url: str, title: str, port: int, browser_mgr=None) -> int:
         # Permitir matar la app con Ctrl+C en la terminal
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         
-        print("[qt_app] Iniciando con motor PyQt5 (Chromium) en modo CPU estable...")
+        logger.info("[qt_app] Iniciando con motor PyQt5 (Chromium) en modo CPU estable...")
         app = QApplication(sys.argv)
         
         # Agrupar en la barra lateral de Ubuntu y usar icono
@@ -63,7 +66,7 @@ def launch_qt_window(url: str, title: str, port: int, browser_mgr=None) -> int:
                 self.setBackgroundColor(QColor(18, 18, 18))
             def javaScriptConsoleMessage(self, level, message, line_number, source_id):
                 if level >= QWebEnginePage.WarningMessageLevel:
-                    print(f"[qt_app js] {message} (line {line_number})")
+                    logger.debug(f"[qt_app js] {message} (line {line_number})")
             def on_feature_permission_requested(self, sec_url, feature):
                 # Auto-allow camera/mic for virtual camera WebRTC
                 if feature in (QWebEnginePage.MediaAudioCapture, QWebEnginePage.MediaVideoCapture, QWebEnginePage.MediaAudioVideoCapture):
@@ -128,7 +131,7 @@ def launch_qt_window(url: str, title: str, port: int, browser_mgr=None) -> int:
         sys.exit(app.exec_())
         
     except ImportError:
-        print("[qt_app] PyQt5 no detectado. Intentando fallback a GTK3/WebKit2...")
+        logger.warning("[qt_app] PyQt5 no detectado. Intentando fallback a GTK3/WebKit2...")
         from .gtk_app import launch_webkit_window
         return launch_webkit_window(url, title, port)
 
@@ -188,4 +191,4 @@ def _show_qr_dialog(parent, url: str):
         
         dialog.exec_()
     except Exception as e:
-        print(f"[qt_app] Error generando QR: {e}")
+        logger.error(f"[qt_app] Error generando QR: {e}")

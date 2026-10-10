@@ -5,7 +5,7 @@ import socket
 import threading
 import webbrowser
 from flask import Blueprint, request, jsonify, send_from_directory, Response, redirect
-from qr_svg import generate_qr_svg
+from services.qr_svg import generate_qr_svg
 
 static_bp = Blueprint('static', __name__)
 
@@ -182,7 +182,7 @@ def handle_action():
         if cfg.get("obs_enabled") and cfg.get("obs_scene_on_play"):
             def _switch_obs():
                 try:
-                    from obs_client import OBSController
+                    from services.obs_client import OBSController
                     obs = OBSController(
                         host=cfg.get("obs_host", "localhost"),
                         port=cfg.get("obs_port", 4455),
@@ -216,7 +216,7 @@ def handle_action():
         scene = data.get("scene")
         if scene:
             try:
-                from obs_client import OBSController
+                from services.obs_client import OBSController
                 obs = OBSController(
                     host=cfg.get("obs_host", "localhost"),
                     port=cfg.get("obs_port", 4455),

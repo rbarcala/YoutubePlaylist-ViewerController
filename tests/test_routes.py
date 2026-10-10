@@ -76,7 +76,7 @@ class TestRoutes(unittest.TestCase):
             self.assertEqual(res.status_code, 200, f"Error cargando {page}")
 
     def test_modular_css_served(self):
-        css_files = ['/css/theme.css', '/css/controller.css', '/css/responsive.css', '/css/overlay.css']
+        css_files = ['/css/theme.css', '/css/controller.css', '/css/responsive.css', '/css/overlay.css', '/css/viewer.css']
         for css in css_files:
             res = self.client.get(css)
             _ = res.data
@@ -93,6 +93,7 @@ class TestRoutes(unittest.TestCase):
             '/js/modules/modals.js',
             '/js/modules/timer.js',
             '/js/overlay.js',
+            '/js/viewer.js',
         ]
         for js in js_files:
             res = self.client.get(js)

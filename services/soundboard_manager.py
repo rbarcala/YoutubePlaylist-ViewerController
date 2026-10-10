@@ -15,7 +15,10 @@ import urllib.request
 import urllib.parse
 import subprocess
 import threading
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 VIBRANT_PALETTE = [
     "#FF0055", "#007AFF", "#34C759", "#FF9500", "#AF52DE",
@@ -236,7 +239,7 @@ class SoundboardManager:
                     f.write(data)
             return str(local_path)
         except Exception as e:
-            print(f"[soundboard] Advertencia descargando a caché: {e}. Pasando URL directa.")
+            logger.warning(f"[soundboard] Advertencia descargando a caché: {e}. Pasando URL directa.")
             return mp3_url
 
     # ─── PARSING DE MYINSTANTS ───
@@ -320,9 +323,9 @@ class SoundboardManager:
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 return {"sounds": [], "page": int(page), "has_more": False, "region": reg}
-            print(f"[soundboard] HTTPError cargando región '{reg}' pág {page}: {e}")
+            logger.error(f"[soundboard] HTTPError cargando región '{reg}' pág {page}: {e}")
         except Exception as e:
-            print(f"[soundboard] Error cargando región '{reg}' pág {page}: {e}")
+            logger.error(f"[soundboard] Error cargando región '{reg}' pág {page}: {e}")
 
         return {"sounds": [], "page": int(page), "has_more": False, "region": reg}
 
@@ -364,9 +367,9 @@ class SoundboardManager:
             if e.code == 404:
                 # MyInstants devuelve 404 cuando una búsqueda no tiene resultados o se llegó al final
                 return {"sounds": [], "page": p, "has_more": False, "query": query}
-            print(f"[soundboard] HTTPError buscando '{query}' pág {p}: {e}")
+            logger.error(f"[soundboard] HTTPError buscando '{query}' pág {p}: {e}")
         except Exception as e:
-            print(f"[soundboard] Error buscando '{query}' pág {p}: {e}")
+            logger.error(f"[soundboard] Error buscando '{query}' pág {p}: {e}")
 
         return {"sounds": [], "page": p, "has_more": False, "query": query}
 
@@ -392,7 +395,7 @@ class SoundboardManager:
                 html = res.read().decode('utf-8', errors='ignore')
                 return self._parse_instants_html(html)
         except Exception as e:
-            print(f"[soundboard] Error cargando favoritos de '{user}': {e}")
+            logger.error(f"[soundboard] Error cargando favoritos de '{user}': {e}")
             return []
 
     def get_auth_status(self) -> dict:
@@ -503,13 +506,13 @@ class SoundboardManager:
         try:
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=6) as resp:
-                print(f"[soundboard] Sonido {instant_id} guardado con éxito en MyInstants en la nube (Status: {resp.status})")
+                logger.info(f"[soundboard] Sonido {instant_id} guardado con éxito en MyInstants en la nube (Status: {resp.status})")
                 return True
         except urllib.error.HTTPError as e:
-            print(f"[soundboard] Error HTTP al guardar favorito {instant_id} en MyInstants: {e.code}")
+            logger.error(f"[soundboard] Error HTTP al guardar favorito {instant_id} en MyInstants: {e.code}")
             return False
         except Exception as e:
-            print(f"[soundboard] Error conectando a MyInstants nube para favorito {instant_id}: {e}")
+            logger.error(f"[soundboard] Error conectando a MyInstants nube para favorito {instant_id}: {e}")
             return False
 
     def _resolve_numeric_id(self, identifier: str) -> str | None:

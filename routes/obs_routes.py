@@ -5,7 +5,7 @@ import secrets
 import threading
 from pathlib import Path
 from flask import Blueprint, request, jsonify
-from obs_client import OBSController
+from services.obs_client import OBSController
 from core.env_checker import is_obs_running, launch_obs_if_needed
 
 obs_bp = Blueprint('obs', __name__)
@@ -195,7 +195,7 @@ def generate_obs_auth():
     pwd = secrets.token_urlsafe(16)
     cfg = load_config() if load_config else {}
     cfg['obs_password'] = pwd
-    from config_manager import save_config
+    from services.config_manager import save_config
     save_config(cfg)
     if broadcast_event:
         broadcast_event('config_updated', cfg)

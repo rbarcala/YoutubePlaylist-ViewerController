@@ -2,7 +2,10 @@
 import os
 import sys
 import signal
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def launch_webkit_window(url: str, title: str, port: int) -> int:
@@ -111,7 +114,7 @@ def launch_webkit_window(url: str, title: str, port: int) -> int:
         return 0
         
     except Exception as e:
-        print(f"[gtk_app] Error lanzando ventana GTK/WebKit2: {e}")
+        logger.error(f"[gtk_app] Error lanzando ventana GTK/WebKit2: {e}")
         return 1
 
 
@@ -173,7 +176,7 @@ def _show_qr_dialog(parent, url: str):
         dialog.destroy()
         
     except Exception as e:
-        print(f"[gtk_app] Error generando QR: {e}")
+        logger.error(f"[gtk_app] Error generando QR: {e}")
 
 
 def open_myinstants_login_window() -> bool:
@@ -186,7 +189,7 @@ def open_myinstants_login_window() -> bool:
         gi.require_version('WebKit2', '4.1')
         from gi.repository import Gtk, WebKit2, GLib
     except Exception as e:
-        print(f"[gtk_app] GTK/WebKit2 no disponible para ventana de login: {e}")
+        logger.warning(f"[gtk_app] GTK/WebKit2 no disponible para ventana de login: {e}")
         import webbrowser
         webbrowser.open("https://www.myinstants.com/en/favorites/")
         return False
@@ -253,8 +256,8 @@ def open_myinstants_login_window() -> bool:
                             if data_str and data_str.startswith("1:"):
                                 real_user = data_str.split(":", 1)[1].strip() or user or ""
                                 captured["done"] = True
-                                print(f"[soundboard] ¡Sesión de MyInstants confirmada! Usuario: {real_user}")
-                                from config_manager import save_config
+                                logger.info(f"[soundboard] ¡Sesión de MyInstants confirmada! Usuario: {real_user}")
+                                from services.config_manager import save_config
                                 from server import broadcast_event, soundboard_mgr
                                 import threading
                                 update_dict = {
@@ -276,7 +279,7 @@ def open_myinstants_login_window() -> bool:
                                 status_lbl.set_text("✅ ¡Sesión vinculada con éxito! Cerrando...")
                                 GLib.timeout_add_seconds(2, win.destroy)
                         except Exception as e_js:
-                            print(f"[gtk_app] Error verificando login JS: {e_js}")
+                            logger.debug(f"[gtk_app] Error verificando login JS: {e_js}")
 
                     check_code = """
                     (function() {
@@ -299,7 +302,7 @@ def open_myinstants_login_window() -> bool:
                     """
                     view.run_javascript(check_code, None, on_js_finished)
             except Exception as ex:
-                print(f"[gtk_app] Error procesando cookies: {ex}")
+                logger.debug(f"[gtk_app] Error procesando cookies: {ex}")
 
         def on_load_changed(v, event):
             if event == WebKit2.LoadEvent.FINISHED:
@@ -314,7 +317,7 @@ def open_myinstants_login_window() -> bool:
         GLib.idle_add(_show_login_dialog)
         return True
     except Exception as e:
-        print(f"[gtk_app] Error lanzando login window: {e}")
+        logger.error(f"[gtk_app] Error lanzando login window: {e}")
         import webbrowser
         webbrowser.open("https://www.myinstants.com/en/favorites/")
         return False

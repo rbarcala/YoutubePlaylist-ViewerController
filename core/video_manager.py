@@ -1,7 +1,10 @@
 import queue
 import threading
+import logging
 from pathlib import Path
 import yt_dlp
+
+logger = logging.getLogger(__name__)
 
 class VideoManager:
     """Gestiona la descarga y cache de videos de YouTube."""
@@ -60,7 +63,7 @@ class VideoManager:
                 with self.lock:
                     self.download_status[video_id] = 'ready' if self.get_cached_path(video_id) else 'error'
             except Exception as exc:
-                print(f'[video_manager] Error descargando {video_id}: {exc}')
+                logger.error(f'[video_manager] Error descargando {video_id}: {exc}')
                 with self.lock:
                     self.download_status[video_id] = 'error'
             finally:

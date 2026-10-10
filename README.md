@@ -85,6 +85,7 @@ sudo apt install -y ./release/youtube-stream-controller_1.0.0_all.deb
 | `make run` | Inicia la aplicación Controller nativa de escritorio |
 | `make run-web` | Inicia el Controller directamente en el navegador web |
 | `make viewer` | Abre la pantalla de reproducción a pantalla completa (Viewer) |
+| `make test` | Ejecuta la suite de pruebas unitarias y de integridad frontend |
 | `make release` | Instala dependencias automáticamente y compila los instalables (`.deb` y `.apk`) |
 | `make clean` | Limpia archivos temporales y caché |
 

@@ -1,9 +1,11 @@
-"""Verificación de dependencias del sistema y configuración de entorno."""
 import os
 import sys
 import subprocess
 import shutil
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def check_and_install_dependencies(app_dir: Path) -> bool:
@@ -22,14 +24,14 @@ def check_and_install_dependencies(app_dir: Path) -> bool:
             missing_apt.append(pkg)
     
     if missing_apt:
-        print(f"[env] Instalando paquetes APT faltantes: {' '.join(missing_apt)}")
+        logger.info(f"[env] Instalando paquetes APT faltantes: {' '.join(missing_apt)}")
         try:
             if shutil.which('pkexec'):
                 subprocess.run(['pkexec', 'apt-get', 'install', '-y'] + missing_apt, check=True)
             else:
                 subprocess.run(['sudo', 'apt-get', 'install', '-y'] + missing_apt, check=True)
         except subprocess.CalledProcessError as e:
-            print(f"[env] Error instalando dependencias APT: {e}")
+            logger.error(f"[env] Error instalando dependencias APT: {e}")
             return False
     
     # 2. Verificar dependencias pip en el venv
@@ -41,7 +43,7 @@ def check_and_install_dependencies(app_dir: Path) -> bool:
                 subprocess.run([str(venv_python), '-m', 'pip', 'install', '-q', '-r', str(req_file)],
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
             except subprocess.CalledProcessError as e:
-                print(f"[env] Advertencia: error instalando dependencias pip: {e}")
+                logger.warning(f"[env] Advertencia: error instalando dependencias pip: {e}")
     
     return True
 
@@ -68,10 +70,10 @@ def ensure_v4l2loopback() -> bool:
     if modprobe_conf.exists():
         return True
     
-    print("[env] Configurando v4l2loopback para cámara virtual de OBS...")
+    logger.info("[env] Configurando v4l2loopback para cámara virtual de OBS...")
     script_path = Path(__file__).parent.parent / 'scripts' / 'setup_v4l2.sh'
     if not script_path.exists():
-        print("[env] Script setup_v4l2.sh no encontrado")
+        logger.warning("[env] Script setup_v4l2.sh no encontrado")
         return False
     
     try:
@@ -81,7 +83,7 @@ def ensure_v4l2loopback() -> bool:
             subprocess.run(['sudo', 'bash', str(script_path)], check=True)
         return True
     except subprocess.CalledProcessError as e:
-        print(f"[env] Error configurando v4l2loopback: {e}")
+        logger.error(f"[env] Error configurando v4l2loopback: {e}")
         return False
 
 
@@ -135,15 +137,15 @@ def launch_obs_if_needed(cfg: dict, app_dir: Path) -> bool:
     ensure_v4l2loopback()
     
     if is_obs_running():
-        print("[env] OBS Studio ya se encuentra en ejecución.")
+        logger.info("[env] OBS Studio ya se encuentra en ejecución.")
         return True
     
     cmd = find_obs_command()
     if not cmd:
-        print("[env] OBS Studio no encontrado en el sistema.")
+        logger.warning("[env] OBS Studio no encontrado en el sistema.")
         return False
     
-    print(f"[env] Abriendo OBS Studio automáticamente ({' '.join(cmd)})...")
+    logger.info(f"[env] Abriendo OBS Studio automáticamente ({' '.join(cmd)})...")
     try:
         import time
         import threading
@@ -167,15 +169,15 @@ def launch_obs_if_needed(cfg: dict, app_dir: Path) -> bool:
                         check=False,
                     )
                     if result.returncode == 0 and "conectada vía WebSocket" in result.stdout:
-                        print("[env] Overlay sincronizado con OBS.")
+                        logger.info("[env] Overlay sincronizado con OBS.")
                         break
                     if result.stdout:
-                        print(f"[env] Intento {attempt + 1} de sincronización OBS:\n{result.stdout.strip()}")
+                        logger.debug(f"[env] Intento {attempt + 1} de sincronización OBS:\n{result.stdout.strip()}")
                     time.sleep(2)
             
             # Iniciar automáticamente la cámara virtual de OBS
             try:
-                from obs_client import OBSController
+                from services.obs_client import OBSController
                 obs = OBSController(
                     host=cfg.get("obs_host", "localhost"),
                     port=cfg.get("obs_port", 4455),
@@ -183,14 +185,14 @@ def launch_obs_if_needed(cfg: dict, app_dir: Path) -> bool:
                 )
                 res_vcam = obs.start_virtual_cam()
                 if res_vcam.get("success"):
-                    print("[env] Cámara virtual de OBS iniciada automáticamente ✓")
+                    logger.info("[env] Cámara virtual de OBS iniciada automáticamente ✓")
             except Exception as ex_vcam:
-                print(f"[env] Aviso al iniciar cámara virtual: {ex_vcam}")
+                logger.warning(f"[env] Aviso al iniciar cámara virtual: {ex_vcam}")
         
         threading.Thread(target=_sync_obs_overlay, daemon=True).start()
         return True
     except Exception as e:
-        print(f"[env] Error lanzando OBS: {e}")
+        logger.error(f"[env] Error lanzando OBS: {e}")
         return False
 
 
@@ -218,16 +220,16 @@ def is_spotify_running() -> bool:
 def launch_spotify_if_needed():
     """Inicia Spotify en segundo plano si no está en ejecución."""
     if is_spotify_running():
-        print("[env] Spotify ya se encuentra en ejecución.")
+        logger.info("[env] Spotify ya se encuentra en ejecución.")
         return
     
     cmd = find_spotify_command()
     if not cmd:
-        print("[env] Spotify no encontrado en el sistema.")
+        logger.warning("[env] Spotify no encontrado en el sistema.")
         return
     
-    print(f"[env] Abriendo Spotify automáticamente ({' '.join(cmd)})...")
+    logger.info(f"[env] Abriendo Spotify automáticamente ({' '.join(cmd)})...")
     try:
         subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception as e:
-        print(f"[env] Error al abrir Spotify: {e}")
+        logger.error(f"[env] Error al abrir Spotify: {e}")

@@ -11,14 +11,22 @@ import socket
 import threading
 import argparse
 import webbrowser
+import logging
 from pathlib import Path
 
 # Añadir directorio actual al path
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
-from config_manager import load_config, save_config
-from browser_manager import BrowserManager
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
+    datefmt="%H:%M:%S"
+)
+logger = logging.getLogger("app")
+
+from services.config_manager import load_config, save_config
+from services.browser_manager import BrowserManager
 from core.env_checker import (
     check_and_install_dependencies,
     launch_obs_if_needed,
@@ -43,7 +51,7 @@ def normalize_runtime_ports(cfg: dict) -> dict:
         cfg[key] = value
     if updates:
         save_config(updates)
-        print(f"[app] Puertos normalizados: {updates}")
+        logger.info(f"[app] Puertos normalizados: {updates}")
     return cfg
 
 
@@ -63,14 +71,13 @@ def start_server_in_thread(port: int = 8000):
     """Inicia el servidor Flask en un hilo daemon y arranca el anuncio mDNS."""
     from server import app as flask_app
     def _run():
-        import logging
         log = logging.getLogger('werkzeug')
         log.setLevel(logging.ERROR)
         try:
-            from mdns_service import start_mdns_publisher
+            from services.mdns_service import start_mdns_publisher
             start_mdns_publisher(port)
         except Exception as e:
-            print(f"[mDNS] No se pudo iniciar publicador mDNS: {e}")
+            logger.error(f"[mDNS] No se pudo iniciar publicador mDNS: {e}")
         flask_app.run(host='0.0.0.0', port=port, threaded=True)
 
     t = threading.Thread(target=_run, daemon=True)
@@ -100,17 +107,17 @@ def main():
 
     # Iniciar servidor local si no está corriendo
     if not is_server_running(port):
-        print(f"[app] Levantando servidor local en puerto {port}...")
+        logger.info(f"[app] Levantando servidor local en puerto {port}...")
         start_server_in_thread(port)
     else:
-        print(f"[app] Servidor detectado en puerto {port}.")
+        logger.info(f"[app] Servidor detectado en puerto {port}.")
 
     controller_url = f"http://127.0.0.1:{port}/controller.html"
     viewer_url = f"http://127.0.0.1:{port}/viewer.html"
 
     # Si se pide abrir el viewer directamente
     if args.viewer:
-        print(f"[app] Abriendo Viewer inteligentemente: {viewer_url}")
+        logger.info(f"[app] Abriendo Viewer inteligentemente: {viewer_url}")
         browser_mgr.open_smart_viewer(viewer_url, port=port)
         return
 
@@ -119,26 +126,26 @@ def main():
     threading.Thread(target=launch_spotify_if_needed, daemon=True).start()
 
     if mode == "web":
-        print(f"[app] Abriendo Controller en navegador web: {controller_url}")
+        logger.info(f"[app] Abriendo Controller en navegador web: {controller_url}")
         webbrowser.open(controller_url)
         # Mantener proceso vivo para que el servidor siga corriendo
         try:
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            print("\n[app] Cerrando aplicación.")
+            logger.info("[app] Cerrando aplicación.")
     else:
         # En modo escritorio, abrir el viewer si está activado en config
         if cfg.get("auto_open_viewer", False):
             def _smart_open_viewer():
                 time.sleep(1.2)
                 if not browser_mgr.is_viewer_open(port):
-                    print(f"[app] Abriendo Viewer automáticamente: {viewer_url}")
+                    logger.info(f"[app] Abriendo Viewer automáticamente: {viewer_url}")
                     browser_mgr.open_smart_viewer(viewer_url, port=port)
 
             threading.Thread(target=_smart_open_viewer, daemon=True).start()
 
-        print(f"[app] Abriendo Controller nativo de escritorio: {controller_url}")
+        logger.info(f"[app] Abriendo Controller nativo de escritorio: {controller_url}")
         launch_qt_window(controller_url, title="YouTube Stream Controller", port=port, browser_mgr=browser_mgr)
 
 

@@ -1,7 +1,7 @@
 import json
 import time
 import threading
-from obs_client import OBSController
+from services.obs_client import OBSController
 
 def start_spotify_monitor(spotify_mgr, broadcast_event):
     """Monitoriza el estado de Spotify y lo difunde."""

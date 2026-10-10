@@ -21,7 +21,10 @@ import shutil
 import threading
 import subprocess
 import webbrowser
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 def decompress_mozlz4(data: bytes) -> bytes:
     """
@@ -320,12 +323,12 @@ class BrowserManager:
         with BrowserManager._global_lock:
             now = time.time()
             if now - BrowserManager._last_open_time < 2.5:
-                print("[browser_manager] Solicitud de apertura ignorada por debounce (< 2.5s).")
+                logger.debug("[browser_manager] Solicitud de apertura ignorada por debounce (< 2.5s).")
                 return {"success": True, "action": "debounced", "url": viewer_url}
 
             # Regla estricta: Si ya existe un Viewer abierto, enfocar y NO abrir otro duplicado
             if self.is_viewer_open(port):
-                print("[browser_manager] Viewer ya se encuentra abierto en el sistema. Poniendo en foco.")
+                logger.info("[browser_manager] Viewer ya se encuentra abierto en el sistema. Poniendo en foco.")
                 self.focus_viewer()
                 return {"success": True, "action": "focused_existing_viewer", "url": viewer_url}
 
@@ -345,10 +348,10 @@ class BrowserManager:
                     subprocess.run([self._xdotool, "key", "Return"], timeout=1)
                     return {"success": True, "action": "navigated_in_meet_tab", "wid": wid, "url": viewer_url}
                 except Exception as e:
-                    print(f"[browser_manager] Error xdotool en Meet: {e}")
+                    logger.error(f"[browser_manager] Error xdotool en Meet: {e}")
 
             # Abrir limpiamente exactamente una pestaña en el navegador
-            print(f"[browser_manager] Abriendo Viewer: {viewer_url}")
+            logger.info(f"[browser_manager] Abriendo Viewer: {viewer_url}")
             self._open_url_in_browser(viewer_url)
             return {"success": True, "action": "opened_in_browser", "url": viewer_url}
 
@@ -367,7 +370,7 @@ class BrowserManager:
         try:
             webbrowser.open(url)
         except Exception as e:
-            print(f"[browser_manager] Error en webbrowser.open: {e}")
+            logger.error(f"[browser_manager] Error en webbrowser.open: {e}")
 
     # ─── 4. FOCO EN LA PESTAÑA DEL VIEWER AL PONER VIDEO ───
 

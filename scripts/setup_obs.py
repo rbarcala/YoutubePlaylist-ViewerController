@@ -28,10 +28,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
 try:
-    from config_manager import load_config, save_config
+    from services.config_manager import load_config, save_config
 except ImportError:
-    def load_config(): return {}
-    def save_config(cfg): return cfg
+    try:
+        from config_manager import load_config, save_config
+    except ImportError:
+        def load_config(): return {}
+        def save_config(cfg): return cfg
 
 OVERLAY_SOURCE_NAME = "Overlay Stream Hub"
 OVERLAY_WIDTH = 1920

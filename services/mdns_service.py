@@ -6,6 +6,9 @@ Permite conexión a 0 clics desde la app de celular sin necesidad de QR ni dígi
 import socket
 import threading
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 class MDNSServicePublisher:
     def __init__(self, port: int = 8000, service_name: str = "YouTube Stream Controller"):
@@ -46,9 +49,9 @@ class MDNSServicePublisher:
             group.AddService("(iiussssqaay)", -1, -1, 0, self.service_name, "_streamcontroller._tcp", "", "", self.port, txt)
             group.Commit()
             self._entry_group = group
-            print(f"[mDNS] Servicio Zeroconf '{self.service_name}' anunciado en _streamcontroller._tcp:{self.port} vía Avahi.")
+            logger.info(f"[mDNS] Servicio Zeroconf '{self.service_name}' anunciado en _streamcontroller._tcp:{self.port} vía Avahi.")
         except Exception as e:
-            print(f"[mDNS] Avahi no disponible o no accesible vía DBus: {e}. Beacon UDP activo.")
+            logger.debug(f"[mDNS] Avahi no disponible o no accesible vía DBus: {e}. Beacon UDP activo.")
 
     def _start_udp_beacon(self):
         """Responde a solicitudes de descubrimiento UDP broadcast de la app Android."""
@@ -58,9 +61,9 @@ class MDNSServicePublisher:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(("0.0.0.0", 8001))
             sock.settimeout(2.0)
-            print(f"[mDNS] Beacon de descubrimiento UDP escuchando en puerto 8001.")
+            logger.info(f"[mDNS] Beacon de descubrimiento UDP escuchando en puerto 8001.")
         except Exception as e:
-            print(f"[mDNS] Error al enlazar socket UDP 8001: {e}")
+            logger.error(f"[mDNS] Error al enlazar socket UDP 8001: {e}")
             if sock:
                 try: sock.close()
                 except Exception: pass

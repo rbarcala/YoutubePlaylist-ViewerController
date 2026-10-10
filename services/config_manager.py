@@ -5,7 +5,10 @@ Guarda las preferencias del usuario de forma segura (fuera del control de git).
 
 import os
 import json
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG = {
     "youtube_api_key": "",
@@ -114,7 +117,7 @@ def load_config() -> dict:
                     cfg.update(user_data)
                 break
             except Exception as e:
-                print(f"[config] Error al leer {path}: {e}")
+                logger.error(f"[config] Error al leer {path}: {e}")
 
     # Variables de entorno opcionales como override
     if "YOUTUBE_API_KEY" in os.environ and os.environ["YOUTUBE_API_KEY"]:
@@ -144,6 +147,6 @@ def save_config(new_config: dict) -> dict:
         with open(USER_CONFIG_PATH, "w", encoding="utf-8") as f:
             json.dump(current, f, indent=2, ensure_ascii=False)
     except Exception as e:
-        print(f"[config] Error guardando config en {USER_CONFIG_PATH}: {e}")
+        logger.error(f"[config] Error guardando config en {USER_CONFIG_PATH}: {e}")
 
     return current
