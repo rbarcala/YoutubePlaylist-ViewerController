@@ -38,6 +38,17 @@ class TestFrontendIntegrity(unittest.TestCase):
             self.assertTrue(p_file.exists(), f"Falta el parcial {p}")
             self.assertGreater(p_file.stat().st_size, 0)
 
+        # Verificar sub-parciales de overlays
+        overlays_dir = partials_dir / "overlays"
+        expected_overlays = [
+            "stage_canvas.html", "inspector_layers.html", "inspector_now_playing.html",
+            "inspector_timer.html", "inspector_lyrics.html", "inspector_texts.html", "timer_operator.html"
+        ]
+        for op in expected_overlays:
+            op_file = overlays_dir / op
+            self.assertTrue(op_file.exists(), f"Falta el sub-parcial de overlay {op}")
+            self.assertGreater(op_file.stat().st_size, 0)
+
     def test_css_files_exist(self):
         """Verifica que los estilos modulares existan y tengan contenido."""
         expected_css = [

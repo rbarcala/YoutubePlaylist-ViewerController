@@ -1,0 +1,106 @@
+      <div class="overlay-stage-wrapper">
+        <div class="stage-top-controls">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:11px; font-weight:800; color:var(--accent); font-family:'Space Mono',monospace;">🔴 LIENZO OBS 1080p</span>
+            <span style="color:var(--muted); font-size:11px;">•</span>
+            <span id="stageActiveElementName" style="font-size:11px; font-weight:700; color:#fff;">Módulo: 🎵 Now Playing</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <button class="btn btn-sm" onclick="alignActiveModule('tl')" title="Alinear Arriba a la Izquierda" style="padding:2px 7px; font-size:10px;">↖</button>
+            <button class="btn btn-sm" onclick="alignActiveModule('tr')" title="Alinear Arriba a la Derecha" style="padding:2px 7px; font-size:10px;">↗</button>
+            <button class="btn btn-sm" onclick="alignActiveModule('bl')" title="Alinear Abajo a la Izquierda" style="padding:2px 7px; font-size:10px;">↙</button>
+            <button class="btn btn-sm" onclick="alignActiveModule('br')" title="Alinear Abajo a la Derecha" style="padding:2px 7px; font-size:10px;">↘</button>
+            <button class="btn btn-sm btn-accent" onclick="alignActiveModule('center')" title="Centrar elemento activo" style="padding:2px 8px; font-size:10px;">🎯 Centrar</button>
+            <button class="btn btn-sm" id="btnToggleObsCanvasPreview" onclick="toggleStageObsPreview()" title="Ver la transmisión/escena real de OBS en el fondo del lienzo" style="padding:2px 8px; font-size:10px; background:#1b2838; border-color:#2a82da;">👁️ Preview OBS</button>
+            <button class="btn btn-sm" id="btnToggleLayers" onclick="toggleLayersPanel()" title="Ver y reordenar capas de pantalla (Z-Index)" style="padding:2px 8px; font-size:10px;">📑 Capas</button>
+            <button class="btn btn-sm" id="btnToggleBgMode" onclick="toggleStageBgMode()" title="Cambiar fondo del lienzo (Oscuro / Cuadrícula Transparente)" style="padding:2px 8px; font-size:10px;">🏁 Fondo</button>
+            <button class="btn btn-sm btn-accent" id="btnToggleGuides" onclick="toggleStageGuides()" title="Alternar guías de TV y cruz central" style="padding:2px 8px; font-size:10px;">📐 Guías</button>
+          </div>
+        </div>
+
+        <!-- PANEL FLOTANTE DE CAPAS (Z-INDEX) -->
+        <div id="stageLayersPanel" class="stage-layers-panel" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.12); padding-bottom:6px;">
+            <span style="font-weight:800; font-size:11px; color:var(--accent); font-family:'Space Mono',monospace;">📑 ORDEN DE CAPAS (Z-INDEX)</span>
+            <button class="btn btn-sm" onclick="toggleLayersPanel()" style="padding:1px 6px; font-size:10px;">✕</button>
+          </div>
+          <div id="stageLayersList" style="display:flex; flex-direction:column; gap:4px; max-height:220px; overflow-y:auto;"></div>
+        </div>
+
+        <div class="overlay-stage-canvas bg-dark" id="stageCanvas" ondragstart="return false;" style="touch-action:none; position:relative; overflow:hidden;">
+          <!-- FONDO DE PREVIEW OBS EN VIVO (CÁMARA VIRTUAL O CAPTURA DE PANTALLA) -->
+          <video id="stageObsVideoBg" autoplay playsinline muted style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0.85; pointer-events:none; z-index:0; display:none;"></video>
+          <img id="stageObsScreenshotBg" style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0.85; pointer-events:none; z-index:0; display:none;" alt="">
+
+          <!-- BADGE LÍMITE TOTAL OBS (DINÁMICO CON LA RESOLUCIÓN REAL DE OBS) -->
+          <div class="stage-screen-badge" id="stageObsResolutionBadge">🖥️ PANTALLA OBS 1920 × 1080 (LÍMITE TOTAL)</div>
+
+          <!-- ESQUINAS LÍMITE OBS -->
+          <div class="stage-corner top-left">⌜ 0, 0</div>
+          <div class="stage-corner top-right" id="stageCornerTR">1920, 0 ⌝</div>
+          <div class="stage-corner bottom-left" id="stageCornerBL">⌞ 0, 1080</div>
+          <div class="stage-corner bottom-right" id="stageCornerBR">1920, 1080 ⌟</div>
+
+          <!-- GUÍAS DE ALINEACIÓN OBS (SAFE AREA & CENTRO) -->
+          <div id="stageGuides" class="stage-guides">
+            <div class="stage-guide-center-x"></div>
+            <div class="stage-guide-center-y"></div>
+            <div class="stage-guide-safe-area"><span class="stage-guide-safe-tag">TV SAFE 90%</span></div>
+          </div>
+
+          <!-- MODULO 1: NOW PLAYING MOCKUP INTERACTIVO -->
+          <div class="stage-item" id="stageNowPlaying" data-module="now_playing" ondragstart="return false;" onpointerdown="onStagePointerDown(event, 'now_playing')">
+            <span class="stage-tag">🎵 Now Playing</span>
+            <div id="stageNpCard" style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:12px; background:rgba(10,10,10,0.8); border:1px solid rgba(255,255,255,0.1); width:360px;">
+              <img id="stageNpCover" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='42' height='42' viewBox='0 0 42 42'><rect width='42' height='42' fill='%23222'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='18' fill='%23666'>🎵</text></svg>" style="width:38px; height:38px; border-radius:6px; object-fit:cover; flex-shrink:0;">
+              <div style="display:flex; flex-direction:column; gap:2px; overflow:hidden; flex:1;">
+                <div id="stageNpBadge" style="display:flex; align-items:center; gap:4px; font-size:9px; font-weight:800; color:var(--accent-spotify); text-transform:uppercase;">
+                  <span>🎵</span> <span>SPOTIFY</span>
+                  <div style="display:flex; gap:2px; margin-left:4px;"><span style="width:2px; height:8px; background:currentColor;"></span><span style="width:2px; height:12px; background:currentColor;"></span><span style="width:2px; height:6px; background:currentColor;"></span></div>
+                </div>
+                <div id="stageNpTitle" style="font-size:12px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Hotel California - 2013 Remaster</div>
+                <div id="stageNpArtist" style="font-size:10px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Eagles</div>
+              </div>
+            </div>
+            <div class="resize-handle" ondragstart="return false;" onpointerdown="onResizePointerDown(event, 'now_playing')" title="Arrastra para escalar">⤡</div>
+          </div>
+
+          <!-- MODULO 2: TEMPORIZADOR MOCKUP INTERACTIVO -->
+          <div class="stage-item" id="stageTimer" data-module="timer" ondragstart="return false;" onpointerdown="onStagePointerDown(event, 'timer')">
+            <span class="stage-tag">⏱️ Temporizador</span>
+            <div id="stageTimerCard" style="position:relative; display:flex; flex-direction:column; align-items:center; gap:10px; padding:20px 28px; border-radius:18px; background:rgba(10,10,10,0.85); border:2px solid rgba(232,255,71,0.3); width:460px; text-align:center;">
+              <img id="stageTimerImage" src="" style="position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); display:none; pointer-events:none; z-index:-1; object-fit:contain;">
+              <div id="stageTimerBadge" style="display:inline-flex; align-items:center; gap:6px; padding:3px 12px; border-radius:12px; background:rgba(232,255,71,0.12); border:1px solid #e8ff47; color:#e8ff47; font-size:10px; font-weight:800; font-family:'Space Mono',monospace;">⏱️ PAUSA DE STREAM &amp; CLASE</div>
+              <div id="stageTimerTitle" style="font-size:20px; font-weight:800; color:#fff; font-family:'Syne',sans-serif;">Ya vuelvo</div>
+              <div id="stageTimerClock" style="font-size:48px; font-weight:700; color:#e8ff47; font-family:'Space Mono',monospace; text-shadow:0 0 16px rgba(232,255,71,0.4);">04:42</div>
+              <div id="stageTimerProgressTrack" style="width:100%; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                <div id="stageTimerProgressBar" style="width:75%; height:100%; background:#e8ff47;"></div>
+              </div>
+              <div id="stageTimerPhrase" style="font-size:11px; font-style:italic; color:#bbb; font-family:'Space Mono',monospace;">“Compilando cerebro... (42 warnings, 0 errors)”</div>
+            </div>
+            <div class="resize-handle" ondragstart="return false;" onpointerdown="onResizePointerDown(event, 'timer')" title="Arrastra para escalar">⤡</div>
+          </div>
+
+          <!-- MODULO 3: LYRICS MOCKUP INTERACTIVO -->
+          <div class="stage-item" id="stageLyrics" data-module="lyrics" ondragstart="return false;" onpointerdown="onStagePointerDown(event, 'lyrics')">
+            <span class="stage-tag">📜 Letras</span>
+            <div id="stageLyricsCard" style="padding:10px 14px; border-radius:10px; background:rgba(10,10,10,0.8); border:1px solid rgba(255,255,255,0.1); width:380px; max-height:110px; overflow:hidden;">
+              <div style="font-size:9px; font-weight:800; color:var(--accent); text-transform:uppercase; margin-bottom:4px;">LETRA EN VIVO</div>
+              <div id="stageLyricsText" style="font-size:11px; line-height:1.4; color:#e0e0e0; font-weight:600; white-space:pre-wrap;">On a dark desert highway, cool wind in my hair...
+Warm smell of colitas, rising up through the air...</div>
+            </div>
+            <div class="resize-handle" ondragstart="return false;" onpointerdown="onResizePointerDown(event, 'lyrics')" title="Arrastra para escalar">⤡</div>
+          </div>
+
+          <!-- CONTENEDOR DE TEXTOS PERSONALIZADOS INTERACTIVOS -->
+          <div id="stageCustomTextsContainer"></div>
+
+          <!-- TOOLTIP DE COORDENADAS FLOTANTE -->
+          <div id="stageTooltip"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; width:100%; max-width:960px; margin-top:8px; font-size:11px; color:var(--muted);">
+          <span>💡 <strong>Arrastra</strong> cualquier módulo para moverlo libremente por la pantalla de OBS.</span>
+          <span>📐 Usa la manija en la esquina inferior derecha para <strong>escalar/agrandar</strong>.</span>
+        </div>
+      </div>
+

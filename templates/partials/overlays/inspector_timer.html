@@ -1,0 +1,198 @@
+          <div id="paneInspTimer" class="inspector-pane" style="display:none; flex-direction:column; gap:12px;">
+            <div class="inspector-section">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="inspector-section-title">⏱️ Módulo Temporizador</span>
+                <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--accent); cursor:pointer;">
+                  <input type="checkbox" id="modTmEnabled" checked onchange="updateModularProp('timer', 'enabled', this.checked)"> Habilitar
+                </label>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">📐 Ubicación &amp; Tamaño</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Posición X (px)</label>
+                  <input type="number" id="modTmX" class="form-input" min="0" max="1920" step="10" oninput="updateModularProp('timer', 'x', parseInt(this.value, 10))">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Posición Y (px)</label>
+                  <input type="number" id="modTmY" class="form-input" min="0" max="1080" step="10" oninput="updateModularProp('timer', 'y', parseInt(this.value, 10))">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Escala: <span id="modTmScaleVal" style="color:var(--accent);">1.0x</span></label>
+                  <input type="range" id="modTmScale" min="0.5" max="2.0" step="0.05" value="1.0" oninput="updateModularProp('timer', 'scale', parseFloat(this.value))" style="width:100%; accent-color:var(--accent);">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Ancho (px)</label>
+                  <input type="number" id="modTmWidth" class="form-input" min="320" max="3840" step="20" oninput="updateModularProp('timer', 'width', parseInt(this.value, 10))">
+                </div>
+              </div>
+              <button class="btn btn-sm" onclick="centerTimerModule()" style="margin-top:4px;">🎯 Centrar Temporizador</button>
+            </div>
+
+            <div class="inspector-section">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span class="inspector-section-title" style="margin:0;">📑 Nivel de Capa (Z-Index / Arriba-Abajo)</span>
+                <span id="modTmZVal" style="font-weight:800; color:var(--accent); font-size:12px; font-family:'Space Mono',monospace;">20</span>
+              </div>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <button class="btn btn-sm" onclick="changeModuleLayer('timer', -5)" title="Enviar hacia atrás">🔽 Bajar</button>
+                <input type="number" id="modTmZIndex" class="form-input" style="width:70px; text-align:center; font-weight:700; font-size:12px;" value="20" min="1" max="999" onchange="setModuleLayer('timer', this.value)">
+                <button class="btn btn-sm btn-accent" onclick="changeModuleLayer('timer', 5)" title="Traer hacia adelante">🔼 Subir</button>
+                <button class="btn btn-sm" onclick="changeModuleLayer('timer', 100)" title="Traer al frente del todo" style="font-size:10px;">🔝 Al Frente</button>
+                <button class="btn btn-sm" onclick="changeModuleLayer('timer', -100)" title="Enviar al fondo" style="font-size:10px;">⬇️ Al Fondo</button>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">🎨 Rectángulo del Temporizador</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Fondo</label>
+                  <input type="color" id="modTmBgColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('timer', 'bg_color', this.value)">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Opacidad: <span id="modTmOpVal" style="color:var(--accent);">85%</span></label>
+                  <input type="range" id="modTmBgOpacity" min="0" max="100" value="85" oninput="updateModularProp('timer', 'bg_opacity', parseInt(this.value, 10))" style="width:100%; accent-color:var(--accent);">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Borde</label>
+                  <input type="color" id="modTmBorderColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('timer', 'border_color', this.value)">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Redondeo: <span id="modTmRadiusVal" style="color:var(--accent);">20px</span></label>
+                  <input type="range" id="modTmBorderRadius" min="0" max="40" value="20" oninput="updateModularProp('timer', 'border_radius', parseInt(this.value, 10))" style="width:100%; accent-color:var(--accent);">
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">✍️ Textos &amp; Colores Específicos</span>
+              <div>
+                <label class="form-label" style="font-size:11px;">Texto de la Píldora Superior</label>
+                <div style="display:flex; gap:6px;">
+                  <input type="text" id="modTmBadgeText" class="form-input" style="flex:1;" oninput="updateModularProp('timer', 'badge_text', this.value)">
+                  <input type="color" id="modTmBadgeColor" class="form-input" style="width:40px; height:34px; padding:2px;" title="Color del Badge" oninput="updateModularProp('timer', 'badge_color', this.value)">
+                </div>
+              </div>
+              <div>
+                <label class="form-label" style="font-size:11px;">Título Principal</label>
+                <div style="display:flex; gap:6px;">
+                  <input type="text" id="modTmTitleText" class="form-input" style="flex:1;" oninput="updateModularProp('timer', 'title_text', this.value)">
+                  <input type="color" id="modTmTitleColor" class="form-input" style="width:40px; height:34px; padding:2px;" title="Color del Título" oninput="updateModularProp('timer', 'title_color', this.value)">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Reloj</label>
+                  <input type="color" id="modTmClockColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('timer', 'clock_color', this.value)">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Barra</label>
+                  <input type="color" id="modTmProgressColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('timer', 'progress_color', this.value)">
+                </div>
+              </div>
+              <div>
+                <label class="form-label" style="font-size:11px;">Color Frase / Meme</label>
+                <input type="color" id="modTmPhraseColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('timer', 'phrase_color', this.value)">
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">🔤 Tamaños de Fuente (px)</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Reloj Grande</label>
+                  <input type="number" id="modTmClockSize" class="form-input" min="20" max="180" value="72" oninput="updateModularProp('timer', 'clock_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Título</label>
+                  <input type="number" id="modTmTitleSize" class="form-input" min="10" max="90" value="30" oninput="updateModularProp('timer', 'title_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Badge Superior</label>
+                  <input type="number" id="modTmBadgeSize" class="form-input" min="8" max="40" value="12" oninput="updateModularProp('timer', 'badge_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Frase / Meme</label>
+                  <input type="number" id="modTmPhraseSize" class="form-input" min="8" max="40" value="14" oninput="updateModularProp('timer', 'phrase_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">🔡 Fuentes por Elemento</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Reloj Grande</label>
+                  <select id="modTmClockFont" class="form-input" style="font-size:11px;" onchange="updateModularProp('timer', 'clock_font', this.value)">
+                    <option value="">— Heredar —</option>
+                    <option value="system-ui">System UI</option>
+                    <option value="'Space Mono', monospace">Space Mono</option>
+                    <option value="'Syne', sans-serif">Syne</option>
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Título</label>
+                  <select id="modTmTitleFont" class="form-input" style="font-size:11px;" onchange="updateModularProp('timer', 'title_font', this.value)">
+                    <option value="">— Heredar —</option>
+                    <option value="system-ui">System UI</option>
+                    <option value="'Space Mono', monospace">Space Mono</option>
+                    <option value="'Syne', sans-serif">Syne</option>
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Badge / Píldora</label>
+                  <select id="modTmBadgeFont" class="form-input" style="font-size:11px;" onchange="updateModularProp('timer', 'badge_font', this.value)">
+                    <option value="">— Heredar —</option>
+                    <option value="system-ui">System UI</option>
+                    <option value="'Space Mono', monospace">Space Mono</option>
+                    <option value="'Syne', sans-serif">Syne</option>
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Frase / Meme</label>
+                  <select id="modTmPhraseFont" class="form-input" style="font-size:11px;" onchange="updateModularProp('timer', 'phrase_font', this.value)">
+                    <option value="">— Heredar —</option>
+                    <option value="system-ui">System UI</option>
+                    <option value="'Space Mono', monospace">Space Mono</option>
+                    <option value="'Syne', sans-serif">Syne</option>
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="inspector-section-title">🖼️ Imágenes Decorativas</span>
+                <button class="btn btn-accent" style="padding:2px 6px; font-size:10px;" onclick="addTimerImage()">+ Añadir</button>
+              </div>
+              <div id="timerImagesList" style="margin-top:8px; display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">👁️ Elementos Visibles</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px;">
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modTmShowBadge" checked onchange="updateModularProp('timer', 'show_badge', this.checked)"> Badge</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modTmShowTitle" checked onchange="updateModularProp('timer', 'show_title', this.checked)"> Título</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modTmShowClock" checked onchange="updateModularProp('timer', 'show_clock', this.checked)"> Reloj</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modTmShowProgress" checked onchange="updateModularProp('timer', 'show_progress', this.checked)"> Barra Progreso</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modTmShowPhrase" checked onchange="updateModularProp('timer', 'show_phrase', this.checked)"> Frase / Meme</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─── PANE 3: INSPECTOR LETRAS (LYRICS) ─── -->

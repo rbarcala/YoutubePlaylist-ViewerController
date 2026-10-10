@@ -1,0 +1,56 @@
+    <!-- SUB-VISTA 2: PANEL DE CONTROL EN VIVO DEL TEMPORIZADOR -->
+    <div id="studioTimerOpContainer" style="display:none; width:100%; height:100%; padding:20px; overflow-y:auto;">
+      <div style="max-width:700px; margin:0 auto; display:flex; flex-direction:column; gap:16px;">
+        <div class="overlay-timer-card">
+          <div style="display:flex; justify-content:space-between; width:100%; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:12px;">
+            <span style="font-weight:700; font-size:14px; color:var(--accent);">⏱️ Panel de Control del Temporizador</span>
+            <span class="timer-status-badge timer-status-inactive" id="timerStatusBadge">Inactivo</span>
+          </div>
+
+          <div class="timer-clock-display" id="timerClockDisplay">05:00</div>
+
+          <div class="timer-progress-wrap">
+            <div class="timer-progress-fill" id="timerProgressFill" style="width: 100%;"></div>
+          </div>
+
+          <div style="width:100%; text-align:left; margin-top:8px;">
+            <label class="form-label">Título en Pantalla</label>
+            <input type="text" id="timerTitleInput" class="form-input" value="Ya Vuelvo" placeholder="Ej: Ya Vuelvo, Recreo, Volvemos enseguida..." style="width:100%;">
+          </div>
+
+          <div style="width:100%; text-align:center; margin-top:8px;">
+            <div class="form-label" style="margin-bottom:8px;">Duración rápida</div>
+            <div class="timer-quick-grid">
+              <button class="timer-quick-btn" onclick="addTimerMinutes(1)">+1 min</button>
+              <button class="timer-quick-btn" onclick="addTimerMinutes(3)">+3 min</button>
+              <button class="timer-quick-btn" onclick="addTimerMinutes(5)">+5 min</button>
+              <button class="timer-quick-btn" onclick="addTimerMinutes(10)">+10 min</button>
+              <button class="timer-quick-btn" onclick="addTimerMinutes(15)">+15 min</button>
+              <button class="timer-quick-btn" onclick="addTimerMinutes(20)">+20 min</button>
+            </div>
+          </div>
+
+          <div class="timer-phrase-section" style="width:100%; margin-top:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label class="form-label">Meme / Chiste de Informática</label>
+              <div style="display:flex; gap:6px;">
+                <button class="btn" style="padding:3px 8px; font-size:10px;" onclick="randomizeTimerPhrase()">🎲 Aleatorio</button>
+                <button class="btn" style="padding:3px 8px; font-size:10px;" onclick="openManagePhrasesModal()">✏️ Gestionar</button>
+              </div>
+            </div>
+            <select id="timerPhraseSelect" class="form-input" style="width:100%;" onchange="changeTimerPhrase(this.value)"></select>
+            <div id="timerPhrasePreview" style="font-size:11px; color:var(--accent); font-style:italic; padding-top:2px;"></div>
+          </div>
+
+          <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:14px;">
+            <button class="btn btn-accent" id="btnTimerStart" onclick="startCustomTimer()" style="font-size:13px; padding:10px 22px;">▶ Iniciar</button>
+            <button class="btn" id="btnTimerPause" onclick="pauseOverlayTimer()" style="font-size:13px; padding:10px 22px;">⏸ Pausar</button>
+            <button class="btn btn-danger" id="btnTimerStop" onclick="stopOverlayTimer()" style="font-size:13px; padding:10px 22px;">⏹ Ocultar Overlay</button>
+          </div>
+        </div>
+
+        <div style="text-align:center;">
+          <button class="btn" onclick="setStudioMode('visual')" style="font-size:12px;">← Volver al Estudio Visual</button>
+        </div>
+      </div>
+    </div>

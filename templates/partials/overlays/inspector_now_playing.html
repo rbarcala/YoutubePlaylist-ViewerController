@@ -1,0 +1,137 @@
+          <!-- ─── PANE 1: INSPECTOR NOW PLAYING ─── -->
+          <div id="paneInspNowPlaying" class="inspector-pane" style="display:flex; flex-direction:column; gap:12px;">
+            <div class="inspector-section">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="inspector-section-title">🎵 Módulo Now Playing</span>
+                <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--accent); cursor:pointer;">
+                  <input type="checkbox" id="modNpEnabled" checked onchange="updateModularProp('now_playing', 'enabled', this.checked)"> Habilitar
+                </label>
+              </div>
+              <div style="font-size:11px; color:var(--muted); display:flex; align-items:center; gap:6px; background:#181818; padding:6px 10px; border-radius:6px; border:1px solid var(--border); margin-top:6px;">
+                <span>🟢</span>
+                <span>Fuente activa: <strong style="color:#1db954;">Solo Música (Spotify)</strong></span>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">📐 Ubicación &amp; Tamaño</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Posición X (px)</label>
+                  <input type="number" id="modNpX" class="form-input" min="0" max="1920" step="5" oninput="updateModularProp('now_playing', 'x', parseInt(this.value, 10))">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Posición Y (desde abajo)</label>
+                  <input type="number" id="modNpY" class="form-input" min="0" max="1080" step="5" oninput="updateModularProp('now_playing', 'y', parseInt(this.value, 10))">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Escala: <span id="modNpScaleVal" style="color:var(--accent);">1.0x</span></label>
+                  <input type="range" id="modNpScale" min="0.5" max="2.2" step="0.05" value="1.0" oninput="updateModularProp('now_playing', 'scale', parseFloat(this.value))" style="width:100%; accent-color:var(--accent);">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Ancho (px)</label>
+                  <input type="number" id="modNpWidth" class="form-input" min="260" max="3840" step="10" oninput="updateModularProp('now_playing', 'width', parseInt(this.value, 10))">
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span class="inspector-section-title" style="margin:0;">📑 Nivel de Capa (Z-Index / Arriba-Abajo)</span>
+                <span id="modNpZVal" style="font-weight:800; color:var(--accent); font-size:12px; font-family:'Space Mono',monospace;">30</span>
+              </div>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <button class="btn btn-sm" onclick="changeModuleLayer('now_playing', -5)" title="Enviar hacia atrás">🔽 Bajar</button>
+                <input type="number" id="modNpZIndex" class="form-input" style="width:70px; text-align:center; font-weight:700; font-size:12px;" value="30" min="1" max="999" onchange="setModuleLayer('now_playing', this.value)">
+                <button class="btn btn-sm btn-accent" onclick="changeModuleLayer('now_playing', 5)" title="Traer hacia adelante">🔼 Subir</button>
+                <button class="btn btn-sm" onclick="changeModuleLayer('now_playing', 100)" title="Traer al frente del todo" style="font-size:10px;">🔝 Al Frente</button>
+                <button class="btn btn-sm" onclick="changeModuleLayer('now_playing', -100)" title="Enviar al fondo" style="font-size:10px;">⬇️ Al Fondo</button>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">🎨 Rectángulo &amp; Fondo</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Fondo</label>
+                  <input type="color" id="modNpBgColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('now_playing', 'bg_color', this.value)">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Opacidad: <span id="modNpOpVal" style="color:var(--accent);">78%</span></label>
+                  <input type="range" id="modNpBgOpacity" min="0" max="100" value="78" oninput="updateModularProp('now_playing', 'bg_opacity', parseInt(this.value, 10))" style="width:100%; accent-color:var(--accent);">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Borde</label>
+                  <input type="color" id="modNpBorderColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('now_playing', 'border_color', this.value)">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Redondeo: <span id="modNpRadiusVal" style="color:var(--accent);">12px</span></label>
+                  <input type="range" id="modNpBorderRadius" min="0" max="36" value="12" oninput="updateModularProp('now_playing', 'border_radius', parseInt(this.value, 10))" style="width:100%; accent-color:var(--accent);">
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">✍️ Tipografía &amp; Efectos</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Fuente</label>
+                  <select id="modNpFont" class="form-input" style="font-size:11px;" onchange="updateModularProp('now_playing', 'font', this.value)">
+                    <option value="system-ui">System Modern</option>
+                    <option value="'Space Mono', monospace">Space Mono</option>
+                    <option value="'Syne', sans-serif">Syne</option>
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Color Texto</label>
+                  <input type="color" id="modNpTextColor" class="form-input" style="height:32px; padding:2px;" oninput="updateModularProp('now_playing', 'text_color', this.value)">
+                </div>
+              </div>
+              <div>
+                <label class="form-label" style="font-size:11px;">Ondulación de Texto (Wave): <span id="modNpWaveVal" style="color:var(--accent);">0</span></label>
+                <input type="range" id="modNpWave" min="0" max="10" value="0" oninput="updateModularProp('now_playing', 'wave', parseInt(this.value, 10))" style="width:100%; accent-color:var(--accent);">
+              </div>
+              <div style="margin-top:8px;">
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+                  <input type="checkbox" id="modNpMarquee" onchange="updateModularProp('now_playing', 'marquee', this.checked)">
+                  Desplazar título (Marquesina Der a Izq)
+                </label>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">🔤 Tamaños de Fuente (px)</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Título</label>
+                  <input type="number" id="modNpTitleSize" class="form-input" min="8" max="72" value="13" oninput="updateModularProp('now_playing', 'title_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Artista</label>
+                  <input type="number" id="modNpArtistSize" class="form-input" min="8" max="60" value="11" oninput="updateModularProp('now_playing', 'artist_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Badge</label>
+                  <input type="number" id="modNpBadgeSize" class="form-input" min="6" max="36" value="9" oninput="updateModularProp('now_playing', 'badge_size', parseInt(this.value, 10))" title="Usa la ruedita del mouse para ajustar">
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <span class="inspector-section-title">👁️ Elementos Visibles</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px;">
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowCover" checked onchange="updateModularProp('now_playing', 'show_cover', this.checked)"> Portada</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowBadge" checked onchange="updateModularProp('now_playing', 'show_badge', this.checked)"> Badge</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowTitle" checked onchange="updateModularProp('now_playing', 'show_title', this.checked)"> Título</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowArtist" checked onchange="updateModularProp('now_playing', 'show_artist', this.checked)"> Artista</label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="modNpShowEq" checked onchange="updateModularProp('now_playing', 'show_equalizer', this.checked)"> Ecualizador</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─── PANE 2: INSPECTOR TEMPORIZADOR ─── -->
