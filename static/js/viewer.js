@@ -464,6 +464,9 @@ setTimeout(notifyReady, 1500);
 
 // Notificar desconexión al cerrar pestaña
 window.addEventListener('beforeunload', () => {
+  try {
+    channel.postMessage({ type: 'viewer_closed' });
+  } catch(e) {}
   fetch('/api/action', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

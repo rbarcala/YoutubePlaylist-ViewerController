@@ -3,15 +3,11 @@ let isOpeningViewer = false;
 function openViewer() {
   if (isOpeningViewer) return;
   isOpeningViewer = true;
-  setTimeout(() => { isOpeningViewer = false; }, 1500);
+  setTimeout(() => { isOpeningViewer = false; }, 1200);
 
-  if (viewerConnected) {
-    fetch('/api/focus_viewer', { method: 'POST' }).catch(() => {});
-    if (viewerWindow) {
-      try { viewerWindow.focus(); } catch(e) {}
-    }
-    showToast('Viewer conectado — Solicitando foco 📺');
-    return;
+  // Si tenemos referencia a la ventana abierta directamente, intentar enfocarla
+  if (viewerWindow) {
+    try { viewerWindow.focus(); } catch(e) {}
   }
 
   fetch('/api/open_viewer', { method: 'POST' })

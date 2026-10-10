@@ -208,6 +208,14 @@ function initSSE() {
   evtSource.addEventListener('state', (e) => {
     try {
       const data = JSON.parse(e.data).data;
+      if (data.activeViewers !== undefined) {
+        setConnected(data.activeViewers > 0);
+      }
+      if (data.lastAction === 'viewer_ready') {
+        setConnected(true);
+      } else if (data.lastAction === 'viewer_closed' && (!data.activeViewers || data.activeViewers <= 0)) {
+        setConnected(false);
+      }
       if (data.playbackRate !== undefined) {
         currentPlaybackRate = parseFloat(data.playbackRate);
         const sl = document.getElementById('speedSlider');
@@ -420,6 +428,7 @@ function initSSE() {
   });
 
   evtSource.addEventListener('viewer_ready', () => setConnected(true));
+  evtSource.addEventListener('viewer_closed', () => setConnected(false));
 
   // Temporizador y Overlays OBS
   evtSource.addEventListener('timer_update', (e) => {
@@ -447,6 +456,7 @@ function initBroadcastChannel() {
     const d = e.data;
     if (!d || d.clientId === myClientId) return;
     if (d.type === 'viewer_ready') setConnected(true);
+    if (d.type === 'viewer_closed') setConnected(false);
     if (d.type === 'play' && d.videoId) highlightActiveCard(d.videoId);
     if (d.type === 'soundboard_volume' && d.volume !== undefined) {
       applySoundboardVolume(d.volume);
