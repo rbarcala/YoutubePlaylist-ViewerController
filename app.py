@@ -125,8 +125,17 @@ def main():
     threading.Thread(target=launch_obs_if_needed, args=(cfg, BASE_DIR), daemon=True).start()
     threading.Thread(target=launch_spotify_if_needed, daemon=True).start()
 
+    _cleanup_done = False
+    _cleanup_lock = threading.Lock()
+
     def cleanup_on_exit():
         """Limpia subprocesos huérfanos (sonidos, ventana viewer) sin tocar OBS ni Spotify."""
+        nonlocal _cleanup_done
+        with _cleanup_lock:
+            if _cleanup_done:
+                return
+            _cleanup_done = True
+
         logger.info("[app] Ejecutando limpieza de cierre...")
         # 1. Detener procesos de audio ffplay del soundboard
         try:
