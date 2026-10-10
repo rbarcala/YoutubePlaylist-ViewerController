@@ -1,5 +1,90 @@
 // ─── 2. OBS STUDIO LOGIC ───
 let currentCamStream = null;
+let snapshotLoopTimer = null;
+let isSnapshotFetching = false;
+let previewMode = 'auto'; // 'vcam' | 'snapshot' | 'auto'
+
+function stopSnapshotPreviewLoop() {
+  if (snapshotLoopTimer) {
+    clearTimeout(snapshotLoopTimer);
+    snapshotLoopTimer = null;
+  }
+}
+
+let snapshotIntervalMs = 50; // ~20 FPS por defecto (Ultra fluido, tiempo real de video)
+let lastFrameTimestamp = 0;
+let frameCount = 0;
+let lastFpsCalc = performance.now();
+
+function setSnapshotSpeed(interval) {
+  snapshotIntervalMs = parseInt(interval, 10) || 50;
+}
+
+async function fetchNextSnapshotFrame() {
+  const img = document.getElementById('obsImgPreview');
+  const fallback = document.getElementById('obsPreviewFallback');
+  const fpsTag = document.getElementById('obsPreviewFpsTag');
+  if (!img) return;
+
+  if (isSnapshotFetching) return;
+  isSnapshotFetching = true;
+
+  try {
+    const sceneParam = lastKnownCurrentScene ? `?scene=${encodeURIComponent(lastKnownCurrentScene)}` : '';
+    const res = await fetch(`/api/obs/preview${sceneParam}&width=380&height=214&quality=30`, { cache: 'no-store' });
+    const data = await res.json();
+
+    if (data && data.success && data.imageData) {
+      if (!currentCamStream) {
+        if (img.style.display !== 'block') {
+          img.style.display = 'block';
+          const video = document.getElementById('obsVideoCam');
+          if (video) video.style.display = 'none';
+          if (fallback) fallback.style.display = 'none';
+        }
+        img.src = data.imageData;
+
+        // Medir FPS reales alcanzados
+        frameCount++;
+        const now = performance.now();
+        if (now - lastFpsCalc >= 1000) {
+          const fps = Math.round((frameCount * 1000) / (now - lastFpsCalc));
+          if (fpsTag) {
+            fpsTag.style.display = 'inline-block';
+            fpsTag.textContent = `● LIVE ${fps} FPS`;
+          }
+          frameCount = 0;
+          lastFpsCalc = now;
+        }
+      }
+    } else if (!currentCamStream && fallback && img.style.display !== 'block') {
+      const msg = document.getElementById('obsPreviewMsg');
+      if (msg && data.error) msg.textContent = 'OBS conectado. Esperando fotograma...';
+    }
+  } catch (err) {
+    // Reintentar silenciosamente
+  } finally {
+    isSnapshotFetching = false;
+    // Programa el siguiente frame inmediatamente con el intervalo seleccionado
+    if (!currentCamStream && previewMode !== 'vcam_only') {
+      snapshotLoopTimer = setTimeout(fetchNextSnapshotFrame, snapshotIntervalMs);
+    }
+  }
+}
+
+function startSnapshotPreviewLoop(force = false) {
+  stopSnapshotPreviewLoop();
+  if (force) {
+    // Si el usuario fuerza la transmisión de pantalla, detener la cámara virtual
+    if (currentCamStream) {
+      currentCamStream.getTracks().forEach(t => t.stop());
+      currentCamStream = null;
+    }
+    const video = document.getElementById('obsVideoCam');
+    if (video) video.style.display = 'none';
+  }
+  fetchNextSnapshotFrame();
+}
 
 async function startVirtualCameraPreview() {
   const fallback = document.getElementById('obsPreviewFallback');
@@ -8,15 +93,14 @@ async function startVirtualCameraPreview() {
   let camSelect = document.getElementById('obsCamSelect');
 
   if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-    if (msg) msg.textContent = "Vista previa de cámara virtual disponible en el equipo local.";
-    if (btn) btn.style.display = "none";
-    if (camSelect) camSelect.style.display = "none";
+    // En móviles o conexiones HTTP sin getUserMedia, activar directamente la transmisión por red
+    startSnapshotPreviewLoop();
     return;
   }
 
   try {
     if (!camSelect.options || camSelect.options.length === 0) {
-      msg.textContent = "Solicitando permisos de cámara...";
+      if (msg) msg.textContent = "Buscando cámara virtual...";
       await navigator.mediaDevices.getUserMedia({ video: true })
         .then(s => s.getTracks().forEach(t => t.stop()))
         .catch(e => { if(e.name !== "NotReadableError") throw e; });
@@ -26,7 +110,9 @@ async function startVirtualCameraPreview() {
     const videoInputs = devices.filter(d => d.kind === 'videoinput');
 
     if (videoInputs.length === 0) {
-      throw new Error("No se detectaron cámaras en el sistema.");
+      // Sin cámaras: usar la previsualización de red
+      startSnapshotPreviewLoop();
+      return;
     }
 
     camSelect.innerHTML = '';
@@ -42,32 +128,37 @@ async function startVirtualCameraPreview() {
         d.label.toLowerCase().includes('dummy') || 
         d.label.toLowerCase().includes('v4l2')
     );
-    if (obsDev) camSelect.value = obsDev.deviceId;
-    
-    camSelect.style.display = 'block';
-    btn.style.display = 'none';
-    
-    if (videoInputs.length > 0) {
-        connectSelectedCamera(camSelect.value);
+    if (obsDev) {
+      camSelect.value = obsDev.deviceId;
+      camSelect.style.display = 'block';
+      if (btn) btn.style.display = 'none';
+      connectSelectedCamera(obsDev.deviceId);
+    } else {
+      // Si no hay cámara OBS instalada en este dispositivo, usar el snapshot en tiempo real
+      startSnapshotPreviewLoop();
     }
   } catch (err) {
-    msg.textContent = "Error: " + err.message;
-    btn.style.display = "inline-flex";
-    btn.textContent = "Dar permisos e intentar de nuevo";
+    // Si falla o no se dan permisos de cámara, fallback fluido automático por red
+    startSnapshotPreviewLoop();
   }
 }
 
 async function connectSelectedCamera(deviceId) {
     const video = document.getElementById('obsVideoCam');
+    const img = document.getElementById('obsImgPreview');
     const fallback = document.getElementById('obsPreviewFallback');
     const msg = document.getElementById('obsPreviewMsg');
+    const fpsTag = document.getElementById('obsPreviewFpsTag');
+    
+    stopSnapshotPreviewLoop();
+    if (img) img.style.display = 'none';
     
     if (currentCamStream) {
         currentCamStream.getTracks().forEach(t => t.stop());
     }
     
     try {
-        msg.textContent = "Conectando cámara...";
+        if (msg) msg.textContent = "Conectando cámara...";
         const constraints = { 
             video: {
                 width: { ideal: 640, max: 1280 },
@@ -81,35 +172,37 @@ async function connectSelectedCamera(deviceId) {
         currentCamStream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = currentCamStream;
         video.style.display = 'block';
-        fallback.style.display = 'none';
+        if (fallback) fallback.style.display = 'none';
+        if (fpsTag) {
+          fpsTag.style.display = 'inline-block';
+          fpsTag.textContent = '60 FPS';
+        }
         video.play().catch(e => console.log('Auto-play prevent: ', e));
         
         currentCamStream.getVideoTracks()[0].onended = () => {
             video.style.display = 'none';
-            fallback.style.display = 'flex';
-            msg.textContent = "La cámara virtual se desconectó. ¿Está iniciada en OBS?";
-            if (document.getElementById('btnStartVirtualCam')) {
-                document.getElementById('btnStartVirtualCam').style.display = 'inline-flex';
-            }
+            currentCamStream = null;
+            // Si la cámara virtual se cae, pasar fluidamente a la transmisión por red
+            startSnapshotPreviewLoop();
         };
         
     } catch (err) {
         console.error(err);
-        msg.textContent = "Error al conectar cámara: " + err.message;
-        if (document.getElementById('btnStartVirtualCam')) {
-            document.getElementById('btnStartVirtualCam').style.display = "inline-flex";
-            document.getElementById('btnStartVirtualCam').textContent = "Reintentar conexión";
-        }
+        // Fallback a transmisión por red
+        startSnapshotPreviewLoop();
     }
 }
 
 function stopObsPreviewLoop() {
+    stopSnapshotPreviewLoop();
     if (currentCamStream) {
-        // currentCamStream.getTracks().forEach(t => t.stop());
+        currentCamStream.getTracks().forEach(t => t.stop());
+        currentCamStream = null;
     }
 }
 
 window.startObsPreviewLoop = startVirtualCameraPreview;
+window.startSnapshotPreviewLoop = startSnapshotPreviewLoop;
 
 let lastKnownObsScenes = [];
 let lastKnownCurrentScene = '';
@@ -203,8 +296,12 @@ async function loadObsData() {
       }
       loadObsAudioData();
 
-      // Iniciar automáticamente la previsualización de cámara virtual en el controller si no está corriendo
-      if (!currentCamStream && document.getElementById('obsVideoCam') && document.getElementById('obsVideoCam').style.display !== 'block') {
+      // Iniciar automáticamente la previsualización (Cámara Virtual o Transmisión Snapshot por red) si no está activa
+      const video = document.getElementById('obsVideoCam');
+      const img = document.getElementById('obsImgPreview');
+      const isVideoActive = currentCamStream || (video && video.style.display === 'block');
+      const isImgActive = snapshotLoopTimer || (img && img.style.display === 'block');
+      if (!isVideoActive && !isImgActive) {
         startVirtualCameraPreview().catch(() => {});
       }
     }

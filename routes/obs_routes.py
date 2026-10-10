@@ -123,10 +123,14 @@ def get_obs_video_settings():
 @obs_bp.route('/api/obs/preview')
 def get_obs_preview():
     obs = _get_obs_controller()
-    scene = request.args.get('scene', '')
-    if not scene:
-        return jsonify({"success": False, "error": "No scene provided"})
-    return jsonify(obs.get_screenshot(scene))
+    scene = request.args.get('scene', '').strip()
+    try:
+        width = int(request.args.get('width', 480))
+        height = int(request.args.get('height', 270))
+        quality = int(request.args.get('quality', 40))
+    except (ValueError, TypeError):
+        width, height, quality = 480, 270, 40
+    return jsonify(obs.get_screenshot(source_name=scene, width=width, height=height, quality=quality))
 
 
 @obs_bp.route('/api/obs/audio')

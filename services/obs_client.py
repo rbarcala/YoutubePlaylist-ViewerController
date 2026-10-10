@@ -212,7 +212,7 @@ class OBSController:
                 "op": 6,
                 "d": {"requestType": "GetStreamStatus", "requestId": "stream-status"}
             }))
-            resp_stream = json.loads(self._recv_ws_frame(sock) or "{}")
+            resp_stream = self._recv_response(sock, "stream-status") or {}
             is_streaming = resp_stream.get("d", {}).get("responseData", {}).get("outputActive", False)
 
             # GetRecordStatus
@@ -220,7 +220,7 @@ class OBSController:
                 "op": 6,
                 "d": {"requestType": "GetRecordStatus", "requestId": "record-status"}
             }))
-            resp_rec = json.loads(self._recv_ws_frame(sock) or "{}")
+            resp_rec = self._recv_response(sock, "record-status") or {}
             is_recording = resp_rec.get("d", {}).get("responseData", {}).get("outputActive", False)
 
             # GetCurrentProgramScene
@@ -228,7 +228,7 @@ class OBSController:
                 "op": 6,
                 "d": {"requestType": "GetCurrentProgramScene", "requestId": "curr-scene"}
             }))
-            resp_scene = json.loads(self._recv_ws_frame(sock) or "{}")
+            resp_scene = self._recv_response(sock, "curr-scene") or {}
             current_scene = resp_scene.get("d", {}).get("responseData", {}).get("currentProgramSceneName", "")
 
             sock.close()
@@ -249,36 +249,51 @@ class OBSController:
                 "op": 6,
                 "d": {"requestType": "ToggleStream", "requestId": "toggle-stream"}
             }))
-            resp = json.loads(self._recv_ws_frame(sock) or "{}")
+            resp = self._recv_response(sock, "toggle-stream") or {}
             sock.close()
             active = resp.get("d", {}).get("responseData", {}).get("outputActive", False)
             return {"success": True, "outputActive": active}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def get_screenshot(self, source_name: str) -> dict:
+    def get_screenshot(self, source_name: str = "", width: int = 480, height: int = 270, quality: int = 40) -> dict:
         try:
             sock = self._connect_and_identify()
-            if not sock: return {"success": False}
+            if not sock: return {"success": False, "error": "No se pudo conectar a OBS"}
+            
+            # Si no se pasó source_name, consultar la escena activa actual
+            target_source = source_name
+            if not target_source:
+                self._send_ws_frame(sock, json.dumps({
+                    "op": 6,
+                    "d": {"requestType": "GetCurrentProgramScene", "requestId": "get-curr-scene"}
+                }))
+                resp_scene = self._recv_response(sock, "get-curr-scene") or {}
+                target_source = resp_scene.get("d", {}).get("responseData", {}).get("currentProgramSceneName", "")
+
+            if not target_source:
+                sock.close()
+                return {"success": False, "error": "No se pudo determinar la escena actual"}
+
             self._send_ws_frame(sock, json.dumps({
                 "op": 6,
                 "d": {
                     "requestType": "GetSourceScreenshot",
                     "requestId": "get-screenshot",
                     "requestData": {
-                        "sourceName": source_name,
+                        "sourceName": target_source,
                         "imageFormat": "jpeg",
-                        "imageWidth": 320,
-                        "imageHeight": 180,
-                        "imageCompressionQuality": 20
+                        "imageWidth": int(width),
+                        "imageHeight": int(height),
+                        "imageCompressionQuality": int(quality)
                     }
                 }
             }))
-            resp = json.loads(self._recv_ws_frame(sock) or "{}")
+            resp = self._recv_response(sock, "get-screenshot") or {}
             sock.close()
             img_data = resp.get("d", {}).get("responseData", {}).get("imageData", "")
             if img_data:
-                return {"success": True, "imageData": img_data}
+                return {"success": True, "imageData": img_data, "scene": target_source}
             return {"success": False, "error": "No imageData in response"}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -294,7 +309,7 @@ class OBSController:
                     "requestId": "start-vcam"
                 }
             }))
-            resp = json.loads(self._recv_ws_frame(sock) or "{}")
+            resp = self._recv_response(sock, "start-vcam") or {}
             sock.close()
             return {"success": True}
         except Exception as e:
@@ -309,7 +324,7 @@ class OBSController:
                 "op": 6,
                 "d": {"requestType": "GetVideoSettings", "requestId": "get-video-settings"}
             }))
-            resp = json.loads(self._recv_ws_frame(sock) or "{}")
+            resp = self._recv_response(sock, "get-video-settings") or {}
             sock.close()
             data = resp.get("d", {}).get("responseData", {})
             return {
@@ -330,7 +345,7 @@ class OBSController:
                 "op": 6,
                 "d": {"requestType": "ToggleRecord", "requestId": "toggle-record"}
             }))
-            resp = json.loads(self._recv_ws_frame(sock) or "{}")
+            resp = self._recv_response(sock, "toggle-record") or {}
             sock.close()
             active = resp.get("d", {}).get("responseData", {}).get("outputActive", False)
             return {"success": True, "outputActive": active}
@@ -349,7 +364,7 @@ class OBSController:
                 "op": 6,
                 "d": {"requestType": "GetSpecialInputs", "requestId": "get-special-inputs"}
             }))
-            resp_spec = json.loads(self._recv_ws_frame(sock) or "{}")
+            resp_spec = self._recv_response(sock, "get-special-inputs") or {}
             spec_data = resp_spec.get("d", {}).get("responseData", {})
             desktop_name = spec_data.get("desktop1") or "Desktop Audio"
             mic_name = spec_data.get("mic1") or "Mic/Aux"
@@ -359,7 +374,7 @@ class OBSController:
                 "op": 6,
                 "d": {"requestType": "GetInputList", "requestId": "get-all-inputs"}
             }))
-            resp_list = json.loads(self._recv_ws_frame(sock) or "{}")
+            resp_list = self._recv_response(sock, "get-all-inputs") or {}
             all_inputs = [x.get("inputName") for x in resp_list.get("d", {}).get("responseData", {}).get("inputs", [])]
 
             if desktop_name not in all_inputs:
@@ -381,14 +396,14 @@ class OBSController:
                         "op": 6,
                         "d": {"requestType": "GetInputVolume", "requestId": f"vol-{key}", "requestData": {"inputName": name}}
                     }))
-                    resp_vol = json.loads(self._recv_ws_frame(sock) or "{}")
+                    resp_vol = self._recv_response(sock, f"vol-{key}") or {}
                     vdata = resp_vol.get("d", {}).get("responseData", {})
 
                     self._send_ws_frame(sock, json.dumps({
                         "op": 6,
                         "d": {"requestType": "GetInputMute", "requestId": f"mute-{key}", "requestData": {"inputName": name}}
                     }))
-                    resp_mute = json.loads(self._recv_ws_frame(sock) or "{}")
+                    resp_mute = self._recv_response(sock, f"mute-{key}") or {}
                     mdata = resp_mute.get("d", {}).get("responseData", {})
 
                     result_inputs[key] = {

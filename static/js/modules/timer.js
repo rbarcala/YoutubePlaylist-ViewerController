@@ -727,6 +727,8 @@ function setStudioMode(mode) {
   const visualContainer = document.getElementById('studioVisualContainer');
   const timerContainer = document.getElementById('studioTimerOpContainer');
   const simToggles = document.getElementById('studioSimToggles');
+  const mobileSwitcher = document.getElementById('overlayMobileSwitcher');
+  const visualActions = document.getElementById('studioVisualActions');
 
   if (mode === 'visual') {
     if (visualBtn) visualBtn.className = 'btn btn-sm btn-accent';
@@ -734,6 +736,8 @@ function setStudioMode(mode) {
     if (visualContainer) visualContainer.style.display = 'flex';
     if (timerContainer) timerContainer.style.display = 'none';
     if (simToggles) simToggles.style.display = 'flex';
+    if (mobileSwitcher) mobileSwitcher.style.display = '';
+    if (visualActions) visualActions.style.display = '';
     requestAnimationFrame(updateStageMockups);
   } else {
     if (visualBtn) visualBtn.className = 'btn btn-sm';
@@ -741,6 +745,8 @@ function setStudioMode(mode) {
     if (visualContainer) visualContainer.style.display = 'none';
     if (timerContainer) timerContainer.style.display = 'block';
     if (simToggles) simToggles.style.display = 'none';
+    if (mobileSwitcher) mobileSwitcher.style.display = 'none';
+    if (visualActions) visualActions.style.display = 'none';
   }
 }
 

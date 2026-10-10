@@ -212,13 +212,25 @@
           </div>
         </div>
         <div class="obs-preview-frame" id="obsPreviewContainer" style="background:#000; aspect-ratio:16/9; position:relative; overflow:hidden; border-bottom:1px solid var(--border);">
-          <div style="position:absolute; top:5px; right:5px; z-index:10;">
+          <div style="position:absolute; top:5px; right:5px; z-index:10; display:flex; gap:6px; align-items:center;">
+            <select id="obsPreviewSpeedSelect" style="background:rgba(0,0,0,0.7); color:var(--accent); border:1px solid var(--border); border-radius:4px; font-size:10px; padding:2px 4px; font-weight:700;" onchange="setSnapshotSpeed(this.value)" title="Velocidad de refresco de la pantalla">
+              <option value="30">Máximo (30 FPS)</option>
+              <option value="50" selected>Ultra (20 FPS)</option>
+              <option value="100">Rápido (10 FPS)</option>
+              <option value="250">Normal (4 FPS)</option>
+              <option value="500">Ahorro (2 FPS)</option>
+            </select>
+            <span id="obsPreviewFpsTag" style="display:none; background:rgba(0,0,0,0.7); color:var(--accent); font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid var(--border);">LIVE PREVIEW</span>
             <select id="obsCamSelect" style="display:none; background:rgba(0,0,0,0.6); color:white; border:1px solid var(--border); border-radius:4px; font-size:10px; padding:2px;" onchange="connectSelectedCamera(this.value)"></select>
           </div>
           <video id="obsVideoCam" autoplay playsinline muted style="width:100%; height:100%; object-fit:contain; display:none;"></video>
+          <img id="obsImgPreview" alt="Previsualización OBS" style="width:100%; height:100%; object-fit:contain; display:none; background:#000;" />
           <div id="obsPreviewFallback" style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted); font-size:12px; flex-direction:column; gap:10px;">
-            <span id="obsPreviewMsg">Previsualización a 60 FPS (Zero Latency)</span>
-            <button class="btn btn-accent" id="btnStartVirtualCam" onclick="startVirtualCameraPreview()">📷 Activar Cámara Virtual</button>
+            <span id="obsPreviewMsg">Conectando previsualización de OBS...</span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+              <button class="btn btn-accent" id="btnStartSnapshotPreview" onclick="startSnapshotPreviewLoop(true)">📡 Iniciar Transmisión de Pantalla</button>
+              <button class="btn" id="btnStartVirtualCam" onclick="startVirtualCameraPreview()">📷 Cámara Virtual (PC)</button>
+            </div>
           </div>
         </div>
         <div class="live-video-frame" id="liveVideoContainer">
@@ -412,7 +424,7 @@
       <label class="studio-sim-pill"><input type="checkbox" id="simLyricsToggle" checked onchange="toggleSimModule('lyrics', this.checked)"> 📜 Letras</label>
     </div>
 
-    <div style="display:flex; align-items:center; gap:6px;">
+    <div id="studioVisualActions" style="display:flex; align-items:center; gap:6px;">
       <button class="btn btn-sm" onclick="addCustomText()" style="font-weight:700;">➕ Texto</button>
       <button class="btn btn-sm" onclick="resetOverlayPositions()" title="Restaurar las posiciones iniciales de todos los carteles">↺ Reset</button>
       <button class="btn btn-sm" onclick="copyObsOverlayUrl()" title="Copiar enlace para la fuente de OBS">📋 URL OBS</button>

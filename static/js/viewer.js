@@ -209,8 +209,8 @@ async function playVideo(videoId, title = "") {
     const response = await fetch(`/api/get_video_url?v=${videoId}`);
     const data = await response.json();
 
-    if (data.video_url && data.audio_url) {
-      usesCombinedMedia = Boolean(data.combined_audio || data.video_url === data.audio_url);
+    if (data.video_url) {
+      usesCombinedMedia = Boolean(data.combined_audio || !data.audio_url || data.video_url === data.audio_url);
       video.src = data.video_url;
       if (usesCombinedMedia) {
         audio.removeAttribute('src');
@@ -449,15 +449,20 @@ function initSSE() {
 
 initSSE();
 
-// Avisar que el Viewer está listo
-function notifyReady() {
-  channel.postMessage({ type: 'viewer_ready' });
-  fetch('/api/action', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'viewer_ready' })
-  }).catch(() => {});
-}
+// Consultar estado inicial del servidor para sincronizar inmediatamente si ya hay un video activo
+fetch('/api/state')
+  .then(r => r.json())
+  .then(state => {
+    if (state) {
+      if (state.playbackRate !== undefined) currentPlaybackRate = state.playbackRate;
+      if (state.muted !== undefined) isMuted = state.muted;
+      applyState();
+      if (state.videoId && state.videoId !== currentPlayingId) {
+        playVideo(state.videoId, state.title || '');
+      }
+    }
+  })
+  .catch(() => {});
 
 notifyReady();
 setTimeout(notifyReady, 1500);
