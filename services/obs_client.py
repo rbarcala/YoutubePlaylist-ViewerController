@@ -164,6 +164,10 @@ class OBSController:
         except Exception as e:
             return {"success": False, "error": str(e), "scenes": [], "current_scene": ""}
 
+    def get_scene_list(self) -> list:
+        """Alias para obtener la lista de nombres de escenas de OBS."""
+        return self.get_scenes().get("scenes", [])
+
     def get_status(self) -> dict:
         """Obtiene el estado general de streaming, grabación y escena."""
         try:

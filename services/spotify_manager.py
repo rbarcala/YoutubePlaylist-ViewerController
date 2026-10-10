@@ -470,3 +470,29 @@ class SpotifyManager:
         except Exception:
             pass
         return {"available": False, "error": "AppArmor bloqueó la conexión (Instala playerctl) o Spotify está cerrado"}
+
+    def get_user_playlists(self) -> list:
+        """Devuelve las playlists de Spotify guardadas por el usuario."""
+        cfg_getter = getattr(self, 'get_config', None) or getattr(self, 'load_config', None)
+        cfg = cfg_getter() if callable(cfg_getter) else {}
+        return cfg.get("spotify_playlists", [])
+
+    def save_playlist(self, playlist_id: str, name: str = "") -> bool:
+        """Guarda una playlist de Spotify en la configuración."""
+        cfg_getter = getattr(self, 'get_config', None) or getattr(self, 'load_config', None)
+        cfg = cfg_getter() if callable(cfg_getter) else {}
+        playlists = list(cfg.get("spotify_playlists", []))
+        if not any(p.get("id") == playlist_id for p in playlists):
+            playlists.append({"id": playlist_id, "name": name or playlist_id})
+            if callable(self.save_config):
+                self.save_config({"spotify_playlists": playlists})
+        return True
+
+    def remove_saved_playlist(self, playlist_id: str) -> bool:
+        """Elimina una playlist guardada de la configuración."""
+        cfg_getter = getattr(self, 'get_config', None) or getattr(self, 'load_config', None)
+        cfg = cfg_getter() if callable(cfg_getter) else {}
+        playlists = [p for p in cfg.get("spotify_playlists", []) if p.get("id") != playlist_id]
+        if callable(self.save_config):
+            self.save_config({"spotify_playlists": playlists})
+        return True

@@ -163,34 +163,41 @@ def spotify_search():
 
 @spotify_bp.route('/api/spotify/saved_playlists', methods=['GET', 'POST', 'DELETE'])
 def spotify_saved_playlists():
+    if not spotify_mgr:
+        return jsonify({'playlists': []})
+
     if request.method == 'GET':
         playlists = spotify_mgr.get_user_playlists()
         return jsonify({'playlists': playlists})
-    
+
     elif request.method == 'POST':
-        data = request.get_json() or {}
-        playlist_id = data.get('playlist_id')
-        if not playlist_id:
+        data = request.get_json(force=True, silent=True) or {}
+        pid = data.get('id') or data.get('playlist_id')
+        pname = data.get('name') or pid
+        if not pid:
             return jsonify({'ok': False, 'error': 'playlist_id requerido'}), 400
-        ok = spotify_mgr.save_playlist(playlist_id)
-        return jsonify({'ok': ok})
-    
+        ok = spotify_mgr.save_playlist(pid, pname)
+        return jsonify({'ok': ok, 'playlists': spotify_mgr.get_user_playlists()})
+
     elif request.method == 'DELETE':
-        playlist_id = request.args.get('playlist_id')
-        if not playlist_id:
+        data = request.get_json(force=True, silent=True) or {}
+        pid = data.get('id') or data.get('playlist_id') or request.args.get('id') or request.args.get('playlist_id')
+        if not pid:
             return jsonify({'ok': False, 'error': 'playlist_id requerido'}), 400
-        ok = spotify_mgr.remove_saved_playlist(playlist_id)
-        return jsonify({'ok': ok})
+        ok = spotify_mgr.remove_saved_playlist(pid)
+        return jsonify({'ok': ok, 'playlists': spotify_mgr.get_user_playlists()})
 
 
 @spotify_bp.route('/api/spotify/playlist')
 def spotify_playlist():
-    playlist_id = request.args.get('playlist_id')
+    playlist_id = request.args.get('id') or request.args.get('playlist_id', '')
     if not playlist_id:
         return jsonify({'tracks': []})
-    
-    tracks = spotify_mgr.get_playlist_tracks(playlist_id)
-    return jsonify({'tracks': tracks})
+
+    if not spotify_mgr:
+        return jsonify({'tracks': []})
+
+    return jsonify(spotify_mgr.get_playlist(playlist_id))
 
 
 @spotify_bp.route('/api/spotify/lyrics')

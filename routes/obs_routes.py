@@ -58,13 +58,17 @@ def get_obs_status():
 @obs_bp.route('/api/obs/scenes')
 def get_obs_scenes():
     obs = _get_obs_controller()
-    scenes = obs.get_scene_list()
+    res = obs.get_scenes() if hasattr(obs, 'get_scenes') else {'scenes': obs.get_scene_list()}
+    scenes = res.get('scenes', []) if isinstance(res, dict) else (res or [])
+    current_scene = res.get('current_scene', '') if isinstance(res, dict) else ''
     if scenes:
         with obs_scenes_lock:
             obs_scenes_cache['scenes'] = scenes
-        return jsonify({'scenes': scenes})
+            if current_scene:
+                obs_scenes_cache['current_scene'] = current_scene
+        return jsonify({'scenes': scenes, 'current_scene': current_scene})
     with obs_scenes_lock:
-        return jsonify({'scenes': obs_scenes_cache.get('scenes', [])})
+        return jsonify({'scenes': obs_scenes_cache.get('scenes', []), 'current_scene': obs_scenes_cache.get('current_scene', '')})
 
 
 @obs_bp.route('/api/obs/switch', methods=['POST'])
