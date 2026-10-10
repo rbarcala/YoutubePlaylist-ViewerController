@@ -1,0 +1,363 @@
+  :root {
+    --bg-card: rgba(10, 10, 10, 0.78);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-radius: 12px;
+    --accent: #e8ff47;
+    --accent-glow: rgba(232, 255, 71, 0.35);
+    --text: #ffffff;
+    --muted: #a0a0a0;
+    --spotify: #1DB954;
+    --youtube: #ff0033;
+    --overlay-scale: 1.0;
+    --overlay-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --wave-amp: 0px;
+    --wave-speed: 1.8s;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: transparent !important;
+    overflow: hidden;
+    font-family: var(--overlay-font);
+    color: var(--text);
+  }
+
+  /* ─── 1. BARRITA NOW PLAYING FLOTANTE (DISCRETA POR DEFAULT) ─── */
+  .now-playing-container {
+    position: fixed;
+    bottom: 28px;
+    left: 28px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    padding: 8px 14px 8px 10px;
+    max-width: 480px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6), 0 0 10px rgba(0,0,0,0.3);
+    opacity: 0;
+    transform: translateY(16px) scale(var(--overlay-scale));
+    transform-origin: bottom left;
+    transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s, border-color 0.3s;
+    pointer-events: none;
+    font-family: var(--overlay-font);
+  }
+  .now-playing-container.visible {
+    opacity: 1;
+    transform: translateY(0) scale(var(--overlay-scale));
+  }
+
+  .np-cover {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: #141414;
+    border: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+  }
+
+  .np-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+  }
+
+  .np-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .np-badge.spotify { color: var(--spotify); }
+  .np-badge.youtube { color: var(--youtube); }
+
+  .np-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 320px;
+    line-height: 1.3;
+  }
+
+  .np-subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 320px;
+    line-height: 1.2;
+  }
+
+  .np-extra-text {
+    font-size: 10px;
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: none;
+  }
+
+  /* Animación de Ondulación / Wave */
+  @keyframes textWaveAnim {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    25% { transform: translateY(calc(var(--wave-amp) * -1)) rotate(-0.6deg); }
+    75% { transform: translateY(var(--wave-amp)) rotate(0.6deg); }
+  }
+  .wave-active {
+    display: inline-block;
+    animation: textWaveAnim var(--wave-speed) ease-in-out infinite;
+  }
+
+  /* Ecualizador animado */
+  .np-eq {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 12px;
+    margin-left: 4px;
+  }
+  .np-eq-bar {
+    width: 2.5px;
+    background: currentColor;
+    border-radius: 2px;
+    animation: eqBounce 1s infinite ease-in-out;
+  }
+  .np-eq-bar:nth-child(1) { height: 5px; animation-delay: 0.1s; }
+  .np-eq-bar:nth-child(2) { height: 12px; animation-delay: 0.3s; }
+  .np-eq-bar:nth-child(3) { height: 8px; animation-delay: 0.2s; }
+
+  @keyframes eqBounce {
+    0%, 100% { transform: scaleY(0.4); }
+    50% { transform: scaleY(1); }
+  }
+
+  /* ─── 2. LETRAS / LYRICS SPOTIFY ─── */
+  .lyrics-container {
+    position: fixed;
+    bottom: 95px;
+    left: 28px;
+    width: 440px;
+    max-height: 150px;
+    overflow: hidden;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    padding: 12px 16px;
+    opacity: 0;
+    transform: translateY(12px) scale(var(--overlay-scale));
+    transform-origin: bottom left;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
+    font-family: var(--overlay-font);
+    z-index: 120;
+  }
+  .lyrics-container.visible {
+    opacity: 1;
+    transform: translateY(0) scale(var(--overlay-scale));
+  }
+  .lyrics-text {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.4;
+    color: #e0e0e0;
+    transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    position: relative;
+    width: 100%;
+    white-space: pre-wrap;
+  }
+  .lyric-line {
+    padding: 6px 0;
+    transition: all 0.3s ease;
+    opacity: 0.4;
+  }
+  .lyric-line.active {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+  .lyrics-text.mode-marquee {
+    display: flex;
+    flex-direction: row;
+    gap: 60px;
+    align-items: center;
+    white-space: nowrap;
+    width: max-content;
+  }
+  .lyric-line-h {
+    transition: all 0.3s ease;
+    opacity: 0.4;
+  }
+  .lyric-line-h.active {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  @keyframes scroll-left {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+  }
+  @keyframes ticker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* ─── 3. TEMPORIZADOR "YA VUELVO / RECREO" ─── */
+  .break-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 200;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+  .break-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .break-card {
+    position: absolute;
+    left: var(--timer-x, 680px);
+    top: var(--timer-y, 320px);
+    transform: scale(var(--timer-scale, 1));
+    transform-origin: top left;
+    background: var(--timer-bg, var(--bg-card));
+    border: 2px solid var(--timer-border, var(--accent));
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 28px var(--accent-glow);
+    border-radius: var(--timer-radius, calc(var(--border-radius) * 1.8));
+    padding: 32px 44px;
+    width: var(--timer-width, 560px);
+    max-width: 92vw;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s, border-color 0.3s;
+    font-family: var(--timer-font, var(--overlay-font));
+  }
+  .break-overlay.visible .break-card {
+    transform: scale(var(--timer-scale, 1));
+  }
+
+  .break-header-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(232, 255, 71, 0.12);
+    border: 1px solid var(--accent);
+    padding: 5px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ─── 4. TEXTOS PERSONALIZADOS MODULARES ─── */
+  .overlay-custom-text {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    pointer-events: none;
+    white-space: pre-wrap;
+    box-sizing: border-box;
+    transition: transform 0.3s ease;
+    word-break: break-word;
+  }
+  .overlay-custom-text.wave {
+    animation: customTextWave 2.4s ease-in-out infinite;
+  }
+  .overlay-custom-text.pulse {
+    animation: customTextPulse 1.8s ease-in-out infinite;
+  }
+  .overlay-custom-text.marquee {
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  @keyframes customTextWave {
+    0%, 100% { transform: scale(var(--scale, 1)) translateY(0); }
+    50% { transform: scale(var(--scale, 1)) translateY(-8px); }
+  }
+  @keyframes customTextPulse {
+    0%, 100% { opacity: 0.92; transform: scale(var(--scale, 1)); }
+    50% { opacity: 1; transform: scale(calc(var(--scale, 1) * 1.05)); filter: brightness(1.25); }
+  }
+
+  .break-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 30px;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.1;
+  }
+
+  .break-timer {
+    font-family: 'Space Mono', monospace;
+    font-size: 72px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -2px;
+    text-shadow: 0 0 24px var(--accent-glow);
+    margin: 2px 0;
+  }
+  .break-timer.finished {
+    color: #ff4757;
+    text-shadow: 0 0 30px rgba(255, 71, 87, 0.6);
+    animation: flashTimer 1s infinite alternate;
+  }
+
+  @keyframes flashTimer {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.04); opacity: 0.7; }
+  }
+
+  .break-progress-track {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .break-progress-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 100%;
+    transition: width 0.4s linear;
+    box-shadow: 0 0 10px var(--accent);
+  }
+
+  .break-phrase-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 12px 18px;
+    width: 100%;
+    font-size: 14px;
+    color: #d0d0d0;
+    font-style: italic;
+    font-family: 'Space Mono', monospace;
+    line-height: 1.4;
+  }
+  .break-phrase-box span {
+    color: var(--accent);
+    font-weight: 700;
+  }

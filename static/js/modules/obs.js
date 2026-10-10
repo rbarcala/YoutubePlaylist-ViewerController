@@ -313,43 +313,58 @@ async function toggleObsAudioMute(type) {
 }
 
 async function openObsStudio() {
-  showToast('Iniciando OBS Studio en la computadora…');
+  showToast('Iniciando OBS Studio en la computadora…', 'info');
   try {
     const res = await fetch('/api/open_obs', { method: 'POST' });
     const data = await res.json();
     if (data.was_running) {
-      showToast('OBS Studio ya estaba en ejecución.');
+      showToast('OBS Studio ya estaba en ejecución.', 'info');
     } else {
-      showToast('OBS Studio abierto con éxito ✓');
+      showToast('OBS Studio abierto con éxito ✓', 'success');
     }
     setTimeout(loadObsData, 2500);
     setTimeout(loadObsData, 5000);
   } catch(e) {
-    showToast('Error al solicitar apertura de OBS');
+    showToast('Error al solicitar apertura de OBS', 'error');
   }
 }
 
 async function switchObsScene(scene) {
-  showToast('Cambiando a escena: ' + scene);
-  await fetch('/api/obs/switch', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scene })
-  });
+  showToast('Cambiando a escena: ' + scene, 'info');
+  try {
+    const res = await fetch('/api/obs/switch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scene })
+    });
+    if (!res.ok) {
+      showToast('Error al cambiar de escena', 'error');
+    }
+  } catch(e) {
+    showToast('Error de conexión con OBS', 'error');
+  }
   loadObsData();
 }
 
 async function toggleObsStream() {
-  const res = await fetch('/api/obs/toggle_stream', { method: 'POST' });
-  const data = await res.json();
-  showToast(data.outputActive ? 'Stream iniciado' : 'Stream detenido');
-  loadObsData();
+  try {
+    const res = await fetch('/api/obs/toggle_stream', { method: 'POST' });
+    const data = await res.json();
+    showToast(data.outputActive ? 'Stream iniciado' : 'Stream detenido', data.outputActive ? 'success' : 'info');
+    loadObsData();
+  } catch(e) {
+    showToast('Error al controlar streaming de OBS', 'error');
+  }
 }
 
 async function toggleObsRecord() {
-  const res = await fetch('/api/obs/toggle_record', { method: 'POST' });
-  const data = await res.json();
-  showToast(data.outputActive ? 'Grabación iniciada' : 'Grabación detenida');
-  loadObsData();
+  try {
+    const res = await fetch('/api/obs/toggle_record', { method: 'POST' });
+    const data = await res.json();
+    showToast(data.outputActive ? 'Grabación iniciada' : 'Grabación detenida', data.outputActive ? 'success' : 'info');
+    loadObsData();
+  } catch(e) {
+    showToast('Error al controlar grabación de OBS', 'error');
+  }
 }
 

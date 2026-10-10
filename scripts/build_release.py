@@ -50,15 +50,11 @@ def build_deb():
         if src.exists():
             shutil.copy2(src, usr_share_app / f)
 
-    # Copiar carpetas assets, bin y scripts
-    shutil.copytree(BASE_DIR / "assets", usr_share_app / "assets", dirs_exist_ok=True)
-    shutil.copytree(BASE_DIR / "bin", usr_share_app / "bin", dirs_exist_ok=True)
-    if (BASE_DIR / "scripts").exists():
-        shutil.copytree(BASE_DIR / "scripts", usr_share_app / "scripts", dirs_exist_ok=True)
-
-    # Copiar extension
-    if (BASE_DIR / "extension").exists():
-        shutil.copytree(BASE_DIR / "extension", usr_share_app / "extension", dirs_exist_ok=True)
+    # Copiar carpetas assets, bin, scripts, core, routes, services y static
+    for folder in ["assets", "bin", "scripts", "core", "routes", "services", "static", "extension"]:
+        folder_path = BASE_DIR / folder
+        if folder_path.exists():
+            shutil.copytree(folder_path, usr_share_app / folder, dirs_exist_ok=True)
 
     # 2. Wrapper ejecutable en /usr/bin
     bin_wrapper = usr_bin / PACKAGE_NAME
@@ -256,10 +252,9 @@ def build_apk():
     assets_dir.mkdir(parents=True, exist_ok=True)
 
     # Copiar recursos web a los assets del APK
-    for wf in ["controller.html", "manifest.json", "sw.js"]:
-        p = BASE_DIR / wf
-        if p.exists():
-            shutil.copy2(p, assets_dir / wf)
+    static_dir = BASE_DIR / "static"
+    if static_dir.exists():
+        shutil.copytree(static_dir, assets_dir, dirs_exist_ok=True)
     if (BASE_DIR / "assets" / "icon.png").exists():
         shutil.copy2(BASE_DIR / "assets" / "icon.png", assets_dir / "icon.png")
     connect_html = android_dir / "app" / "src" / "main" / "assets" / "connect.html"

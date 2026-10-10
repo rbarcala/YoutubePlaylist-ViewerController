@@ -286,14 +286,14 @@ async function triggerPlaySound(mp3Url, title, cardEl) {
     });
     const data = await res.json();
     if (!data.success && data.error) {
-      showToast('Error audio: ' + data.error);
+      showToast('Error audio: ' + data.error, 'error');
       if (cardEl) cardEl.classList.remove('playing');
       if (npText && npText.textContent === '▶ ' + title) {
         npText.textContent = '⏹️ Error';
       }
     }
   } catch(e) {
-    showToast('Error conectando con el servidor');
+    showToast('Error conectando con el servidor', 'error');
     if (cardEl) cardEl.classList.remove('playing');
   }
 
@@ -463,7 +463,7 @@ async function toggleFavoriteSound(sound, btnEl) {
       btnEl.classList.remove('is-fav');
       btnEl.textContent = '☆';
       btnEl.title = 'Agregar a favoritos';
-      showToast('Eliminado de favoritos');
+      showToast('Eliminado de favoritos', 'info');
       if (currentSbTab === 'favorites') {
         const card = btnEl.closest('.sound-tile, .sound-card');
         if (card) card.remove();
@@ -480,15 +480,15 @@ async function toggleFavoriteSound(sound, btnEl) {
       btnEl.textContent = '★';
       btnEl.title = 'Quitar de favoritos';
       if (data && data.cloud_synced) {
-        showToast('⭐ Guardado localmente y en tu cuenta de MyInstants en la nube!');
+        showToast('⭐ Guardado localmente y en tu cuenta de MyInstants en la nube!', 'success');
       } else if (data && data.has_session === false) {
-        showToast('⭐ Guardado localmente. Vincula tu cuenta para guardarlo en la nube.');
+        showToast('⭐ Guardado localmente. Vincula tu cuenta para guardarlo en la nube.', 'info');
       } else {
-        showToast('Guardado en favoritos ⭐');
+        showToast('Guardado en favoritos ⭐', 'success');
       }
     }
   } catch(e) {
-    showToast('Error al modificar favoritos');
+    showToast('Error al modificar favoritos', 'error');
   }
 }
 
@@ -499,7 +499,7 @@ async function syncMyInstantsAccount() {
     return;
   }
 
-  showToast('Sincronizando favoritos de MyInstants...');
+  showToast('Sincronizando favoritos de MyInstants...', 'info');
   try {
     const res = await fetch('/api/soundboard/sync_account', {
       method: 'POST',
@@ -511,25 +511,25 @@ async function syncMyInstantsAccount() {
       savedFavorites = data.favorites;
       config.soundboard_username = data.username;
       updateSoundboardAccountDisplay();
-      showToast(`¡Sincronizados ${data.total_synced} favoritos de @${data.username}!`);
+      showToast(`¡Sincronizados ${data.total_synced} favoritos de @${data.username}!`, 'success');
       if (currentSbTab === 'favorites') {
         loadSoundboardTab('favorites', 1);
       }
     } else {
-      showToast(data.error || 'No se pudieron sincronizar los favoritos');
+      showToast(data.error || 'No se pudieron sincronizar los favoritos', 'error');
     }
   } catch(e) {
-    showToast('Error al sincronizar con MyInstants');
+    showToast('Error al sincronizar con MyInstants', 'error');
   }
 }
 
 async function syncMyInstantsFromSettings() {
   const user = document.getElementById('cfgSoundboardUsername').value.trim();
   if (!user) {
-    showToast('Ingresa primero un nombre de usuario de MyInstants');
+    showToast('Ingresa primero un nombre de usuario de MyInstants', 'warning');
     return;
   }
-  showToast('Consultando perfil público...');
+  showToast('Consultando perfil público...', 'info');
   try {
     const res = await fetch('/api/soundboard/sync_account', {
       method: 'POST',
@@ -540,13 +540,13 @@ async function syncMyInstantsFromSettings() {
     if (data.success) {
       savedFavorites = data.favorites;
       config.soundboard_username = data.username;
-      showToast(`✓ ¡${data.total_synced} favoritos importados exitosamente!`);
+      showToast(`✓ ¡${data.total_synced} favoritos importados exitosamente!`, 'success');
       updateSoundboardAccountDisplay();
     } else {
-      showToast(data.error || 'Usuario no encontrado o perfil sin favoritos públicos');
+      showToast(data.error || 'Usuario no encontrado o perfil sin favoritos públicos', 'error');
     }
   } catch(e) {
-    showToast('Error al sincronizar cuenta');
+    showToast('Error al sincronizar cuenta', 'error');
   }
 }
 
@@ -693,17 +693,17 @@ async function saveMyInstantsAuth() {
       config.soundboard_username = data.username;
       showToast(data.has_session
         ? '¡Cuenta vinculada y guardado en la nube activado! 🎉'
-        : '¡Usuario guardado y favoritos sincronizados!');
+        : '¡Usuario guardado y favoritos sincronizados!', 'success');
       updateSoundboardAccountDisplay();
       closeMyInstantsAuthModal();
       if (currentSbTab === 'favorites') {
         loadSoundboardTab('favorites', 1);
       }
     } else {
-      showToast('Error al vincular cuenta');
+      showToast('Error al vincular cuenta', 'error');
     }
   } catch(e) {
-    showToast('Error conectando con el servidor');
+    showToast('Error conectando con el servidor', 'error');
   }
 }
 
@@ -716,7 +716,7 @@ async function disconnectMyInstantsAccount() {
       body: JSON.stringify({ username: '', session_cookie: '', csrf_token: '', clientId: myClientId })
     });
     config.soundboard_username = '';
-    showToast('Cuenta desvinculada');
+    showToast('Cuenta desvinculada', 'info');
     updateSoundboardAccountDisplay();
     closeMyInstantsAuthModal();
   } catch(e) {}

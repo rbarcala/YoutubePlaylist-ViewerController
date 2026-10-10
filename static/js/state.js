@@ -1,4 +1,3 @@
-<script>
 // ─── ESTADO Y NAVEGACIÓN ───
 let config = {};
 let currentView = 'menu';
@@ -11,6 +10,32 @@ let viewerWindow = null;
 
 const channel = new BroadcastChannel('fondos_stream');
 const myClientId = 'client_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+
+function formatDurationMs(ms) {
+  if (!ms) return '0:00';
+  const totalSecs = Math.floor(ms / 1000);
+  const m = Math.floor(totalSecs / 60);
+  const s = totalSecs % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+let toastTimeout = null;
+function showToast(msg, type = 'info', duration = 3000) {
+  const t = document.getElementById('toastNotice');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.remove('toast-info', 'toast-success', 'toast-error', 'toast-warning');
+  if (type === 'error') t.classList.add('toast-error');
+  else if (type === 'success') t.classList.add('toast-success');
+  else if (type === 'warning') t.classList.add('toast-warning');
+  else t.classList.add('toast-info');
+
+  t.classList.add('show');
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    t.classList.remove('show');
+  }, duration);
+}
 
 function applySoundboardVolume(vol) {
   const num = parseInt(vol, 10);

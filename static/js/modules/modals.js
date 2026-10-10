@@ -38,13 +38,6 @@ function setConnected(val) {
   dot.className = 'status-dot' + (viewerConnected ? ' connected' : '');
 }
 
-function showToast(msg) {
-  const t = document.getElementById('toastNotice');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2600);
-}
-
 // ─── MODAL AJUSTES ───
 function openSettingsModal() {
   document.getElementById('cfgApiKey').value = config.youtube_api_key || '';

@@ -187,11 +187,11 @@ async function promptAddPlaylist() {
   if (!url || !url.trim()) return;
   const parsed = parseSearchInput(url);
   if (!parsed.isPlaylist) {
-    showToast("Enlace de playlist no válido");
+    showToast("Enlace de playlist no válido", 'warning');
     return;
   }
   const pid = parsed.playlistId;
-  showToast("Cargando y guardando playlist…");
+  showToast("Cargando y guardando playlist…", 'info');
   try {
     const res = await fetch('/api/spotify/playlist?id=' + pid);
     const data = await res.json();
@@ -199,10 +199,10 @@ async function promptAddPlaylist() {
       await saveSpotifyPlaylist(pid, data.name);
       loadSpotifyPlaylist(pid);
     } else {
-      showToast("No se pudo obtener la playlist");
+      showToast("No se pudo obtener la playlist", 'error');
     }
   } catch(e) {
-    showToast("Error conectando con Spotify");
+    showToast("Error conectando con Spotify", 'error');
   }
 }
 
@@ -213,10 +213,10 @@ async function saveSpotifyPlaylist(id, name) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, name })
     });
-    showToast(`Playlist "${name}" guardada ⭐`);
+    showToast(`Playlist "${name}" guardada ⭐`, 'success');
     loadSavedPlaylists();
   } catch(e) {
-    showToast('Error al guardar playlist');
+    showToast('Error al guardar playlist', 'error');
   }
 }
 
@@ -228,10 +228,10 @@ async function deleteSpotifyPlaylist(id, name) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
     });
-    showToast('Playlist eliminada de guardadas');
+    showToast('Playlist eliminada de guardadas', 'info');
     loadSavedPlaylists();
   } catch(e) {
-    showToast('Error al eliminar playlist');
+    showToast('Error al eliminar playlist', 'error');
   }
 }
 
@@ -459,22 +459,30 @@ async function spotifySearch() {
 }
 
 async function spotifyPlayTrack(uri) {
-  showToast('Reproduciendo en Spotify de la PC...');
-  await fetch('/api/spotify/play_track', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ uri })
-  });
-  setTimeout(loadSpotifyData, 600);
+  showToast('Reproduciendo en Spotify de la PC...', 'info');
+  try {
+    await fetch('/api/spotify/play_track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uri })
+    });
+    setTimeout(loadSpotifyData, 600);
+  } catch(e) {
+    showToast('Error al reproducir canción en Spotify', 'error');
+  }
 }
 
 async function spotifyAddQueue(uri) {
-  showToast('Añadido a la cola de Spotify ✓');
-  await fetch('/api/spotify/queue', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ uri })
-  });
+  try {
+    await fetch('/api/spotify/queue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uri })
+    });
+    showToast('Añadido a la cola de Spotify ✓', 'success');
+  } catch(e) {
+    showToast('Error al añadir a la cola de Spotify', 'error');
+  }
 }
 
 async function loginSpotifyOAuth() {
@@ -484,7 +492,7 @@ async function loginSpotifyOAuth() {
   const clientSecret = inputSecret ? inputSecret.value.trim() : (config.spotify_client_secret || '');
 
   if (!clientId || !clientSecret) {
-    showToast('Ingresa tanto el Client ID como el Client Secret de Spotify');
+    showToast('Ingresa tanto el Client ID como el Client Secret de Spotify', 'warning');
     return;
   }
 
@@ -506,7 +514,7 @@ async function loginSpotifyOAuth() {
     const res = await fetch('/api/spotify/auth_url');
     const data = await res.json();
     if (!data.auth_url) {
-      showToast('Configura Client ID y Client Secret de Spotify primero');
+      showToast('Configura Client ID y Client Secret de Spotify primero', 'warning');
       return;
     }
     // Abrir en el navegador predeterminado del sistema operativo
@@ -514,9 +522,9 @@ async function loginSpotifyOAuth() {
     try {
       window.open(data.auth_url, '_blank');
     } catch(e) {}
-    showToast('Abriendo autorización de Spotify en tu navegador...');
+    showToast('Abriendo autorización de Spotify en tu navegador...', 'info');
   } catch(e) {
-    showToast('No se pudo iniciar la vinculación con Spotify');
+    showToast('No se pudo iniciar la vinculación con Spotify', 'error');
   }
 }
 
