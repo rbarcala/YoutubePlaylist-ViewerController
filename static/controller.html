@@ -1101,9 +1101,12 @@ Warm smell of colitas, rising up through the air...</div>
 
     <!-- YouTube & Playlist -->
     <div class="form-group">
-      <label class="form-label">YouTube Data API v3 Key</label>
-      <input type="password" id="cfgApiKey" class="form-input" placeholder="Pega aquí tu API Key de YouTube...">
-      <div class="form-help">Se almacena localmente de forma segura (ignorado por git).</div>
+      <label class="form-label" style="display:flex; justify-content:space-between;">
+        <span>YouTube Data API v3 Key</span>
+        <span id="cfgYoutubeKeySavedStatus" style="font-size:11px; color:#34C759; display:none;">✓ Guardada en el sistema</span>
+      </label>
+      <input type="password" id="cfgApiKey" class="form-input" placeholder="Tu API Key de YouTube (déjala vacía si ya está guardada)">
+      <div class="form-help">Se almacena localmente de forma segura en ~/.config/youtube-stream-controller/.</div>
     </div>
 
     <div class="form-group">

@@ -34,7 +34,9 @@ def manage_config():
     safe_cfg["youtube_api_key_masked"] = (raw_key[:4] + "..." + raw_key[-4:]) if len(raw_key) > 8 else ("***" if raw_key else "")
     safe_cfg["has_spotify_secret"] = bool(safe_cfg.get("spotify_client_secret", ""))
     safe_cfg["has_spotify_token"] = bool(safe_cfg.get("spotify_access_token", ""))
+    safe_cfg["has_soundboard_session"] = bool(safe_cfg.get("soundboard_session_cookie", ""))
 
+    # No exponer secretos en texto plano en la API de lectura
     safe_cfg.pop("spotify_client_secret", None)
     safe_cfg.pop("spotify_access_token", None)
     safe_cfg.pop("spotify_refresh_token", None)

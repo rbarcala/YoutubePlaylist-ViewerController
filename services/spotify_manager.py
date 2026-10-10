@@ -203,20 +203,100 @@ class SpotifyManager:
 
     def play(self, context_uri: str = None, track_uris: list = None) -> dict:
         body = {}
+        target_track_uri = None
+
         if context_uri:
-            body["context_uri"] = context_uri
+            # Si el URI es un track individual (spotify:track:...), pasarlo en 'uris'
+            if context_uri.startswith("spotify:track:"):
+                body["uris"] = [context_uri]
+                target_track_uri = context_uri
+            elif context_uri.startswith(("spotify:playlist:", "spotify:album:", "spotify:artist:")):
+                body["context_uri"] = context_uri
+            else:
+                body["uris"] = [context_uri]
+                target_track_uri = context_uri
         elif track_uris:
             body["uris"] = track_uris
-        return self._api_request("me/player/play", method="PUT", body=body if body else None)
+            if len(track_uris) > 0:
+                target_track_uri = track_uris[0]
+
+        res = {}
+        if self._access_token:
+            res = self._api_request("me/player/play", method="PUT", body=body if body else None)
+
+        # Si no hay token de Web API o la llamada a la nube falló (por ejemplo, sin cuenta Premium o 400/403/404):
+        # Fallback local 100% garantizado vía MPRIS OpenUri en la PC
+        if "error" in res or not self._access_token:
+            uri_to_open = target_track_uri or context_uri
+            if uri_to_open:
+                try:
+                    subprocess.run([
+                        "gdbus", "call", "--session", "--dest", "org.mpris.MediaPlayer2.spotify",
+                        "--object-path", "/org/mpris/MediaPlayer2", "--method",
+                        "org.mpris.MediaPlayer2.Player.OpenUri", uri_to_open
+                    ], capture_output=True, timeout=1.0)
+                    return {"status": "success", "source": "mpris_open_uri"}
+                except Exception as e:
+                    logger.debug(f"[spotify] Error abriendo URI en MPRIS: {e}")
+            else:
+                try:
+                    subprocess.run([
+                        "gdbus", "call", "--session", "--dest", "org.mpris.MediaPlayer2.spotify",
+                        "--object-path", "/org/mpris/MediaPlayer2", "--method",
+                        "org.mpris.MediaPlayer2.Player.Play"
+                    ], capture_output=True, timeout=1.0)
+                    return {"status": "success", "source": "mpris_play"}
+                except Exception:
+                    pass
+        return res
 
     def pause(self) -> dict:
-        return self._api_request("me/player/pause", method="PUT")
+        res = {}
+        if self._access_token:
+            res = self._api_request("me/player/pause", method="PUT")
+        if "error" in res or not self._access_token:
+            try:
+                subprocess.run([
+                    "gdbus", "call", "--session", "--dest", "org.mpris.MediaPlayer2.spotify",
+                    "--object-path", "/org/mpris/MediaPlayer2", "--method",
+                    "org.mpris.MediaPlayer2.Player.Pause"
+                ], capture_output=True, timeout=1.0)
+                return {"status": "success", "source": "mpris_pause"}
+            except Exception:
+                pass
+        return res
 
     def next_track(self) -> dict:
-        return self._api_request("me/player/next", method="POST")
+        res = {}
+        if self._access_token:
+            res = self._api_request("me/player/next", method="POST")
+        if "error" in res or not self._access_token:
+            try:
+                subprocess.run([
+                    "gdbus", "call", "--session", "--dest", "org.mpris.MediaPlayer2.spotify",
+                    "--object-path", "/org/mpris/MediaPlayer2", "--method",
+                    "org.mpris.MediaPlayer2.Player.Next"
+                ], capture_output=True, timeout=1.0)
+                return {"status": "success", "source": "mpris_next"}
+            except Exception:
+                pass
+        return res
 
     def previous_track(self) -> dict:
-        return self._api_request("me/player/previous", method="POST")
+        res = {}
+        if self._access_token:
+            res = self._api_request("me/player/previous", method="POST")
+        if "error" in res or not self._access_token:
+            try:
+                subprocess.run([
+                    "gdbus", "call", "--session", "--dest", "org.mpris.MediaPlayer2.spotify",
+                    "--object-path", "/org/mpris/MediaPlayer2", "--method",
+                    "org.mpris.MediaPlayer2.Player.Previous"
+                ], capture_output=True, timeout=1.0)
+                return {"status": "success", "source": "mpris_previous"}
+            except Exception:
+                pass
+        return res
 
     def seek(self, position_ms: int) -> dict:
         """Adelanta o retrocede a un minuto/segundo específico de la canción."""

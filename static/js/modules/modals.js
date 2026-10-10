@@ -47,6 +47,11 @@ function setConnected(val) {
 // ─── MODAL AJUSTES ───
 function openSettingsModal() {
   document.getElementById('cfgApiKey').value = config.youtube_api_key || '';
+  const ytSavedBadge = document.getElementById('cfgYoutubeKeySavedStatus');
+  if (ytSavedBadge) {
+    ytSavedBadge.style.display = (config.has_api_key || config.youtube_api_key) ? 'inline' : 'none';
+  }
+
   document.getElementById('cfgPlaylistId').value = config.playlist_id || '';
   document.getElementById('cfgChannelId').value = config.youtube_channel_id || '';
   document.getElementById('cfgAutoFocusViewer').checked = config.auto_focus_viewer !== false;
@@ -87,7 +92,6 @@ async function saveSettings() {
   }
 
   const payload = {
-    youtube_api_key: document.getElementById('cfgApiKey').value.trim(),
     playlist_id: pl,
     youtube_channel_id: document.getElementById('cfgChannelId').value.trim(),
     auto_focus_viewer: document.getElementById('cfgAutoFocusViewer').checked,
@@ -104,6 +108,11 @@ async function saveSettings() {
     soundboard_username: document.getElementById('cfgSoundboardUsername').value.trim(),
     soundboard_volume: isNaN(parseInt(document.getElementById('cfgSoundboardVolume').value, 10)) ? 80 : Math.max(0, Math.min(100, parseInt(document.getElementById('cfgSoundboardVolume').value, 10)))
   };
+
+  const apiVal = document.getElementById('cfgApiKey').value.trim();
+  if (apiVal) {
+    payload.youtube_api_key = apiVal;
+  }
 
   const secretVal = document.getElementById('cfgSpotifyClientSecret').value.trim();
   if (secretVal) {
