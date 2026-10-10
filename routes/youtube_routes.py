@@ -27,52 +27,95 @@ def init_youtube_routes(config_loader, config_saver, broadcast_fn, state, video_
 @youtube_bp.route('/api/youtube/playlist')
 def get_youtube_playlist():
     cfg = load_config() if load_config else {}
-    api_key = cfg.get('youtube_api_key', '')
-    playlist_id = cfg.get('playlist_id', '')
+    api_key = request.args.get('key') or cfg.get('youtube_api_key', '')
+    playlist_id = request.args.get('playlist_id') or cfg.get('playlist_id', '')
 
     if not api_key or not playlist_id:
-        return jsonify({'videos': [], 'error': 'API Key o Playlist ID no configurados'})
+        return jsonify({'success': False, 'videos': [], 'items': [], 'error': 'API Key o Playlist ID no configurados'})
 
     videos = []
+    items = []
     next_page_token = None
     max_results = 50
 
-    while True:
-        params = {
-            'part': 'snippet,contentDetails',
-            'playlistId': playlist_id,
-            'maxResults': max_results,
-            'key': api_key
-        }
-        if next_page_token:
-            params['pageToken'] = next_page_token
+    try:
+        while True:
+            params = {
+                'part': 'snippet,contentDetails',
+                'playlistId': playlist_id,
+                'maxResults': max_results,
+                'key': api_key
+            }
+            if next_page_token:
+                params['pageToken'] = next_page_token
 
-        url = f'https://www.googleapis.com/youtube/v3/playlistItems?{urllib.parse.urlencode(params)}'
+            url = f'https://www.googleapis.com/youtube/v3/playlistItems?{urllib.parse.urlencode(params)}'
 
-        try:
             with urllib.request.urlopen(url, timeout=10) as response:
                 data = json.loads(response.read().decode())
-        except Exception as e:
-            return jsonify({'videos': [], 'error': str(e)})
 
-        for item in data.get('items', []):
-            snippet = item.get('snippet', {})
-            content = item.get('contentDetails', {})
-            video_id = content.get('videoId')
-            if video_id:
-                videos.append({
-                    'id': video_id,
-                    'title': snippet.get('title', ''),
-                    'thumbnail': snippet.get('thumbnails', {}).get('high', {}).get('url', ''),
-                    'channel': snippet.get('channelTitle', ''),
-                    'published': snippet.get('publishedAt', '')
-                })
+            for item in data.get('items', []):
+                snippet = item.get('snippet', {})
+                content = item.get('contentDetails', {})
+                video_id = content.get('videoId')
+                thumb = (snippet.get('thumbnails', {}).get('high', {}).get('url', '') or
+                         snippet.get('thumbnails', {}).get('medium', {}).get('url', '') or
+                         snippet.get('thumbnails', {}).get('default', {}).get('url', ''))
+                if video_id:
+                    videos.append({
+                        'id': video_id,
+                        'title': snippet.get('title', ''),
+                        'thumbnail': thumb,
+                        'channel': snippet.get('channelTitle', ''),
+                        'published': snippet.get('publishedAt', '')
+                    })
+                    items.append({
+                        'videoId': video_id,
+                        'title': snippet.get('title', ''),
+                        'thumb': thumb,
+                        'duration': ''
+                    })
 
-        next_page_token = data.get('nextPageToken')
-        if not next_page_token:
-            break
+            next_page_token = data.get('nextPageToken')
+            if not next_page_token:
+                break
 
-    return jsonify({'videos': videos})
+        return jsonify({'success': True, 'videos': videos, 'items': items})
+    except Exception as e:
+        # Fallback ultra-confiable con yt-dlp si la API da error (ej. quota excedida o red)
+        try:
+            import yt_dlp
+            ydl_opts = {
+                'extract_flat': True,
+                'quiet': True,
+                'no_warnings': True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f'https://www.youtube.com/playlist?list={playlist_id}', download=False)
+                for entry in info.get('entries', []):
+                    vid = entry.get('id')
+                    if vid:
+                        t = entry.get('title', '')
+                        th = f'https://i.ytimg.com/vi/{vid}/hqdefault.jpg'
+                        videos.append({
+                            'id': vid,
+                            'title': t,
+                            'thumbnail': th,
+                            'channel': entry.get('uploader', ''),
+                            'published': ''
+                        })
+                        items.append({
+                            'videoId': vid,
+                            'title': t,
+                            'thumb': th,
+                            'duration': ''
+                        })
+                if items:
+                    return jsonify({'success': True, 'videos': videos, 'items': items, 'fallback': True})
+        except Exception:
+            pass
+
+        return jsonify({'success': False, 'videos': [], 'items': [], 'error': str(e)})
 
 
 @youtube_bp.route('/api/youtube/live')

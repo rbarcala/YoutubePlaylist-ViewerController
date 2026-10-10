@@ -1,78 +1,65 @@
 // ─── 1. FONDOS STREAM LOGIC ───
 async function loadPlaylist() {
   const loading = document.getElementById('loadingVideos');
-  loading.style.display = 'block';
-
-  const apiKey = config.youtube_api_key || "";
-  const playlistId = config.playlist_id || "PL7E8lrk1ePfZVWMM2vsUkpQ6vbpbHi4G_";
-
-  videoList = [];
-
-  // 1. Intentar primero con el endpoint local del servidor (soporta YouTube API y fallback automático ultra-confiable con yt-dlp)
-  try {
-    const res = await fetch(`/api/youtube/playlist?playlist_id=${encodeURIComponent(playlistId)}&key=${encodeURIComponent(apiKey)}`);
-    const data = await res.json();
-    if (data.success && Array.isArray(data.items) && data.items.length > 0) {
-      videoList = data.items;
-      if (config.last_played_video_id) {
-        currentPlayingVideoId = config.last_played_video_id;
-        const npTitle = document.getElementById('nowPlayingTitle');
-        if (npTitle && config.last_played_title && (npTitle.textContent === '—' || !npTitle.textContent)) {
-          npTitle.textContent = config.last_played_title;
-        }
-      }
-      renderVideosGrid();
-      loading.style.display = 'none';
-      return;
-    }
-  } catch (backendErr) {
-    console.warn("Fallo cargando playlist por backend, intentando directo por API...", backendErr);
+  if (loading) {
+    loading.style.display = 'block';
+    loading.innerHTML = '<div class="spinner"></div><p style="margin-top:10px; color:var(--muted); font-size:13px;">Cargando lista de fondos...</p>';
   }
 
-  // 2. Si falló el backend pero hay API Key configurada, intentar directo desde el navegador
-  if (!apiKey) {
-    loading.innerHTML = `
-      <p style="color:var(--accent); margin-bottom:10px;">⚠️ Falta configurar tu YouTube Data API v3 Key para ver los fondos o no se pudo cargar la playlist.</p>
-      <button class="btn btn-accent" onclick="openSettingsModal()">⚙️ Configurar API Key</button>
-    `;
+  const playlistId = config.playlist_id || "PL7E8lrk1ePfZVWMM2vsUkpQ6vbpbHi4G_";
+  videoList = [];
+
+  // 1. Cargar directamente desde el servidor local (usa la API Key segura guardada en el backend o yt-dlp)
+  try {
+    const res = await fetch(`/api/youtube/playlist?playlist_id=${encodeURIComponent(playlistId)}`);
+    const data = await res.json();
+    const rawList = data.items || data.videos || [];
+    if (Array.isArray(rawList) && rawList.length > 0) {
+      videoList = rawList.map(v => ({
+        videoId: v.videoId || v.id,
+        title: v.title || 'Video sin título',
+        thumb: v.thumb || v.thumbnail || '',
+        duration: v.duration || ''
+      })).filter(v => v.videoId && v.thumb);
+
+      if (videoList.length > 0) {
+        if (config.last_played_video_id) {
+          currentPlayingVideoId = config.last_played_video_id;
+          const npTitle = document.getElementById('nowPlayingTitle');
+          if (npTitle && config.last_played_title && (npTitle.textContent === '—' || !npTitle.textContent)) {
+            npTitle.textContent = config.last_played_title;
+          }
+        }
+        renderVideosGrid();
+        if (loading) loading.style.display = 'none';
+        return;
+      }
+    }
+    if (data.error) {
+      console.warn("Backend reportó error al cargar playlist:", data.error);
+    }
+  } catch (backendErr) {
+    console.warn("Fallo cargando playlist por backend:", backendErr);
+  }
+
+  // 2. Si no se cargaron videos, verificar si es porque falta la API Key
+  const hasKey = Boolean(config.has_api_key || config.youtube_api_key);
+  if (!hasKey) {
+    if (loading) {
+      loading.innerHTML = `
+        <p style="color:var(--accent); margin-bottom:10px;">⚠️ Falta configurar tu YouTube Data API v3 Key para ver los fondos o no se pudo cargar la playlist.</p>
+        <button class="btn btn-accent" onclick="openSettingsModal()">⚙️ Configurar API Key</button>
+      `;
+    }
     return;
   }
 
-  let nextPageToken = "";
-  try {
-    do {
-      const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${apiKey}&pageToken=${nextPageToken}`);
-      const data = await res.json();
-      if (data.error) {
-        throw new Error(data.error.message || 'Error en YouTube API');
-      }
-      if (data.items) {
-        data.items.forEach(item => {
-          const videoId = item.snippet?.resourceId?.videoId;
-          const thumb = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
-          if (videoId && thumb) {
-            videoList.push({ videoId, title: item.snippet.title, thumb, duration: '' });
-          }
-        });
-      }
-      nextPageToken = data.nextPageToken || "";
-    } while (nextPageToken);
-
-    if (videoList.length > 0) {
-      if (config.last_played_video_id) {
-        currentPlayingVideoId = config.last_played_video_id;
-        const npTitle = document.getElementById('nowPlayingTitle');
-        if (npTitle && config.last_played_title && (npTitle.textContent === '—' || !npTitle.textContent)) {
-          npTitle.textContent = config.last_played_title;
-        }
-      }
-      renderVideosGrid();
-      loading.style.display = 'none';
-    } else {
-      loading.textContent = 'No se encontraron videos en la playlist.';
-    }
-  } catch (err) {
-    loading.textContent = 'Error cargando playlist: ' + err.message;
+  // Si tiene API Key guardada pero falló por algún otro motivo
+  if (loading) {
+    loading.innerHTML = `
+      <p style="color:var(--accent); margin-bottom:10px;">⚠️ No se pudo cargar la playlist. Verifica tu conexión o el ID de la playlist.</p>
+      <button class="btn btn-accent" onclick="loadPlaylist()">🔄 Reintentar</button>
+    `;
   }
 }
 
