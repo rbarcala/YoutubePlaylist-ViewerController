@@ -592,43 +592,72 @@
 
     // Solo mostrar el rectángulo cuando se reproduce música
     container.classList.remove('visible');
-    if (lyricsEl) lyricsEl.classList.remove('visible');
+    clearLyricsUI();
+  }
+
+  let currentLyricsRequestId = 0;
+
+  function clearLyricsUI() {
+    if (lyricsInterval) {
+      clearInterval(lyricsInterval);
+      lyricsInterval = null;
+    }
+    currentLyrics = '';
+    currentSyncedLyrics = [];
+    lyricsOffset = 0;
+    const lyricsEl = document.getElementById('lyricsContainer');
+    const lt = document.getElementById('lyricsText');
+    if (lt) {
+      lt.textContent = '';
+      lt.innerHTML = '';
+      lt.style.transform = 'translateY(0)';
+    }
+    if (lyricsEl) {
+      lyricsEl.classList.remove('visible');
+    }
   }
 
   async function fetchAndUpdateLyrics() {
     const lyricsEl = document.getElementById('lyricsContainer');
-    if (!lyricsEl) return;
+    const lt = document.getElementById('lyricsText');
+    if (!lyricsEl || !lt) return;
 
     if (overlayConfig.overlay_enabled === false || overlayConfig.overlay_show_lyrics === false || !currentSpotify.is_playing || !currentSpotify.title) {
-      lyricsEl.classList.remove('visible');
+      clearLyricsUI();
+      lastLyricsQuery = '';
       return;
     }
 
-    const query = (currentSpotify.artist || '') + ' - ' + (currentSpotify.title || '');
+    const query = (currentSpotify.artist || '').trim() + ' - ' + (currentSpotify.title || '').trim();
     if (query === lastLyricsQuery && currentLyrics) {
-      updateSyncedLyrics(currentSpotify.progress_ms);
+      if (currentSyncedLyrics.length && currentSpotify.progress_ms !== undefined) {
+        updateSyncedLyrics(currentSpotify.progress_ms);
+      }
       lyricsEl.classList.add('visible');
       return;
     }
 
+    // Nueva canción o consulta: invalidar peticiones anteriores y limpiar UI de inmediato
+    const reqId = ++currentLyricsRequestId;
     lastLyricsQuery = query;
-    currentLyrics = '';
+    clearLyricsUI();
 
     try {
       const art = encodeURIComponent((currentSpotify.artist || '').trim());
       const tit = encodeURIComponent((currentSpotify.title || '').trim());
       const res = await fetch(`/api/spotify/lyrics?artist=${art}&title=${tit}`);
       const data = await res.json();
+
+      // Si cambió de canción mientras se esperaba la respuesta, descartar
+      if (reqId !== currentLyricsRequestId) {
+        return;
+      }
+
       if (data.lyrics && data.lyrics.trim()) {
         currentLyrics = data.lyrics.trim();
         currentSyncedLyrics = parseSyncedLyrics(data.syncedLyrics);
-        const lt = document.getElementById('lyricsText');
-        lt.textContent = currentLyrics;
-        lt.style.transform = 'translateY(0)';
         lyricsEl.classList.add('visible');
 
-        clearInterval(lyricsInterval);
-        lyricsOffset = 0;
         if (currentSyncedLyrics.length && currentSpotify.progress_ms !== undefined) {
           updateSyncedLyrics(currentSpotify.progress_ms);
         } else {
@@ -664,8 +693,14 @@
             }, 3500);
           }
         }
+      } else {
+        clearLyricsUI();
       }
-    } catch(e) {}
+    } catch(e) {
+      if (reqId === currentLyricsRequestId) {
+        clearLyricsUI();
+      }
+    }
   }
 
   function initSSE() {
@@ -692,9 +727,13 @@
 
     evtSource.addEventListener('spotify_state', (e) => {
       try {
-        const d = JSON.parse(e.data); currentSpotify = d.data || d;
+        const d = JSON.parse(e.data);
+        currentSpotify = d.data || d;
         updateNowPlayingUI();
-        updateSyncedLyrics(currentSpotify.progress_ms);
+        const currentQuery = ((currentSpotify && currentSpotify.artist) || '').trim() + ' - ' + ((currentSpotify && currentSpotify.title) || '').trim();
+        if (currentSpotify && currentSpotify.is_playing && currentQuery === lastLyricsQuery && currentSyncedLyrics && currentSyncedLyrics.length) {
+          updateSyncedLyrics(currentSpotify.progress_ms);
+        }
         fetchAndUpdateLyrics();
       } catch(err) {}
     });

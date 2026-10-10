@@ -185,11 +185,32 @@ def get_youtube_playlist():
 @youtube_bp.route('/api/youtube/live')
 def youtube_live():
     cfg = load_config() if load_config else {}
-    channel_id = cfg.get('youtube_channel_id', '')
+    raw_channel = (cfg.get('youtube_channel_id', '') or '').strip()
     api_key = cfg.get('youtube_api_key', '')
 
-    if not channel_id or not api_key:
-        return jsonify({'live': None, 'error': 'Canal o API Key no configurados'})
+    if not raw_channel or not api_key:
+        return jsonify({'is_live': False, 'live': None, 'error': 'Canal o API Key no configurados', 'message': 'Configura tu canal de YouTube en Ajustes'})
+
+    channel_id = raw_channel
+    channel_title = ''
+
+    # Si el usuario ingresó un handle (ej. @ramaafb o ramaafb) o URL de canal
+    if raw_channel.startswith('@') or (not raw_channel.startswith('UC') and len(raw_channel) != 24):
+        clean_handle = raw_channel.lstrip('@').split('/')[-1]
+        try:
+            h_params = {
+                'part': 'id,snippet',
+                'forHandle': clean_handle,
+                'key': api_key
+            }
+            h_url = f"https://www.googleapis.com/youtube/v3/channels?{urllib.parse.urlencode(h_params)}"
+            with urllib.request.urlopen(h_url, timeout=6) as response:
+                h_data = json.loads(response.read().decode())
+                if h_data.get('items'):
+                    channel_id = h_data['items'][0].get('id', raw_channel)
+                    channel_title = h_data['items'][0].get('snippet', {}).get('title', '')
+        except Exception as h_err:
+            print(f"[youtube] Error resolviendo handle de canal: {h_err}")
 
     params = {
         'part': 'snippet',
@@ -204,15 +225,29 @@ def youtube_live():
         with urllib.request.urlopen(url, timeout=10) as response:
             data = json.loads(response.read().decode())
     except Exception as e:
-        return jsonify({'live': None, 'error': str(e)})
+        return jsonify({'is_live': False, 'live': None, 'error': str(e), 'channel_id': channel_id, 'message': f'Error al consultar YouTube: {e}'})
 
     items = data.get('items', [])
     if items:
         video_id = items[0].get('id', {}).get('videoId')
+        live_title = items[0].get('snippet', {}).get('title', 'Transmisión activa')
         if video_id:
-            return jsonify({'live': {'videoId': video_id}})
+            return jsonify({
+                'is_live': True,
+                'video_id': video_id,
+                'title': live_title,
+                'channel_title': channel_title,
+                'channel_id': channel_id,
+                'live': {'videoId': video_id}
+            })
 
-    return jsonify({'live': None})
+    return jsonify({
+        'is_live': False,
+        'live': None,
+        'channel_id': channel_id,
+        'channel_title': channel_title,
+        'message': f'Canal {channel_title or raw_channel} detectado. No hay transmisión en vivo activa en este momento.'
+    })
 
 
 @youtube_bp.route('/api/get_video_url')
