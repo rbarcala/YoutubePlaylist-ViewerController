@@ -1011,6 +1011,29 @@ Warm smell of colitas, rising up through the air...</div>
             </div>
 
             <div class="inspector-section">
+              <span class="inspector-section-title">🎉 Intro antes de cantar (opcional)</span>
+              <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:8px;">
+                <input type="checkbox" id="modLyIntroEnabled" onchange="updateModularProp('lyrics', 'intro_enabled', this.checked)"> Mostrar mientras no empezó la letra
+              </label>
+              <label class="form-label" style="font-size:11px;">Emoji o URL de imagen/GIF</label>
+              <input type="text" id="modLyIntroContent" class="form-input" placeholder="🎵  o  https://.../baile.gif" oninput="updateModularProp('lyrics', 'intro_content', this.value)">
+              <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px;">
+                <div>
+                  <label class="form-label" style="font-size:11px;">Tamaño (px)</label>
+                  <input type="number" id="modLyIntroSize" class="form-input" min="8" max="400" value="28" oninput="updateModularProp('lyrics', 'intro_size', parseInt(this.value, 10))">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Escala: <span id="modLyIntroScaleVal" style="color:var(--accent);">1.00x</span></label>
+                  <input type="range" id="modLyIntroScale" min="0.25" max="4" step="0.05" value="1" oninput="updateModularProp('lyrics', 'intro_scale', parseFloat(this.value))" style="width:100%; accent-color:var(--accent);">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px;">Cantidad</label>
+                  <input type="number" id="modLyIntroCount" class="form-input" min="1" max="12" value="3" oninput="updateModularProp('lyrics', 'intro_count', parseInt(this.value, 10))">
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-section">
               <span class="inspector-section-title">🎨 Rectángulo &amp; Tipografía</span>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
                 <div>

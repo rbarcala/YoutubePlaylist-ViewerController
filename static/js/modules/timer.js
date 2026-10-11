@@ -1132,6 +1132,18 @@ function updateModularProp(mod, prop, val) {
       config.overlay_lyrics_mode = val;
     } else if (prop === 'highlight_color') {
       config.overlay_lyrics_highlight_color = val;
+    } else if (prop === 'intro_enabled') {
+      config.overlay_lyrics_intro_enabled = Boolean(val);
+    } else if (prop === 'intro_content') {
+      config.overlay_lyrics_intro_content = String(val || '');
+    } else if (prop === 'intro_size') {
+      config.overlay_lyrics_intro_size = parseInt(val, 10) || 28;
+    } else if (prop === 'intro_scale') {
+      config.overlay_lyrics_intro_scale = parseFloat(val) || 1.0;
+      const lb = document.getElementById('modLyIntroScaleVal');
+      if (lb) lb.textContent = config.overlay_lyrics_intro_scale.toFixed(2) + 'x';
+    } else if (prop === 'intro_count') {
+      config.overlay_lyrics_intro_count = parseInt(val, 10) || 3;
     }
   }
 
@@ -1860,6 +1872,13 @@ function initOverlayStudio() {
   setText('modLyOpVal', lyOp + '%');
   setColorVal('modLyTextColor', config.overlay_lyrics_text_color, '#e0e0e0');
   setVal('modLyFontSize', config.overlay_lyrics_font_size, 13);
+  setCheck('modLyIntroEnabled', config.overlay_lyrics_intro_enabled, false);
+  setVal('modLyIntroContent', config.overlay_lyrics_intro_content, '');
+  setVal('modLyIntroSize', config.overlay_lyrics_intro_size, 28);
+  const lyIntroScale = parseFloat(config.overlay_lyrics_intro_scale || 1.0);
+  setVal('modLyIntroScale', lyIntroScale);
+  setText('modLyIntroScaleVal', lyIntroScale.toFixed(2) + 'x');
+  setVal('modLyIntroCount', config.overlay_lyrics_intro_count, 3);
   const lyZ = config.overlay_lyrics_z_index !== undefined ? config.overlay_lyrics_z_index : 15;
   setVal('modLyZIndex', lyZ);
   setText('modLyZVal', lyZ);
@@ -1961,6 +1980,11 @@ async function saveModularOverlayConfig() {
       overlay_lyrics_font_size: parseInt(config.overlay_lyrics_font_size || 13, 10),
       overlay_lyrics_mode: config.overlay_lyrics_mode || 'single',
       overlay_lyrics_highlight_color: config.overlay_lyrics_highlight_color || '#e8ff47',
+      overlay_lyrics_intro_enabled: config.overlay_lyrics_intro_enabled === true,
+      overlay_lyrics_intro_content: config.overlay_lyrics_intro_content || '',
+      overlay_lyrics_intro_size: parseInt(config.overlay_lyrics_intro_size || 28, 10),
+      overlay_lyrics_intro_scale: parseFloat(config.overlay_lyrics_intro_scale || 1.0),
+      overlay_lyrics_intro_count: parseInt(config.overlay_lyrics_intro_count || 3, 10),
 
       // Custom texts
       overlay_custom_texts: config.overlay_custom_texts || []

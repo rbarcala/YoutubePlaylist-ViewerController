@@ -401,10 +401,14 @@
         lyricsText.style.overflow = 'visible';
         lyricsText.style.whiteSpace = 'normal';
     } else if (mode === 'marquee') {
-        if (lyricsText.children.length !== currentSyncedLyrics.length || !lyricsText.classList.contains('mode-marquee')) {
-            lyricsText.innerHTML = currentSyncedLyrics.map((c, i) => `<div class="lyric-line-h" id="lyr-${i}">${c.text}</div>`).join('');
+        // Las frases que no entran en el recuadro se parten en varias filas (en vez de recortarse)
+        const cstyle = getComputedStyle(lyricsEl);
+        const maxLineW = Math.max(80, lyricsEl.clientWidth - (parseFloat(cstyle.paddingLeft) || 0) - (parseFloat(cstyle.paddingRight) || 0));
+        if (lyricsText.children.length !== currentSyncedLyrics.length || !lyricsText.classList.contains('mode-marquee') || lyricsText.dataset.maxW !== String(maxLineW)) {
+            lyricsText.innerHTML = currentSyncedLyrics.map((c, i) => `<div class="lyric-line-h" id="lyr-${i}" style="max-width:${maxLineW}px;">${c.text}</div>`).join('');
             lyricsText.className = 'lyrics-text mode-marquee';
             lyricsText.style.overflow = 'visible';
+            lyricsText.dataset.maxW = String(maxLineW);
         }
     } else {
         if (lyricsText.children.length !== currentSyncedLyrics.length || !lyricsText.classList.contains('lyrics-text') || lyricsText.classList.contains('mode-marquee')) {
@@ -421,20 +425,23 @@
       if (currentSyncedLyrics[i].time > progressMs) break;
       activeIdx = i;
     }
+    const firstTime = currentSyncedLyrics[0].time;
+
+    // Intro opcional (emoji / gif) mientras todavía no empezó a cantar
+    updateLyricsIntro(lyricsEl, activeIdx === -1 && progressMs < firstTime - 800);
 
     // 3. Render based on mode
     lyricsEl.classList.add('visible');
     if (mode === 'single') {
-      const idx = activeIdx === -1 ? 0 : activeIdx;
-      lyricsText.textContent = (currentSyncedLyrics[idx] && currentSyncedLyrics[idx].text) || '';
+      // Antes de la primera línea no se muestra letra estática
+      lyricsText.textContent = activeIdx === -1 ? '' : (currentSyncedLyrics[activeIdx].text || '');
       lyricsText.style.color = hlColor;
       lyricsText.style.transform = 'translateY(0px)';
       return true;
     }
 
     const lines = Array.from(lyricsText.children);
-    
-    // Reset all lines styles
+
     lines.forEach((line, i) => {
         if (i === activeIdx) {
             line.classList.add('active');
@@ -446,81 +453,107 @@
             line.style.opacity = '0.4';
         }
     });
+    if (!lines.length) return true;
 
-    if (mode === 'marquee') {
-        let currentPos = 0;
-        let nextPos = 0;
-        let timeDiff = 0;
-        let timeElapsed = 0;
-        let interpolatedPos = 0;
+    const vertical = mode !== 'marquee';
+    // Las posiciones de las líneas son relativas al área de contenido (sin padding): centrar ahí
+    const pst = getComputedStyle(lyricsEl);
+    const pad = (k) => parseFloat(pst[k]) || 0;
+    const cs = vertical
+      ? lyricsEl.clientHeight - pad('paddingTop') - pad('paddingBottom')
+      : lyricsEl.clientWidth - pad('paddingLeft') - pad('paddingRight');
+    const lerp = (x, y, r) => x + (y - x) * Math.max(0, Math.min(1, r));
 
-        if (activeIdx === -1) {
-            // Before first lyric: lock onto the first lyric, keep it centered
-            if (lines.length > 0) {
-                interpolatedPos = lines[0].offsetLeft + lines[0].offsetWidth / 2;
-            }
-        } else {
-            const activeEl = lines[activeIdx];
-            currentPos = activeEl.offsetLeft + activeEl.offsetWidth / 2;
-            nextPos = currentPos;
-            
-            if (activeIdx < lines.length - 1) {
-                const nextEl = lines[activeIdx + 1];
-                nextPos = nextEl.offsetLeft + nextEl.offsetWidth / 2;
-                timeDiff = currentSyncedLyrics[activeIdx + 1].time - currentSyncedLyrics[activeIdx].time;
-                timeElapsed = progressMs - currentSyncedLyrics[activeIdx].time;
-            }
-            
-            interpolatedPos = currentPos;
-            if (timeDiff > 0 && timeElapsed >= 0) {
-                let ratio = timeElapsed / timeDiff;
-                if (ratio > 1) ratio = 1;
-                interpolatedPos = currentPos + (nextPos - currentPos) * ratio;
-            }
-        }
-        
-        const offset = (containerWidth / 2) - interpolatedPos;
-        lyricsText.style.transition = 'transform 0.2s linear';
-        lyricsText.style.transform = `translateX(${offset}px)`;
+    // Puntos de anclaje de una línea: si entra en el contenedor se centra; si es más
+    // larga (ej. frase larga en marquesina) se recorre de principio a fin.
+    const anchors = (el) => {
+        const start = vertical ? el.offsetTop : el.offsetLeft;
+        const size = vertical ? el.offsetHeight : el.offsetWidth;
+        if (size <= cs) return { a: start + size / 2, b: start + size / 2 };
+        return { a: start + cs / 2, b: start + size - cs / 2 };
+    };
+
+    let offset;
+    if (activeIdx === -1) {
+        // Antes de la primera línea: letras fuera de pantalla (derecha / abajo) y entran al llegar
+        const first = lines[0];
+        const firstStart = vertical ? first.offsetTop : first.offsetLeft;
+        const hiddenOffset = cs + 20 - firstStart;
+        const restOffset = (cs / 2) - anchors(first).a;
+        const slideMs = Math.max(1, Math.min(1500, firstTime));
+        offset = lerp(hiddenOffset, restOffset, 1 - (firstTime - progressMs) / slideMs);
     } else {
-        // Vertical Scroll
-        let currentPos = 0;
-        let nextPos = 0;
-        let timeDiff = 0;
-        let timeElapsed = 0;
-        let interpolatedPos = 0;
-
-        if (activeIdx === -1) {
-            if (lines.length > 0) {
-                interpolatedPos = lines[0].offsetTop + lines[0].offsetHeight / 2;
-            }
-        } else {
-            const activeEl = lines[activeIdx];
-            currentPos = activeEl.offsetTop + activeEl.offsetHeight / 2;
-            nextPos = currentPos;
-            
-            if (activeIdx < lines.length - 1) {
-                const nextEl = lines[activeIdx + 1];
-                nextPos = nextEl.offsetTop + nextEl.offsetHeight / 2;
-                timeDiff = currentSyncedLyrics[activeIdx + 1].time - currentSyncedLyrics[activeIdx].time;
-                timeElapsed = progressMs - currentSyncedLyrics[activeIdx].time;
-            }
-            
-            interpolatedPos = currentPos;
-            if (timeDiff > 0 && timeElapsed >= 0) {
-                let ratio = timeElapsed / timeDiff;
-                if (ratio > 1) ratio = 1;
-                interpolatedPos = currentPos + (nextPos - currentPos) * ratio;
+        const cur = currentSyncedLyrics[activeIdx];
+        const next = currentSyncedLyrics[activeIdx + 1];
+        const an = anchors(lines[activeIdx]);
+        const elapsed = progressMs - cur.time;
+        const GLIDE = 400;
+        const est = Math.max(1500, cur.text.length * 110);
+        const gap = next ? next.time - cur.time : Infinity;
+        const sweepDur = Math.max(1, Math.min(est, next ? Math.max(gap - GLIDE, 400) : est));
+        let pos = lerp(an.a, an.b, elapsed / sweepDur);
+        if (next) {
+            const remaining = next.time - progressMs;
+            if (remaining < GLIDE) {
+                pos = lerp(pos, anchors(lines[activeIdx + 1]).a, 1 - remaining / GLIDE);
             }
         }
-        
-        const containerHeight = lyricsEl.offsetHeight;
-        const offset = (containerHeight / 2) - interpolatedPos;
-        lyricsText.style.transition = 'transform 0.2s linear';
-        lyricsText.style.transform = `translateY(${offset}px)`;
+        offset = (cs / 2) - pos;
     }
-    
+
+    lyricsText.style.transition = 'transform 0.2s linear';
+    lyricsText.style.transform = vertical ? `translateY(${offset}px)` : `translateX(${offset}px)`;
     return true;
+  }
+
+  // ─── Intro opcional (emoji / gif) previo a la primera línea ───
+  let lyricsIntroKey = '';
+  function updateLyricsIntro(lyricsEl, show) {
+    let el = lyricsEl.querySelector('.lyrics-intro');
+    const content = String(overlayConfig.overlay_lyrics_intro_content || '').trim();
+    const enabled = overlayConfig.overlay_lyrics_intro_enabled === true && content;
+    if (!enabled) {
+      if (el) el.style.opacity = '0';
+      lyricsEl.style.minHeight = '';
+      return;
+    }
+    const size = parseInt(overlayConfig.overlay_lyrics_intro_size || 28, 10);
+    const scale = parseFloat(overlayConfig.overlay_lyrics_intro_scale || 1.0);
+    const count = Math.max(1, Math.min(12, parseInt(overlayConfig.overlay_lyrics_intro_count || 3, 10)));
+    const key = [content, size, scale, count].join('|');
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'lyrics-intro';
+      lyricsEl.appendChild(el);
+      lyricsIntroKey = '';
+    }
+    if (key !== lyricsIntroKey) {
+      lyricsIntroKey = key;
+      const px = Math.round(size * scale);
+      lyricsEl.style.minHeight = (px + 34) + 'px';
+      const isImg = /^(https?:\/\/|\/|data:image)/i.test(content);
+      el.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        let item;
+        if (isImg) {
+          item = document.createElement('img');
+          item.src = content;
+          item.alt = '';
+          item.style.height = px + 'px';
+          item.style.width = 'auto';
+          item.style.objectFit = 'contain';
+        } else {
+          item = document.createElement('span');
+          item.textContent = content;
+          item.style.fontSize = px + 'px';
+          item.style.lineHeight = '1';
+        }
+        item.className = 'lyrics-intro-item';
+        item.style.animationDelay = (i * 0.15) + 's';
+        el.appendChild(item);
+      }
+    }
+    el.style.opacity = show ? '1' : '0';
   }
 
   function updateNowPlayingUI() {
@@ -549,19 +582,34 @@
       title.style.display = (overlayConfig.overlay_show_song_title !== false && overlayConfig.overlay_show_title !== false) ? 'block' : 'none';
       
       if (overlayConfig.overlay_now_playing_marquee === true) {
+        // Ventana de ancho fijo con desvanecido en píxeles en ambos bordes: el texto entra y sale gradualmente
+        const FADE = 'linear-gradient(to right, rgba(0,0,0,0) 0, rgba(0,0,0,1) 26px, rgba(0,0,0,1) calc(100% - 26px), rgba(0,0,0,0) 100%)';
         if (!title.querySelector('.ticker-wrap')) {
-          title.innerHTML = `<div class="ticker-wrap" style="width:100%; overflow:hidden; white-space:nowrap; -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 85%, rgba(0,0,0,0) 100%); mask-image: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 85%, rgba(0,0,0,0) 100%);"><div class="ticker-move" style="display:inline-block; animation:ticker 10s linear infinite;"><span class="ticker-item" style="display:inline-block; padding-right:50px;"></span><span class="ticker-item" style="display:inline-block; padding-right:50px;"></span></div></div>`;
+          title.innerHTML = `<div class="ticker-wrap" style="width:240px; max-width:100%; overflow:hidden; white-space:nowrap;"><div class="ticker-move" style="display:inline-block;"><span class="ticker-item" style="display:inline-block; padding-right:60px;"></span><span class="ticker-item" style="display:inline-block; padding-right:60px;"></span></div></div>`;
+          title.dataset.tickerFor = '';
         }
         const items = title.querySelectorAll('.ticker-item');
-        if (items[0] && items[0].textContent !== currentSpotify.title) {
+        if (items[0] && title.dataset.tickerFor !== currentSpotify.title) {
+          title.dataset.tickerFor = currentSpotify.title;
           items[0].textContent = currentSpotify.title;
           items[1].textContent = currentSpotify.title;
+          const wrap = title.querySelector('.ticker-wrap');
           const move = title.querySelector('.ticker-move');
-          if (move) {
-            move.style.animation = 'none';
-            void move.offsetWidth;
-            move.style.animation = 'ticker 10s linear infinite';
-          }
+          // La marquesina siempre se mueve (está activada en ajustes). Si el título es corto,
+          // cada repetición ocupa al menos el ancho de la ventana para que entre y salga gradualmente.
+          items[0].style.minWidth = '';
+          items[1].style.minWidth = '';
+          move.style.animation = 'none';
+          void move.offsetWidth;
+          const textW = items[0].offsetWidth - 60;
+          const period = Math.max(textW + 60, wrap.clientWidth + 40);
+          items[0].style.minWidth = period + 'px';
+          items[1].style.minWidth = period + 'px';
+          items[1].style.display = 'inline-block';
+          wrap.style.webkitMaskImage = FADE;
+          wrap.style.maskImage = FADE;
+          const dur = Math.max(6, period / 45); // ~45 px/s
+          move.style.animation = `ticker ${dur}s linear infinite`;
         }
       } else {
         if (title.querySelector('.ticker-wrap')) {
@@ -607,6 +655,8 @@
     lyricsOffset = 0;
     const lyricsEl = document.getElementById('lyricsContainer');
     const lt = document.getElementById('lyricsText');
+    const introEl = lyricsEl && lyricsEl.querySelector('.lyrics-intro');
+    if (introEl) introEl.style.opacity = '0';
     if (lt) {
       lt.textContent = '';
       lt.innerHTML = '';
