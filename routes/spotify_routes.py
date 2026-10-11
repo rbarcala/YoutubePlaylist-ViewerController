@@ -219,6 +219,10 @@ def spotify_playlist():
 def spotify_lyrics():
     artist = (request.args.get('artist') or '').strip()
     title = (request.args.get('title') or '').strip()
+    try:
+        duration_s = int(round(float(request.args.get('duration') or 0)))
+    except (TypeError, ValueError):
+        duration_s = 0
 
     # Si no se pasó artist ni title, intentar obtenerlo de la reproducción en vivo
     if not artist and not title and spotify_mgr:
@@ -230,7 +234,7 @@ def spotify_lyrics():
     if not artist and not title:
         return jsonify({'lyrics': '', 'syncedLyrics': ''})
 
-    cache_key = f"{artist.lower()}|||{title.lower()}"
+    cache_key = f"{artist.lower()}|||{title.lower()}|||{duration_s}"
     if cache_key in _lyrics_cache:
         cached = _lyrics_cache[cache_key]
         return jsonify(cached if isinstance(cached, dict) else {'lyrics': cached, 'syncedLyrics': ''})
@@ -275,7 +279,10 @@ def spotify_lyrics():
             if not art or not tit:
                 continue
             try:
-                params = urllib.parse.urlencode({'artist_name': art, 'track_name': tit})
+                qp = {'artist_name': art, 'track_name': tit}
+                if duration_s:
+                    qp['duration'] = duration_s  # lrclib exige ±2s: evita versiones con otra sincronización
+                params = urllib.parse.urlencode(qp)
                 url = f"https://lrclib.net/api/get?{params}"
                 req = urllib.request.Request(url, headers={'User-Agent': ua})
                 with urllib.request.urlopen(req, timeout=3.5) as r:
@@ -295,7 +302,7 @@ def spotify_lyrics():
             except Exception:
                 pass
 
-    # 2. Fallback de búsqueda abierta
+    # 2. Fallback de búsqueda abierta: elegir la versión cuya duración coincide con la pista
     for art in artist_candidates[:1]:
         for tit in title_candidates[:1]:
             try:
@@ -304,20 +311,31 @@ def spotify_lyrics():
                 req = urllib.request.Request(search_url, headers={'User-Agent': ua})
                 with urllib.request.urlopen(req, timeout=3.5) as r:
                     items = json.loads(r.read().decode('utf-8'))
-                    if items and isinstance(items, list) and len(items) > 0:
-                        top = items[0]
-                        synced = top.get('syncedLyrics') or ''
-                        plain = top.get('plainLyrics') or ''
-                        if synced.strip():
-                            if not plain.strip():
-                                plain = re.sub(r'\[\d{2}:\d{2}(?:\.\d{2,3})?\]\s*', '', synced).strip()
-                            result = {"lyrics": plain, "syncedLyrics": synced, "source": "lrclib"}
-                            _lyrics_cache[cache_key] = result
-                            return jsonify(result)
-                        if plain.strip():
-                            result = {"lyrics": plain.strip(), "syncedLyrics": "", "source": "lrclib"}
-                            _lyrics_cache[cache_key] = result
-                            return jsonify(result)
+                if not (items and isinstance(items, list)):
+                    continue
+
+                def _score(it):
+                    has_sync = bool((it.get('syncedLyrics') or '').strip())
+                    diff = abs((it.get('duration') or 0) - duration_s) if duration_s else 0
+                    return (0 if has_sync else 1, diff)
+
+                items = sorted(items, key=_score)
+                top = items[0]
+                synced = top.get('syncedLyrics') or ''
+                plain = top.get('plainLyrics') or ''
+                # Si la duración difiere mucho, la sincronización no es confiable: solo letra plana
+                if synced.strip() and duration_s and abs((top.get('duration') or 0) - duration_s) > 3:
+                    synced = ''
+                if synced.strip():
+                    if not plain.strip():
+                        plain = re.sub(r'\[\d{2}:\d{2}(?:\.\d{2,3})?\]\s*', '', synced).strip()
+                    result = {"lyrics": plain, "syncedLyrics": synced, "source": "lrclib"}
+                    _lyrics_cache[cache_key] = result
+                    return jsonify(result)
+                if plain.strip():
+                    result = {"lyrics": plain.strip(), "syncedLyrics": "", "source": "lrclib"}
+                    _lyrics_cache[cache_key] = result
+                    return jsonify(result)
             except Exception:
                 pass
 

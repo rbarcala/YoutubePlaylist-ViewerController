@@ -645,7 +645,8 @@
     try {
       const art = encodeURIComponent((currentSpotify.artist || '').trim());
       const tit = encodeURIComponent((currentSpotify.title || '').trim());
-      const res = await fetch(`/api/spotify/lyrics?artist=${art}&title=${tit}`);
+      const dur = Math.round((currentSpotify.duration_ms || 0) / 1000);
+      const res = await fetch(`/api/spotify/lyrics?artist=${art}&title=${tit}&duration=${dur}`);
       const data = await res.json();
 
       // Si cambió de canción mientras se esperaba la respuesta, descartar
