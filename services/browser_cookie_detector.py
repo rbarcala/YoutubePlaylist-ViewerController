@@ -254,3 +254,140 @@ class SessionLoginWatcher:
 
             time.sleep(self.poll_interval)
 
+
+# ─── SESIÓN DE YOUTUBE (PARA YT-DLP SIN BLOQUEOS) ───
+
+_YT_AUTH_COOKIE_NAMES = {"SID", "HSID", "SSID", "APISID", "SAPISID", "__Secure-1PSID", "__Secure-3PSID", "LOGIN_INFO"}
+_yt_cookiefile_lock = threading.Lock()
+
+
+def find_qtwebengine_cookie_dbs() -> list[str]:
+    """Encuentra bases de datos Cookies del perfil embebido QtWebEngine del controlador."""
+    home = os.path.expanduser("~")
+    patterns = [
+        os.path.join(home, ".local", "share", "youtube-stream-controller", "QtWebEngine", "*", "Cookies"),
+        os.path.join(home, ".local", "share", "YouTube Stream Controller", "QtWebEngine", "*", "Cookies"),
+    ]
+    matches = []
+    for pat in patterns:
+        for f in glob.glob(pat):
+            if os.path.isfile(f):
+                matches.append(f)
+    matches.sort(key=lambda p: os.path.getmtime(p) if os.path.exists(p) else 0, reverse=True)
+    return matches
+
+
+def _extract_chromium_rows_for_youtube(cookie_db: str) -> list[tuple]:
+    """Lee filas (host, httponly, path, secure, unix_exp, name, value) de SQLite Chromium/QtWebEngine."""
+    rows_out = []
+    tmp_dir = tempfile.mkdtemp(prefix="yt_cr_cookies_")
+    try:
+        tmp_db = os.path.join(tmp_dir, "Cookies")
+        shutil.copy2(cookie_db, tmp_db)
+        for ext in ("-wal", "-shm", "-journal"):
+            src_wal = cookie_db + ext
+            if os.path.exists(src_wal):
+                shutil.copy2(src_wal, tmp_db + ext)
+        conn = sqlite3.connect(tmp_db)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT host_key, is_httponly, path, is_secure, expires_utc, name, value "
+            "FROM cookies WHERE host_key LIKE '%youtube%' OR host_key LIKE '%google%'"
+        )
+        for host, httponly, path, secure, exp, name, val in cur.fetchall():
+            if not val:
+                continue
+            unix_exp = max(0, int(exp / 1000000 - 11644473600)) if exp else 0
+            rows_out.append((host, bool(httponly), path or "/", bool(secure), unix_exp, name, val))
+        conn.close()
+    except Exception as e:
+        logger.debug(f"[cookie_detector] Error leyendo cookies QtWebEngine {cookie_db}: {e}")
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+    return rows_out
+
+
+def _extract_firefox_rows_for_youtube(cookie_db: str) -> list[tuple]:
+    """Lee filas (host, httponly, path, secure, unix_exp, name, value) de SQLite Firefox."""
+    rows_out = []
+    tmp_dir = tempfile.mkdtemp(prefix="yt_ff_cookies_")
+    try:
+        tmp_db = os.path.join(tmp_dir, "cookies.sqlite")
+        shutil.copy2(cookie_db, tmp_db)
+        for ext in ("-wal", "-shm"):
+            src_wal = cookie_db + ext
+            if os.path.exists(src_wal):
+                shutil.copy2(src_wal, tmp_db + ext)
+        conn = sqlite3.connect(tmp_db)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT host, isHttpOnly, path, isSecure, expiry, name, value "
+            "FROM moz_cookies WHERE host LIKE '%youtube%' OR host LIKE '%google%'"
+        )
+        for host, httponly, path, secure, exp, name, val in cur.fetchall():
+            if not val:
+                continue
+            rows_out.append((host, bool(httponly), path or "/", bool(secure), int(exp or 0), name, val))
+        conn.close()
+    except Exception as e:
+        logger.debug(f"[cookie_detector] Error leyendo cookies Firefox {cookie_db}: {e}")
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+    return rows_out
+
+
+def _has_yt_auth_in_rows(rows: list[tuple]) -> bool:
+    yt_cookies = {name for host, _, _, _, _, name, val in rows if "youtube.com" in host and val}
+    return bool(yt_cookies & {"SAPISID", "SID", "__Secure-1PSID", "__Secure-3PSID", "LOGIN_INFO"})
+
+
+def get_youtube_cookiefile(force_refresh: bool = False) -> str | None:
+    """
+    Exporta las cookies de sesión de YouTube (desde QtWebEngine o Firefox) a un archivo
+    Netscape compatible con yt-dlp y retorna su ruta, o None si no hay sesión iniciada.
+    """
+    with _yt_cookiefile_lock:
+        chosen_rows = []
+        # 1. Priorizar perfil embebido QtWebEngine del propio Controller
+        for db in find_qtwebengine_cookie_dbs():
+            rows = _extract_chromium_rows_for_youtube(db)
+            if _has_yt_auth_in_rows(rows):
+                chosen_rows = rows
+                break
+
+        # 2. Fallback: perfiles de Firefox con sesión de YouTube activa
+        if not chosen_rows:
+            for db in find_firefox_cookie_dbs():
+                rows = _extract_firefox_rows_for_youtube(db)
+                if _has_yt_auth_in_rows(rows):
+                    chosen_rows = rows
+                    break
+
+        target_dir = os.path.join(os.path.expanduser("~"), ".config", "youtube-stream-controller")
+        os.makedirs(target_dir, exist_ok=True)
+        cookie_file = os.path.join(target_dir, "youtube_cookies.txt")
+
+        if not chosen_rows:
+            # Si ya existe un archivo previo válido en disco, conservarlo
+            if os.path.isfile(cookie_file) and os.path.getsize(cookie_file) > 100:
+                return cookie_file
+            return None
+
+        try:
+            with open(cookie_file, "w", encoding="utf-8") as f:
+                f.write("# Netscape HTTP Cookie File\n")
+                for host, httponly, path, secure, unix_exp, name, val in chosen_rows:
+                    sub = "TRUE" if host.startswith(".") else "FALSE"
+                    sec = "TRUE" if secure else "FALSE"
+                    f.write(f"{host}\t{sub}\t{path}\t{sec}\t{unix_exp}\t{name}\t{val}\n")
+            return cookie_file
+        except Exception as e:
+            logger.debug(f"[cookie_detector] Error escribiendo {cookie_file}: {e}")
+            return None
+
+
+def has_youtube_session() -> bool:
+    """Indica si existe una sesión autenticada de YouTube disponible para yt-dlp."""
+    return bool(get_youtube_cookiefile())
+
+

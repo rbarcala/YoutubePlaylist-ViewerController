@@ -446,15 +446,58 @@ def youtube_live():
     return jsonify(res_data)
 
 
+_video_url_cache = {}  # video_id -> (result_dict, cache_until_ts)
+
+
+def _extract_video_info_with_fallback(video_id: str) -> dict:
+    """Extrae info de video con yt-dlp; si requiere sesión (Please sign in), reintenta con cookies de YouTube."""
+    import yt_dlp
+    from services.browser_cookie_detector import get_youtube_cookiefile
+
+    target = f'https://www.youtube.com/watch?v={video_id}'
+    base_opts = {
+        'format': 'best[height<=1080][ext=mp4]/best[height<=1080]/best',
+        'quiet': True,
+        'no_warnings': True,
+        'noplaylist': True,
+        'logger': _SilentYtdlLogger(),
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web']
+            }
+        },
+    }
+    try:
+        with yt_dlp.YoutubeDL(base_opts) as ydl:
+            return ydl.extract_info(target, download=False)
+    except Exception as first_err:
+        cookie_file = get_youtube_cookiefile()
+        if not cookie_file:
+            raise first_err
+        auth_opts = {
+            'format': 'best[height<=1080][ext=mp4]/best[height<=1080]/best',
+            'cookiefile': cookie_file,
+            'js_runtimes': {'node': {}},
+            'remote_components': ['ejs:github'],
+            'quiet': True,
+            'no_warnings': True,
+            'noplaylist': True,
+            'logger': _SilentYtdlLogger(),
+        }
+        with yt_dlp.YoutubeDL(auth_opts) as ydl:
+            return ydl.extract_info(target, download=False)
+
+
 @youtube_bp.route('/api/get_video_url')
 def get_video_url():
     video_id = request.args.get('v')
     playback_mode = request.args.get('mode', 'stream')
+    fresh = request.args.get('fresh') == '1'
 
     if not video_id:
         return jsonify({'error': 'Parámetro v requerido'}), 400
 
-    # Verificar cache local primero
+    # Verificar cache local de archivo descargado primero
     cached = video_manager.get_cached_path(video_id) if video_manager else None
     if cached and playback_mode in ('cache', 'adaptive'):
         return jsonify({
@@ -464,43 +507,55 @@ def get_video_url():
             'expires_at': 0
         })
 
-    # Obtener URL de streaming via yt-dlp
-    import yt_dlp
-    opts = {
-        'format': 'best[height<=1080][ext=mp4]/best[height<=1080]/best',
-        'quiet': True,
-        'no_warnings': True,
-        'noplaylist': True,
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['android', 'web']
-            }
-        },
-    }
+    # Verificar cache en memoria de URL resuelta para evitar invocar yt-dlp repetidamente
+    now = time.time()
+    if not fresh:
+        cached_entry = _video_url_cache.get(video_id)
+        if cached_entry and cached_entry[1] > now:
+            return jsonify(cached_entry[0])
+        if video_manager and hasattr(video_manager, 'video_url_cache'):
+            vm_entry = video_manager.video_url_cache.get(video_id)
+            if isinstance(vm_entry, tuple) and len(vm_entry) == 2 and vm_entry[1] > now:
+                return jsonify(vm_entry[0])
 
     try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
+        info = _extract_video_info_with_fallback(video_id)
 
         video_url = None
         audio_url = None
         combined_audio = False
 
-        for fmt in info.get('formats', []):
-            if fmt.get('vcodec') != 'none' and fmt.get('acodec') != 'none':
-                video_url = fmt.get('url')
-                combined_audio = True
-                break
+        all_fmts = [f for f in info.get('formats', []) if f.get('url')]
+        http_fmts = [f for f in all_fmts if f.get('protocol') in ('https', 'http')]
+        candidate_fmts = http_fmts if http_fmts else all_fmts
+
+        # Preferir el mejor formato combinado (con video y audio) directo HTTP hasta 1080p
+        combined_fmts = [
+            f for f in candidate_fmts
+            if f.get('vcodec') not in (None, 'none') and f.get('acodec') not in (None, 'none')
+        ]
+        if combined_fmts:
+            le_1080 = [f for f in combined_fmts if (f.get('height') or 0) <= 1080]
+            chosen = max(le_1080 or combined_fmts, key=lambda f: (f.get('height') or 0, f.get('tbr') or 0))
+            video_url = chosen.get('url')
+            combined_audio = True
 
         if not video_url:
-            for fmt in info.get('formats', []):
-                if fmt.get('vcodec') != 'none' and fmt.get('acodec') == 'none':
-                    video_url = fmt.get('url')
-                    break
-            for fmt in info.get('formats', []):
-                if fmt.get('vcodec') == 'none' and fmt.get('acodec') != 'none':
-                    audio_url = fmt.get('url')
-                    break
+            video_fmts = [
+                f for f in candidate_fmts
+                if f.get('vcodec') not in (None, 'none') and f.get('acodec') in (None, 'none')
+            ]
+            audio_fmts = [
+                f for f in candidate_fmts
+                if f.get('vcodec') in (None, 'none') and f.get('acodec') not in (None, 'none')
+            ]
+            if video_fmts:
+                le_1080_v = [f for f in video_fmts if (f.get('height') or 0) <= 1080]
+                chosen_v = max(le_1080_v or video_fmts, key=lambda f: (f.get('height') or 0, f.get('tbr') or 0))
+                video_url = chosen_v.get('url')
+            if audio_fmts:
+                chosen_a = max(audio_fmts, key=lambda f: (f.get('abr') or 0, f.get('tbr') or 0))
+                audio_url = chosen_a.get('url')
 
         if not video_url:
             return jsonify({'error': 'No se encontró formato de video válido'}), 500
@@ -529,6 +584,10 @@ def get_video_url():
             'combined_audio': combined_audio,
             'expires_at': int(cache_until + 180)
         }
+
+        _video_url_cache[video_id] = (result, cache_until)
+        if video_manager and hasattr(video_manager, 'video_url_cache'):
+            video_manager.video_url_cache[video_id] = (result, cache_until)
 
         if playback_mode in ('cache', 'adaptive') and video_manager:
             video_manager.queue_download(video_id)
@@ -665,6 +724,8 @@ def prefetch_video_url():
     from flask import current_app
     if hasattr(current_app, 'video_cache') and video_id in current_app.video_cache:
         current_app.video_cache.pop(video_id, None)
+
+    _video_url_cache.pop(video_id, None)
 
     if video_manager and hasattr(video_manager, 'video_url_cache') and video_id in video_manager.video_url_cache:
         video_manager.video_url_cache.pop(video_id, None)
