@@ -5,12 +5,13 @@ from services.obs_client import OBSController
 
 _last_synced_bpm = None
 _last_synced_track = None
+_last_synced_playing = None
 
-def sync_bpm_to_obs(load_config, bpm_val: float, progress_ms: int = 0):
-    """Sincroniza el BPM y la fase (progreso) de Spotify con los filtros de shader activos en OBS."""
-    global _last_synced_bpm
+def sync_bpm_to_obs(load_config, bpm_val: float, progress_ms: int = 0, is_playing: bool = True):
+    """Sincroniza el BPM, estado de música y la fase (progreso) de Spotify con los filtros de shader en OBS."""
+    global _last_synced_bpm, _last_synced_playing
     if not bpm_val or bpm_val <= 0:
-        return
+        bpm_val = 128.0
 
     cfg = load_config() if callable(load_config) else {}
     if not cfg.get("obs_enabled", True):
@@ -25,10 +26,13 @@ def sync_bpm_to_obs(load_config, bpm_val: float, progress_ms: int = 0):
     # Calcular beat_offset normalizado al período del compás (evita desfases por números grandes)
     progress_s = float(progress_ms) / 1000.0 if progress_ms > 0 else 0.0
     beat_period = 60.0 / float(bpm_val)
-    beat_offset = (progress_s % beat_period)
+    beat_offset = (progress_s % beat_period) if is_playing else 0.0
 
-    # Fuentes o escenas objetivo habituales para filtros de baile
-    candidate_sources = ["Baile tuneado", "Baile", "BAILE", "Camara", "Cámara"]
+    # Escenas y fuentes con shaders rítmicos (Baile 1-4, Kaleidoscopio/Orbitar, Bola de disco, etc.)
+    candidate_sources = [
+        "Baile", "Baile tuneado", "Baile super tuneado", "Baile super ultra tuneado",
+        "Orbitar", "Bola disco", "BAILE", "Camara", "Cámara"
+    ]
     current_scene = cfg.get("obs_scene_on_play")
     if current_scene and current_scene not in candidate_sources:
         candidate_sources.insert(0, current_scene)
@@ -41,21 +45,27 @@ def sync_bpm_to_obs(load_config, bpm_val: float, progress_ms: int = 0):
                 fname = f.get("filterName")
                 fkind = f.get("filterKind")
                 if fkind == "shader_filter" or "shader" in fname.lower():
+                    fsettings = f.get("filterSettings", {})
+                    default_bpm = float(fsettings.get("bpm_default", 128.0))
+                    effective_bpm = float(bpm_val) if is_playing else default_bpm
                     settings_payload = {
-                        "bpm": float(bpm_val),
-                        "beat_offset": float(beat_offset)
+                        "bpm": effective_bpm,
+                        "beat_offset": float(beat_offset),
+                        "musica_activa": bool(is_playing)
                     }
                     obs.set_source_filter_settings(source, fname, settings_payload, overlay=True)
                     updated_any = True
 
     _last_synced_bpm = bpm_val
+    _last_synced_playing = is_playing
     if updated_any:
-        print(f"[spotify-bpm] Sincronizado a OBS: {bpm_val} BPM | Progreso: {round(progress_s, 2)}s")
+        state_lbl = "EN VIVO" if is_playing else "PAUSADO (Default)"
+        print(f"[spotify-bpm] Sincronizado a OBS [{state_lbl}]: {bpm_val} BPM | Progreso: {round(progress_s, 2)}s")
 
 def start_spotify_monitor(spotify_mgr, broadcast_event, load_config=None):
-    """Monitoriza el estado de Spotify y lo difunde, sincronizando BPM con OBS."""
+    """Monitoriza el estado de Spotify y lo difunde, sincronizando BPM y estado con OBS."""
     def _loop():
-        global _last_synced_track, _last_synced_bpm
+        global _last_synced_track, _last_synced_bpm, _last_synced_playing
         time.sleep(2)
         while True:
             try:
@@ -67,13 +77,17 @@ def start_spotify_monitor(spotify_mgr, broadcast_event, load_config=None):
                     track_id = st.get("track_id") or st.get("title")
                     bpm = float(st.get("bpm") or 128.0)
                     progress_ms = int(st.get("progress_ms") or 0)
-                    is_playing = st.get("is_playing", False)
+                    is_playing = bool(st.get("is_playing", False))
 
-                    # Sincronizar al cambiar de canción o si el BPM cambió
-                    if is_playing and (track_id != _last_synced_track or bpm != _last_synced_bpm):
+                    # Sincronizar al cambiar de canción, si el BPM cambió, o si se pausó/reanudó la música
+                    if (track_id != _last_synced_track or bpm != _last_synced_bpm or is_playing != _last_synced_playing):
                         _last_synced_track = track_id
                         if load_config:
-                            threading.Thread(target=sync_bpm_to_obs, args=(load_config, bpm, progress_ms), daemon=True).start()
+                            threading.Thread(
+                                target=sync_bpm_to_obs,
+                                args=(load_config, bpm, progress_ms, is_playing),
+                                daemon=True
+                            ).start()
             except Exception:
                 pass
     threading.Thread(target=_loop, daemon=True, name="spotify-monitor").start()
