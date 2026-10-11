@@ -8,6 +8,7 @@ from .overlay_manager import OverlayManager
 from .qr_svg import generate_qr_svg
 from .soundboard_manager import SoundboardManager
 from .spotify_manager import SpotifyManager
+from .playlist_manager import YouTubePlaylistManager
 from .mdns_service import start_mdns_publisher
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
     'generate_qr_svg',
     'SoundboardManager',
     'SpotifyManager',
+    'YouTubePlaylistManager',
     'start_mdns_publisher',
 ]
 

@@ -455,8 +455,17 @@ function initSSE() {
       updateStageOverlayView(currentStageScale);
     } catch(err) {}
     showToast('⏰ ¡El temporizador de recreo ha finalizado!');
-    
+  });
 
+  evtSource.addEventListener('playlist_updated', () => {
+    if (typeof pmBusy !== 'undefined' && !pmBusy) {
+      const pmPanel = document.getElementById('playlistManagerPanel');
+      if (pmPanel && pmPanel.style.display !== 'none' && typeof loadPlaylistManager === 'function') {
+        loadPlaylistManager(false);
+      } else if (typeof loadPlaylist === 'function') {
+        loadPlaylist();
+      }
+    }
   });
 }
 

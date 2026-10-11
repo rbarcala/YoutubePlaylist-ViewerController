@@ -21,7 +21,71 @@
         </div>
         <button class="btn" id="muteBtn" onclick="toggleMute()">Muted</button>
       </div>
-      <button class="btn btn-accent" onclick="scrollToTopFondos()" title="Subir al inicio">⬆️ Subir</button>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <button class="btn" id="btnTogglePlaylistManager" onclick="togglePlaylistManager()" title="Administrar, ordenar manualmente y borrar los nuevos videos agregados a la playlist">🛠️ Administrar Playlist</button>
+        <button class="btn" onclick="scrollToBottomFondos()" title="Ir a los nuevos videos abajo del todo">⬇️ Ir al final</button>
+        <button class="btn btn-accent" onclick="scrollToTopFondos()" title="Subir al inicio">⬆️ Subir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── PANEL GESTOR DE PLAYLIST (NUEVOS VIDEOS / ORDEN MANUAL / BORRAR) ─── -->
+  <div class="playlist-manager-panel" id="playlistManagerPanel" style="display:none;">
+    <div class="pm-toolbar">
+      <div class="pm-toolbar-row">
+        <div class="pm-title-block">
+          <span class="pm-badge-title">🛠️ GESTOR DE PLAYLIST EN YOUTUBE</span>
+          <span id="pmPlaylistTitle" class="pm-playlist-name">Cargando…</span>
+          <span id="pmAuthStatusBadge" class="pm-auth-badge">Verificando sesión…</span>
+        </div>
+        <div class="pm-actions-right">
+          <button class="btn" onclick="pmLoginGoogle()" title="Iniciar o cambiar sesión de Google con permisos en la playlist">🔑 Sesión Google</button>
+          <button class="btn" onclick="loadPlaylistManager(true)" title="Recargar desde YouTube">🔄 Actualizar</button>
+          <button class="btn" onclick="togglePlaylistManager(false)" title="Volver a la cuadrícula de fondos">✕ Cerrar Gestor</button>
+        </div>
+      </div>
+
+      <div class="pm-toolbar-row pm-inputs-row">
+        <div class="pm-input-group" style="flex:1; min-width:240px;">
+          <label class="pm-label">Playlist (URL o ID):</label>
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="pmPlaylistIdInput" class="search-input" style="flex:1; width:auto;" placeholder="URL o ID de la playlist de YouTube...">
+            <button class="btn" onclick="pmChangePlaylist()">Cargar</button>
+          </div>
+        </div>
+
+        <div class="pm-input-group" style="flex:1.4; min-width:280px;">
+          <label class="pm-label">Agregar nuevo video (se añade al final en YouTube):</label>
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="pmAddVideoInput" class="search-input" style="flex:1; width:auto;" placeholder="Pegá la URL o ID del video de YouTube..." onkeydown="if(event.key==='Enter') pmAddVideo()">
+            <button class="btn btn-accent" id="pmAddVideoBtn" onclick="pmAddVideo()">➕ Agregar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pm-toolbar-row pm-tabs-row">
+        <div class="pm-filter-tabs">
+          <button class="btn pm-tab active" id="pmTabEditable" onclick="setPlaylistManagerFilter('editable')">
+            🆕 Mis videos / Nuevos agregados <span id="pmEditableCountBadge" class="pm-count-pill">0</span>
+          </button>
+          <button class="btn pm-tab" id="pmTabBottom" onclick="setPlaylistManagerFilter('bottom')">
+            ⬇️ Últimos del final (Abajo del todo)
+          </button>
+          <button class="btn pm-tab" id="pmTabAll" onclick="setPlaylistManagerFilter('all')">
+            📋 Toda la playlist (Orden manual) <span id="pmTotalCountBadge" class="pm-count-pill">0</span>
+          </button>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="text" id="pmSearchInput" class="search-input" style="width:210px;" placeholder="🔍 Filtrar en el gestor..." oninput="renderPlaylistManagerList()">
+        </div>
+      </div>
+    </div>
+
+    <div class="pm-list-container" id="pmListContainer">
+      <div id="pmLoadingState" style="text-align:center; padding:36px; color:var(--muted);">
+        Consultando playlist en YouTube…
+      </div>
+      <div id="pmItemsList" class="pm-items-list"></div>
     </div>
   </div>
 
@@ -30,4 +94,5 @@
     <div class="grid-videos" id="gridVideos"></div>
   </div>
 </div>
+
 

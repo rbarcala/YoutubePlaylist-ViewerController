@@ -47,13 +47,18 @@ def _format_seconds_duration(sec):
         return ''
 
 
+playlist_manager = None
+
+
 def init_youtube_routes(config_loader, config_saver, broadcast_fn, state, video_mgr_inst):
-    global load_config, save_config, broadcast_event, current_state, video_manager
+    global load_config, save_config, broadcast_event, current_state, video_manager, playlist_manager
     load_config = config_loader
     save_config = config_saver
     broadcast_event = broadcast_fn
     current_state = state
     video_manager = video_mgr_inst
+    from services.playlist_manager import YouTubePlaylistManager
+    playlist_manager = YouTubePlaylistManager(config_loader, config_saver)
 
 
 @youtube_bp.route('/api/youtube/playlist')
@@ -919,3 +924,131 @@ def prefetch_video_url():
 
     threading.Thread(target=_renew, daemon=True).start()
     return jsonify({'ok': True})
+
+
+# ─── GESTOR DE PLAYLIST EN VIVO (BORRAR Y ADMINISTRAR NUEVOS VIDEOS) ───
+
+def _get_playlist_mgr():
+    global playlist_manager
+    if playlist_manager is None:
+        from services.playlist_manager import YouTubePlaylistManager
+        playlist_manager = YouTubePlaylistManager(load_config, save_config)
+    return playlist_manager
+
+
+@youtube_bp.route('/api/youtube/playlist/manage', methods=['GET'])
+def manage_youtube_playlist():
+    mgr = _get_playlist_mgr()
+    cfg = load_config() if load_config else {}
+    raw_pid = request.args.get('playlist_id') or cfg.get('playlist_id', '')
+    force = request.args.get('refresh', '1') != '0'
+
+    auth = mgr.get_auth_status()
+    if not auth.get('authenticated'):
+        return jsonify({
+            'success': False,
+            'needsAuth': True,
+            'auth': auth,
+            'error': 'No se detectó una sesión activa de Google/YouTube para administrar la playlist.',
+        }), 401
+
+    try:
+        details = mgr.get_playlist(raw_pid, force_refresh=force)
+        if save_config and details.get('playlistId') and details['playlistId'] != cfg.get('playlist_id'):
+            save_config({'playlist_id': details['playlistId']})
+        return jsonify({
+            'success': True,
+            'auth': auth,
+            'playlist': details,
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'auth': auth,
+            'error': str(e),
+        }), 400
+
+
+@youtube_bp.route('/api/youtube/playlist/add', methods=['POST'])
+def add_video_to_playlist():
+    mgr = _get_playlist_mgr()
+    data = request.get_json(force=True, silent=True) or {}
+    cfg = load_config() if load_config else {}
+    playlist_id = data.get('playlist_id') or cfg.get('playlist_id', '')
+    video_input = (data.get('video') or '').strip()
+
+    if not video_input:
+        return jsonify({'success': False, 'error': 'Ingresa la URL o ID del video de YouTube.'}), 400
+
+    try:
+        res = mgr.add_video(playlist_id, video_input)
+        if broadcast_event:
+            broadcast_event('playlist_updated', {'playlistId': res['playlist']['playlistId']})
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@youtube_bp.route('/api/youtube/playlist/remove', methods=['POST'])
+def remove_video_from_playlist():
+    mgr = _get_playlist_mgr()
+    data = request.get_json(force=True, silent=True) or {}
+    cfg = load_config() if load_config else {}
+    playlist_id = data.get('playlist_id') or cfg.get('playlist_id', '')
+    set_video_id = (data.get('set_video_id') or '').strip()
+    video_id = (data.get('video_id') or '').strip()
+
+    if not set_video_id:
+        return jsonify({'success': False, 'error': 'Falta set_video_id del video a eliminar.'}), 400
+
+    try:
+        res = mgr.remove_video(playlist_id, set_video_id, video_id=video_id)
+        if broadcast_event:
+            broadcast_event('playlist_updated', {'playlistId': res['playlist']['playlistId']})
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@youtube_bp.route('/api/youtube/playlist/move', methods=['POST'])
+def move_video_in_playlist():
+    mgr = _get_playlist_mgr()
+    data = request.get_json(force=True, silent=True) or {}
+    cfg = load_config() if load_config else {}
+    playlist_id = data.get('playlist_id') or cfg.get('playlist_id', '')
+    set_video_id = (data.get('set_video_id') or '').strip()
+    new_position = data.get('new_position')
+
+    if not set_video_id or new_position is None:
+        return jsonify({'success': False, 'error': 'Faltan parámetros (set_video_id, new_position).'}), 400
+
+    try:
+        res = mgr.move_video(playlist_id, set_video_id, int(new_position))
+        if broadcast_event:
+            broadcast_event('playlist_updated', {'playlistId': res['playlist']['playlistId']})
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@youtube_bp.route('/api/youtube/playlist/auth', methods=['POST'])
+def auth_youtube_playlist():
+    mgr = _get_playlist_mgr()
+    data = request.get_json(force=True, silent=True) or {}
+    action = data.get('action', 'login')
+
+    from services.playlist_manager import launch_interactive_google_login
+    from services.browser_cookie_detector import get_youtube_cookiefile
+
+    if action == 'scan':
+        get_youtube_cookiefile(force_refresh=True)
+    else:
+        cookie_path = launch_interactive_google_login()
+        if not cookie_path:
+            get_youtube_cookiefile(force_refresh=True)
+
+    auth = mgr.get_auth_status()
+    return jsonify({
+        'success': bool(auth.get('authenticated')),
+        'auth': auth,
+    })

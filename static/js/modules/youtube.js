@@ -212,6 +212,405 @@ function toggleMute() {
   }).catch(() => {});
 }
 
+function scrollToBottomFondos() {
+  const pmPanel = document.getElementById('playlistManagerPanel');
+  if (pmPanel && pmPanel.style.display !== 'none') {
+    const pmList = document.getElementById('pmListContainer');
+    if (pmList) pmList.scrollTo({ top: pmList.scrollHeight, behavior: 'smooth' });
+    return;
+  }
+  const container = document.getElementById('fondosScrollContent');
+  if (container) {
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+  }
+}
+
+// ─── 1B. GESTOR DE PLAYLIST EN YOUTUBE (NUEVOS VIDEOS / ORDEN MANUAL / BORRAR) ───
+let pmPlaylistData = null;
+let pmFilterMode = 'editable'; // 'editable' | 'bottom' | 'all'
+let pmBusy = false;
+
+function escapeHtmlAttr(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function togglePlaylistManager(forceOpen) {
+  const panel = document.getElementById('playlistManagerPanel');
+  const gridScroll = document.getElementById('fondosScrollContent');
+  const btn = document.getElementById('btnTogglePlaylistManager');
+  if (!panel || !gridScroll) return;
+
+  const isOpen = panel.style.display !== 'none';
+  const nextOpen = typeof forceOpen === 'boolean' ? forceOpen : !isOpen;
+
+  if (nextOpen) {
+    panel.style.display = 'flex';
+    gridScroll.style.display = 'none';
+    if (btn) btn.classList.add('btn-accent');
+    const pidInput = document.getElementById('pmPlaylistIdInput');
+    if (pidInput && !pidInput.value) {
+      pidInput.value = config.playlist_id || 'PL7E8lrk1ePfZVWMM2vsUkpQ6vbpbHi4G_';
+    }
+    if (!pmPlaylistData) {
+      loadPlaylistManager(true);
+    } else {
+      renderPlaylistManagerList();
+    }
+  } else {
+    panel.style.display = 'none';
+    gridScroll.style.display = '';
+    if (btn) btn.classList.remove('btn-accent');
+  }
+}
+
+function setPlaylistManagerFilter(mode) {
+  pmFilterMode = mode;
+  document.getElementById('pmTabEditable')?.classList.toggle('active', mode === 'editable');
+  document.getElementById('pmTabBottom')?.classList.toggle('active', mode === 'bottom');
+  document.getElementById('pmTabAll')?.classList.toggle('active', mode === 'all');
+  renderPlaylistManagerList();
+}
+
+function syncMainFondosFromManager(playlistObj) {
+  if (!playlistObj || !Array.isArray(playlistObj.items)) return;
+  videoList = playlistObj.items.map(v => ({
+    videoId: v.videoId,
+    title: v.title || 'Video sin título',
+    thumb: v.thumb || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`,
+    duration: v.duration || ''
+  })).filter(v => v.videoId);
+  renderVideosGrid(true);
+}
+
+function updatePmHeaderUI(auth, playlist) {
+  const authBadge = document.getElementById('pmAuthStatusBadge');
+  if (authBadge) {
+    if (auth && auth.authenticated) {
+      authBadge.textContent = '🟢 Sesión Google activa';
+      authBadge.className = 'pm-auth-badge ok';
+    } else {
+      authBadge.textContent = '⚠️ Sin sesión Google';
+      authBadge.className = 'pm-auth-badge warn';
+    }
+  }
+  if (playlist) {
+    const titleEl = document.getElementById('pmPlaylistTitle');
+    if (titleEl) {
+      titleEl.textContent = `${playlist.title || playlist.playlistId} (${playlist.total} videos)`;
+    }
+    const pidInput = document.getElementById('pmPlaylistIdInput');
+    if (pidInput) {
+      pidInput.value = playlist.playlistId || config.playlist_id || '';
+    }
+    const editBadge = document.getElementById('pmEditableCountBadge');
+    if (editBadge) editBadge.textContent = String(playlist.editableCount || 0);
+    const totalBadge = document.getElementById('pmTotalCountBadge');
+    if (totalBadge) totalBadge.textContent = String(playlist.total || 0);
+  }
+}
+
+async function loadPlaylistManager(forceRefresh = true) {
+  const loading = document.getElementById('pmLoadingState');
+  const listEl = document.getElementById('pmItemsList');
+  const pidInput = document.getElementById('pmPlaylistIdInput');
+  const rawPid = (pidInput && pidInput.value.trim()) || config.playlist_id || 'PL7E8lrk1ePfZVWMM2vsUkpQ6vbpbHi4G_';
+
+  if (loading) {
+    loading.style.display = 'block';
+    loading.innerHTML = '<div class="spinner"></div><p style="margin-top:10px; color:var(--muted); font-size:13px;">Sincronizando playlist desde YouTube...</p>';
+  }
+  if (listEl) listEl.innerHTML = '';
+
+  try {
+    const url = `/api/youtube/playlist/manage?playlist_id=${encodeURIComponent(rawPid)}&refresh=${forceRefresh ? '1' : '0'}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    updatePmHeaderUI(data.auth, data.playlist);
+
+    if (!data.success) {
+      if (loading) {
+        loading.innerHTML = `
+          <p style="color:var(--accent); margin-bottom:10px;">⚠️ ${escapeHtmlAttr(data.error || 'No se pudo cargar la playlist.')}</p>
+          <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+            <button class="btn btn-accent" onclick="pmLoginGoogle()">🔑 Iniciar sesión de Google</button>
+            <button class="btn" onclick="loadPlaylistManager(true)">🔄 Reintentar</button>
+          </div>
+        `;
+      }
+      return;
+    }
+
+    pmPlaylistData = data.playlist;
+    if (data.playlist.playlistId) {
+      config.playlist_id = data.playlist.playlistId;
+    }
+    if (loading) loading.style.display = 'none';
+    syncMainFondosFromManager(pmPlaylistData);
+    renderPlaylistManagerList();
+  } catch (err) {
+    if (loading) {
+      loading.innerHTML = `
+        <p style="color:var(--accent); margin-bottom:10px;">⚠️ Error de conexión al consultar la playlist.</p>
+        <button class="btn btn-accent" onclick="loadPlaylistManager(true)">🔄 Reintentar</button>
+      `;
+    }
+  }
+}
+
+function renderPlaylistManagerList() {
+  const listEl = document.getElementById('pmItemsList');
+  const loading = document.getElementById('pmLoadingState');
+  if (!listEl || !pmPlaylistData || !Array.isArray(pmPlaylistData.items)) return;
+
+  if (loading) loading.style.display = 'none';
+  const allItems = pmPlaylistData.items;
+  const query = (document.getElementById('pmSearchInput')?.value || '').trim().toLowerCase();
+
+  let filtered = [];
+  if (pmFilterMode === 'editable') {
+    filtered = allItems.filter(it => it.canDelete);
+  } else if (pmFilterMode === 'bottom') {
+    filtered = allItems.slice(Math.max(0, allItems.length - 30));
+  } else {
+    filtered = [...allItems];
+  }
+
+  if (query) {
+    filtered = filtered.filter(it =>
+      (it.title || '').toLowerCase().includes(query) ||
+      (it.channel || '').toLowerCase().includes(query) ||
+      String(it.index).includes(query)
+    );
+  }
+
+  listEl.innerHTML = '';
+
+  if (filtered.length === 0) {
+    const emptyMsg = pmFilterMode === 'editable'
+      ? 'No se encontraron videos agregados por tu cuenta con este filtro. Podés cambiar a "⬇️ Últimos del final" o agregar un nuevo video arriba.'
+      : 'No hay videos que coincidan con la búsqueda.';
+    listEl.innerHTML = `<div style="text-align:center; padding:36px 20px; color:var(--muted); font-size:13px;">${emptyMsg}</div>`;
+    return;
+  }
+
+  const total = allItems.length;
+  const fragment = document.createDocumentFragment();
+
+  filtered.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'pm-item-row ' + (item.canDelete ? 'is-editable' : 'is-locked');
+    row.dataset.setVideoId = item.setVideoId || '';
+
+    const safeTitle = escapeHtmlAttr(item.title || 'Sin título');
+    const safeChannel = escapeHtmlAttr(item.channel || '');
+    const durText = item.duration ? `<span>⏱ ${escapeHtmlAttr(item.duration)}</span>` : '';
+    const statusTag = item.canDelete
+      ? `<span class="pm-mine-tag">★ Agregado por vos / Administrable</span>`
+      : `<span class="pm-locked-tag">🔒 Orden original fijo</span>`;
+
+    let controlsHtml = `
+      <button class="btn" onclick="playVideoByIdFromManager('${escapeHtmlAttr(item.videoId)}')" title="Reproducir este fondo en el Viewer">▶ Probar</button>
+    `;
+
+    if (item.canDelete && item.setVideoId) {
+      const canUp = item.position > 0;
+      const canDown = item.position < total - 1;
+      controlsHtml += `
+        <button class="btn" ${canUp ? '' : 'disabled'} onclick="pmMoveVideo('${escapeHtmlAttr(item.setVideoId)}', ${item.position - 1})" title="Subir 1 posición en YouTube">⬆️</button>
+        <button class="btn" ${canDown ? '' : 'disabled'} onclick="pmMoveVideo('${escapeHtmlAttr(item.setVideoId)}', ${item.position + 1})" title="Bajar 1 posición en YouTube">⬇️</button>
+        <div style="display:inline-flex; align-items:center; gap:4px;" title="Mover manualmente a esta posición exacta (1 a ${total})">
+          <input type="number" class="pm-pos-input" min="1" max="${total}" value="${item.index}" id="pmPos_${escapeHtmlAttr(item.setVideoId)}" onkeydown="if(event.key==='Enter') pmMoveToInputPos('${escapeHtmlAttr(item.setVideoId)}', ${total})">
+          <button class="btn" onclick="pmMoveToInputPos('${escapeHtmlAttr(item.setVideoId)}', ${total})">Mover</button>
+        </div>
+        <button class="btn btn-danger-outline" onclick="pmRemoveVideo('${escapeHtmlAttr(item.setVideoId)}', '${escapeHtmlAttr(item.videoId)}', '${safeTitle}')" title="Borrar este video de la playlist en YouTube">🗑️ Borrar</button>
+      `;
+    }
+
+    row.innerHTML = `
+      <div class="pm-pos-badge" title="Posición actual en la playlist de YouTube">#${item.index}</div>
+      <img class="pm-thumb" src="${escapeHtmlAttr(item.thumb)}" alt="${safeTitle}" loading="lazy" onclick="playVideoByIdFromManager('${escapeHtmlAttr(item.videoId)}')">
+      <div class="pm-info">
+        <div class="pm-item-title" title="${safeTitle}">${safeTitle}</div>
+        <div class="pm-item-meta">
+          ${statusTag}
+          ${safeChannel ? `<span>📺 ${safeChannel}</span>` : ''}
+          ${durText}
+          <span style="opacity:0.6; font-family:'Space Mono',monospace;">ID: ${escapeHtmlAttr(item.videoId)}</span>
+        </div>
+      </div>
+      <div class="pm-controls">
+        ${controlsHtml}
+      </div>
+    `;
+    fragment.appendChild(row);
+  });
+
+  listEl.appendChild(fragment);
+}
+
+function playVideoByIdFromManager(videoId) {
+  const found = (pmPlaylistData?.items || []).find(v => v.videoId === videoId) || videoList.find(v => v.videoId === videoId);
+  if (found) {
+    playVideo({
+      videoId: found.videoId,
+      title: found.title,
+      thumb: found.thumb,
+      duration: found.duration || ''
+    });
+    showToast(`Reproduciendo: ${found.title}`, 'info');
+  }
+}
+
+async function pmChangePlaylist() {
+  const input = document.getElementById('pmPlaylistIdInput');
+  if (!input || !input.value.trim()) {
+    showToast('Ingresá una URL o ID de playlist válido', 'warning');
+    return;
+  }
+  await loadPlaylistManager(true);
+}
+
+async function pmAddVideo() {
+  if (pmBusy) return;
+  const input = document.getElementById('pmAddVideoInput');
+  const videoVal = (input?.value || '').trim();
+  if (!videoVal) {
+    showToast('Pegá el enlace o ID del video de YouTube para agregarlo', 'warning');
+    return;
+  }
+  const pid = document.getElementById('pmPlaylistIdInput')?.value.trim() || config.playlist_id || '';
+  pmBusy = true;
+  const btn = document.getElementById('pmAddVideoBtn');
+  if (btn) btn.disabled = true;
+  showToast('Agregando video al final de la playlist en YouTube… ⏳');
+
+  try {
+    const res = await fetch('/api/youtube/playlist/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playlist_id: pid, video: videoVal })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || 'No se pudo agregar el video', 'error');
+      return;
+    }
+    if (input) input.value = '';
+    pmPlaylistData = data.playlist;
+    updatePmHeaderUI( { authenticated: true }, pmPlaylistData);
+    syncMainFondosFromManager(pmPlaylistData);
+    renderPlaylistManagerList();
+    showToast('¡Video agregado al final de la playlist en YouTube! ✅', 'success');
+  } catch (e) {
+    showToast('Error de red al agregar el video', 'error');
+  } finally {
+    pmBusy = false;
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function pmRemoveVideo(setVideoId, videoId, title) {
+  if (pmBusy) return;
+  if (!confirm(`¿Seguro que querés borrar "${title}" de la playlist de YouTube?`)) {
+    return;
+  }
+  const pid = document.getElementById('pmPlaylistIdInput')?.value.trim() || config.playlist_id || '';
+  pmBusy = true;
+  showToast('Borrando video de la playlist en YouTube… 🗑️');
+
+  try {
+    const res = await fetch('/api/youtube/playlist/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playlist_id: pid, set_video_id: setVideoId, video_id: videoId })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || 'No se pudo borrar el video', 'error');
+      return;
+    }
+    pmPlaylistData = data.playlist;
+    updatePmHeaderUI({ authenticated: true }, pmPlaylistData);
+    syncMainFondosFromManager(pmPlaylistData);
+    renderPlaylistManagerList();
+    showToast('Video eliminado de la playlist en YouTube ✅', 'success');
+  } catch (e) {
+    showToast('Error al borrar el video de la playlist', 'error');
+  } finally {
+    pmBusy = false;
+  }
+}
+
+function pmMoveToInputPos(setVideoId, total) {
+  const input = document.getElementById(`pmPos_${setVideoId}`);
+  if (!input) return;
+  const targetIndex = parseInt(input.value, 10);
+  if (isNaN(targetIndex) || targetIndex < 1 || targetIndex > total) {
+    showToast(`Ingresá una posición válida entre 1 y ${total}`, 'warning');
+    return;
+  }
+  pmMoveVideo(setVideoId, targetIndex - 1);
+}
+
+async function pmMoveVideo(setVideoId, newPositionZeroBased) {
+  if (pmBusy) return;
+  const pid = document.getElementById('pmPlaylistIdInput')?.value.trim() || config.playlist_id || '';
+  pmBusy = true;
+  showToast(`Moviendo video a la posición #${newPositionZeroBased + 1} en YouTube… ⏳`);
+
+  try {
+    const res = await fetch('/api/youtube/playlist/move', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playlist_id: pid,
+        set_video_id: setVideoId,
+        new_position: newPositionZeroBased
+      })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || 'No se pudo mover el video', 'error');
+      return;
+    }
+    pmPlaylistData = data.playlist;
+    updatePmHeaderUI({ authenticated: true }, pmPlaylistData);
+    syncMainFondosFromManager(pmPlaylistData);
+    renderPlaylistManagerList();
+    showToast(`Posición actualizada a #${data.newIndex} en YouTube ✅`, 'success');
+  } catch (e) {
+    showToast('Error de red al mover el video', 'error');
+  } finally {
+    pmBusy = false;
+  }
+}
+
+async function pmLoginGoogle() {
+  showToast('Abriendo inicio de sesión de Google… 🔑', 'info', 5000);
+  try {
+    const res = await fetch('/api/youtube/playlist/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('¡Sesión de Google vinculada correctamente! 🎉', 'success');
+      loadPlaylistManager(true);
+    } else {
+      showToast('No se detectó sesión activa tras cerrar la ventana', 'warning');
+    }
+  } catch (e) {
+    showToast('Error al iniciar sesión de Google', 'error');
+  }
+}
+
+
 
 
 // ─── 4. YOUTUBE LIVE MONITOR LOGIC ───
