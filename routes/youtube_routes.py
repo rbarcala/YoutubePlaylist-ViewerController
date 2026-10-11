@@ -461,9 +461,11 @@ def _extract_video_info_with_fallback(video_id: str) -> dict:
         'no_warnings': True,
         'noplaylist': True,
         'logger': _SilentYtdlLogger(),
+        'js_runtimes': {'node': {}},
+        'remote_components': ['ejs:github'],
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'web']
+                'player_client': ['web_embedded', 'android', 'android_vr', 'web']
             }
         },
     }
@@ -479,6 +481,11 @@ def _extract_video_info_with_fallback(video_id: str) -> dict:
             'cookiefile': cookie_file,
             'js_runtimes': {'node': {}},
             'remote_components': ['ejs:github'],
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['mweb', 'web_embedded', 'web']
+                }
+            },
             'quiet': True,
             'no_warnings': True,
             'noplaylist': True,
@@ -492,7 +499,8 @@ def _extract_video_info_with_fallback(video_id: str) -> dict:
 def get_video_url():
     video_id = request.args.get('v')
     playback_mode = request.args.get('mode', 'stream')
-    fresh = request.args.get('fresh') == '1'
+    force_combined = request.args.get('fallback') == 'combined'
+    fresh = request.args.get('fresh') == '1' or force_combined
 
     if not video_id:
         return jsonify({'error': 'Parámetro v requerido'}), 400
@@ -529,33 +537,77 @@ def get_video_url():
         http_fmts = [f for f in all_fmts if f.get('protocol') in ('https', 'http')]
         candidate_fmts = http_fmts if http_fmts else all_fmts
 
-        # Preferir el mejor formato combinado (con video y audio) directo HTTP hasta 1080p
+        # Filtrar formatos combinados que no sean c=ANDROID_VR (ANDROID_VR bloquea format 18 con 403)
         combined_fmts = [
             f for f in candidate_fmts
-            if f.get('vcodec') not in (None, 'none') and f.get('acodec') not in (None, 'none')
+            if f.get('vcodec') not in (None, 'none')
+            and f.get('acodec') not in (None, 'none')
+            and 'c=ANDROID_VR' not in f.get('url', '')
         ]
-        if combined_fmts:
-            le_1080 = [f for f in combined_fmts if (f.get('height') or 0) <= 1080]
-            chosen = max(le_1080 or combined_fmts, key=lambda f: (f.get('height') or 0, f.get('tbr') or 0))
-            video_url = chosen.get('url')
-            combined_audio = True
+        if not combined_fmts:
+            combined_fmts = [
+                f for f in candidate_fmts
+                if f.get('vcodec') not in (None, 'none') and f.get('acodec') not in (None, 'none')
+            ]
 
-        if not video_url:
-            video_fmts = [
-                f for f in candidate_fmts
-                if f.get('vcodec') not in (None, 'none') and f.get('acodec') in (None, 'none')
-            ]
-            audio_fmts = [
-                f for f in candidate_fmts
-                if f.get('vcodec') in (None, 'none') and f.get('acodec') not in (None, 'none')
-            ]
-            if video_fmts:
-                le_1080_v = [f for f in video_fmts if (f.get('height') or 0) <= 1080]
-                chosen_v = max(le_1080_v or video_fmts, key=lambda f: (f.get('height') or 0, f.get('tbr') or 0))
-                video_url = chosen_v.get('url')
-            if audio_fmts:
-                chosen_a = max(audio_fmts, key=lambda f: (f.get('abr') or 0, f.get('tbr') or 0))
-                audio_url = chosen_a.get('url')
+        video_fmts = [
+            f for f in candidate_fmts
+            if f.get('vcodec') not in (None, 'none') and f.get('acodec') in (None, 'none')
+        ]
+        # Las pistas de solo audio de ANDROID_VR dan HTTP 403 al superar 1 MB en videos largos
+        audio_fmts = [
+            f for f in candidate_fmts
+            if f.get('vcodec') in (None, 'none')
+            and f.get('acodec') not in (None, 'none')
+            and 'c=ANDROID_VR' not in f.get('url', '')
+        ]
+
+        chosen_combined = None
+        if combined_fmts:
+            le_1080_c = [f for f in combined_fmts if (f.get('height') or 0) <= 1080]
+            chosen_combined = max(
+                le_1080_c or combined_fmts,
+                key=lambda f: (f.get('height') or 0, f.get('tbr') or 0)
+            )
+
+        chosen_v = None
+        if video_fmts:
+            le_1080_v = [f for f in video_fmts if (f.get('height') or 0) <= 1080]
+            chosen_v = max(
+                le_1080_v or video_fmts,
+                key=lambda f: (
+                    f.get('height') or 0,
+                    1 if str(f.get('vcodec', '')).startswith('avc1') else 0,
+                    f.get('tbr') or 0
+                )
+            )
+
+        chosen_a = None
+        if audio_fmts:
+            chosen_a = max(
+                audio_fmts,
+                key=lambda f: (
+                    1 if f.get('ext') in ('m4a', 'mp4') else 0,
+                    f.get('abr') or 0,
+                    f.get('tbr') or 0
+                )
+            )
+
+        # Si no hay pista de audio libre del límite de 1 MB de ANDROID_VR, usar chosen_combined (c=ANDROID) como fuente de audio
+        best_audio_url = chosen_a.get('url') if chosen_a else (chosen_combined.get('url') if chosen_combined else None)
+
+        # Preferir alta calidad (1080p/720p DASH video + audio) salvo que se pida fallback=combined
+        if not force_combined and chosen_v and best_audio_url and (chosen_v.get('height') or 0) > (chosen_combined.get('height') or 0 if chosen_combined else 0):
+            video_url = chosen_v.get('url')
+            audio_url = best_audio_url
+            combined_audio = False
+        elif chosen_combined:
+            video_url = chosen_combined.get('url')
+            combined_audio = True
+        elif chosen_v:
+            video_url = chosen_v.get('url')
+            audio_url = best_audio_url
+            combined_audio = not bool(audio_url)
 
         if not video_url:
             return jsonify({'error': 'No se encontró formato de video válido'}), 500
@@ -578,16 +630,22 @@ def get_video_url():
         else:
             cache_until = now + 1500
 
+        def _proxify_media(u):
+            if not u or u.startswith('/'):
+                return u
+            return '/api/youtube/stream_proxy?u=' + urllib.parse.quote(u, safe='')
+
         result = {
-            'video_url': video_url,
-            'audio_url': audio_url,
+            'video_url': _proxify_media(video_url),
+            'audio_url': _proxify_media(audio_url) if audio_url else None,
             'combined_audio': combined_audio,
             'expires_at': int(cache_until + 180)
         }
 
-        _video_url_cache[video_id] = (result, cache_until)
-        if video_manager and hasattr(video_manager, 'video_url_cache'):
-            video_manager.video_url_cache[video_id] = (result, cache_until)
+        if not force_combined:
+            _video_url_cache[video_id] = (result, cache_until)
+            if video_manager and hasattr(video_manager, 'video_url_cache'):
+                video_manager.video_url_cache[video_id] = (result, cache_until)
 
         if playback_mode in ('cache', 'adaptive') and video_manager:
             video_manager.queue_download(video_id)
@@ -595,6 +653,127 @@ def get_video_url():
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@youtube_bp.route('/api/youtube/stream_proxy')
+def youtube_stream_proxy():
+    """
+    Proxy de streaming HTTP para pistas DASH de YouTube (1080p/720p).
+    googlevideo.com rechaza 'Range: bytes=0-' abiertos o >1MB en audio con HTTP 403,
+    pero acepta bloques acotados de hasta 1 MB ('Range: bytes=start-end') con HTTP 206.
+    """
+    target = request.args.get('u', '')
+    if not _hls_host_allowed(target):
+        return jsonify({'error': 'Host no permitido'}), 403
+
+    import requests
+    qs = urllib.parse.parse_qs(urllib.parse.urlparse(target).query)
+    clen_str = qs.get('clen', [None])[0]
+    total_len = int(clen_str) if (clen_str and clen_str.isdigit()) else None
+
+    range_hdr = request.headers.get('Range', '')
+    start = 0
+    req_end = None
+    m = re.match(r'bytes=(\d+)-(\d*)', range_hdr)
+    if m:
+        start = int(m.group(1))
+        if m.group(2):
+            req_end = int(m.group(2))
+
+    slice_size = 1024 * 1024  # 1 MB: aceptado tanto por video como por audio en googlevideo
+    first_end = start + slice_size - 1
+    if req_end is not None:
+        first_end = min(first_end, req_end)
+    if total_len:
+        first_end = min(first_end, max(start, total_len - 1))
+
+    sess = requests.Session()
+    sess.headers.update({'User-Agent': _HLS_UA['User-Agent']})
+
+    try:
+        first_resp = sess.get(
+            target,
+            headers={'Range': f'bytes={start}-{first_end}'},
+            stream=True,
+            timeout=(5, 20),
+        )
+        if first_resp.status_code == 403:
+            first_resp.close()
+            fallback_hdrs = {'Range': range_hdr} if range_hdr else {}
+            first_resp = sess.get(target, headers=fallback_hdrs, stream=True, timeout=(5, 20))
+    except Exception as e:
+        sess.close()
+        return jsonify({'error': str(e)}), 502
+
+    if first_resp.status_code not in (200, 206):
+        code = first_resp.status_code
+        first_resp.close()
+        sess.close()
+        return jsonify({'error': f'HTTP {code}'}), 502
+
+    # Extraer tamaño total real desde Content-Range: bytes start-end/total
+    cr = first_resp.headers.get('Content-Range', '')
+    cr_match = re.search(r'bytes\s+(\d+)-(\d+)/(\d+)', cr)
+    if cr_match:
+        actual_first_end = int(cr_match.group(2))
+        total_len = int(cr_match.group(3))
+    else:
+        actual_first_end = first_end
+
+    if total_len:
+        final_end = min(req_end, total_len - 1) if req_end is not None else (total_len - 1)
+    else:
+        final_end = actual_first_end
+
+    content_type = first_resp.headers.get('Content-Type', 'video/mp4')
+    resp_headers = {
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'no-cache',
+    }
+    if total_len and first_resp.status_code == 206:
+        resp_headers['Content-Range'] = f'bytes {start}-{final_end}/{total_len}'
+        resp_headers['Content-Length'] = str(final_end - start + 1)
+    elif 'Content-Length' in first_resp.headers:
+        resp_headers['Content-Length'] = first_resp.headers['Content-Length']
+
+    def generate():
+        cur_resp = first_resp
+        cur_pos = actual_first_end + 1
+        try:
+            for chunk in cur_resp.iter_content(65536):
+                if chunk:
+                    yield chunk
+            cur_resp.close()
+
+            while total_len and cur_pos <= final_end:
+                nxt_end = min(cur_pos + slice_size - 1, final_end)
+                cur_resp = sess.get(
+                    target,
+                    headers={'Range': f'bytes={cur_pos}-{nxt_end}'},
+                    stream=True,
+                    timeout=(5, 20),
+                )
+                if cur_resp.status_code not in (200, 206):
+                    cur_resp.close()
+                    break
+                for chunk in cur_resp.iter_content(65536):
+                    if chunk:
+                        yield chunk
+                cur_resp.close()
+                cur_pos = nxt_end + 1
+        finally:
+            try:
+                cur_resp.close()
+            except Exception:
+                pass
+            sess.close()
+
+    return Response(
+        generate(),
+        status=first_resp.status_code,
+        content_type=content_type,
+        headers=resp_headers,
+    )
 
 
 # ─── PROXY HLS DEL DIRECTO ───

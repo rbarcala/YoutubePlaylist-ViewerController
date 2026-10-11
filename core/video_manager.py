@@ -52,13 +52,14 @@ class VideoManager:
                 
                 output_template = str(self.cache_dir / f'{video_id}.%(ext)s')
                 url = f'https://www.youtube.com/watch?v={video_id}'
+                fmt_spec = 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best[height<=1080]/best'
                 opts = {
-                    'format': 'best[height<=1080][ext=mp4]/best[height<=1080]/best',
+                    'format': fmt_spec,
                     'outtmpl': output_template,
                     'merge_output_format': 'mp4',
                     'extractor_args': {
                         'youtube': {
-                            'player_client': ['android', 'web']
+                            'player_client': ['android', 'android_vr', 'web']
                         }
                     },
                     'quiet': True,
@@ -75,12 +76,17 @@ class VideoManager:
                     cookiefile = get_youtube_cookiefile()
                     if cookiefile:
                         auth_opts = {
-                            'format': 'best[height<=1080][ext=mp4]/best[height<=1080]/best',
+                            'format': fmt_spec,
                             'outtmpl': output_template,
                             'merge_output_format': 'mp4',
                             'cookiefile': cookiefile,
                             'js_runtimes': {'node': {}},
                             'remote_components': ['ejs:github'],
+                            'extractor_args': {
+                                'youtube': {
+                                    'player_client': ['mweb', 'web']
+                                }
+                            },
                             'quiet': True,
                             'no_warnings': True,
                             'noplaylist': True,

@@ -244,20 +244,15 @@ async function playVideo(videoId, title = "") {
       };
 
       audio.onerror = () => {
-        if (!usesCombinedMedia && !audioFallbackRequested) {
-          switchToCombinedMedia();
-        }
+        // Nunca degradar el video 1080p a 360p si falla solo la pista secundaria de audio
+        console.warn('[viewer] Error en pista secundaria de audio; manteniendo video en alta calidad.');
       };
 
-      // Watchdog de seguridad si la red tarda
+      // Watchdog de seguridad si la red tarda (sin degradar resolución a 360p)
       setTimeout(() => {
         if (loadingOverlay.classList.contains('active') && currentPlayingId === videoId) {
-          if (!usesCombinedMedia) {
-            switchToCombinedMedia();
-          } else {
-            loadingOverlay.classList.remove('active');
-            startVideoPlayback();
-          }
+          loadingOverlay.classList.remove('active');
+          startVideoPlayback();
         }
       }, 5000);
 
