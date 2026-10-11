@@ -401,11 +401,11 @@
         lyricsText.style.overflow = 'visible';
         lyricsText.style.whiteSpace = 'normal';
     } else if (mode === 'marquee') {
-        // Las frases que no entran en el recuadro se parten en varias filas (en vez de recortarse)
+        // Las frases ocupan todo el ancho útil del recuadro para que solo entre una frase por vez
         const cstyle = getComputedStyle(lyricsEl);
         const maxLineW = Math.max(80, lyricsEl.clientWidth - (parseFloat(cstyle.paddingLeft) || 0) - (parseFloat(cstyle.paddingRight) || 0));
         if (lyricsText.children.length !== currentSyncedLyrics.length || !lyricsText.classList.contains('mode-marquee') || lyricsText.dataset.maxW !== String(maxLineW)) {
-            lyricsText.innerHTML = currentSyncedLyrics.map((c, i) => `<div class="lyric-line-h" id="lyr-${i}" style="max-width:${maxLineW}px;">${c.text}</div>`).join('');
+            lyricsText.innerHTML = currentSyncedLyrics.map((c, i) => `<div class="lyric-line-h" id="lyr-${i}" style="width:${maxLineW}px; max-width:${maxLineW}px;">${c.text}</div>`).join('');
             lyricsText.className = 'lyrics-text mode-marquee';
             lyricsText.style.overflow = 'visible';
             lyricsText.dataset.maxW = String(maxLineW);
@@ -441,6 +441,7 @@
     }
 
     const lines = Array.from(lyricsText.children);
+    const vertical = mode !== 'marquee';
 
     lines.forEach((line, i) => {
         if (i === activeIdx) {
@@ -450,12 +451,11 @@
         } else {
             line.classList.remove('active');
             line.style.color = '';
-            line.style.opacity = '0.4';
+            // En marquesina horizontal solo se muestra una frase por vez
+            line.style.opacity = vertical ? '0.4' : '0';
         }
     });
     if (!lines.length) return true;
-
-    const vertical = mode !== 'marquee';
     // Las posiciones de las líneas son relativas al área de contenido (sin padding): centrar ahí
     const pst = getComputedStyle(lyricsEl);
     const pad = (k) => parseFloat(pst[k]) || 0;

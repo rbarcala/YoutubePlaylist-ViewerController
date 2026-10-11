@@ -222,10 +222,10 @@
   .lyric-line-h {
     white-space: normal;
     width: max-content;
-    text-align: left;
+    text-align: center;
     flex: 0 0 auto;
     transition: all 0.3s ease;
-    opacity: 0.4;
+    opacity: 0;
   }
   .lyric-line-h.active {
     opacity: 1;
