@@ -4,7 +4,7 @@ APP_NAME := youtube-stream-controller
 VERSION := 1.0.0
 PREFIX ?= $(HOME)/.local
 
-.PHONY: help install install-deb uninstall run run-web viewer release clean setup-obs test test-live
+.PHONY: help install install-deb uninstall run run-web run-playlist viewer release clean setup-obs test test-live
 
 help:
 	@echo "================================================================="
@@ -15,6 +15,7 @@ help:
 	@echo "  make setup-obs     -> Vincula OBS (WebSocket) e inyecta la capa de Overlay"
 	@echo "  make run           -> Inicia la aplicación Controller nativa de escritorio"
 	@echo "  make run-web       -> Inicia el Controller en modo navegador web"
+	@echo "  make run-playlist  -> Ejecuta el gestor/ordenador de playlists (playlist.py)"
 	@echo "  make viewer        -> Abre directamente la pantalla de fondo (Viewer)"
 	@echo "  make release       -> Compila los paquetes instalables (.deb y .apk)"
 	@echo "  make install-deb   -> Instala el paquete .deb del sistema (requiere sudo)"
@@ -91,6 +92,14 @@ run:
 # Ejecutar en modo navegador web
 run-web:
 	@./bin/$(APP_NAME) --mode web
+
+# Ejecutar gestor y ordenador de playlists de YouTube
+run-playlist:
+	@if [ -d "venv" ]; then \
+		venv/bin/python playlist.py $(ARGS); \
+	else \
+		python3 playlist.py $(ARGS); \
+	fi
 
 # Abrir el viewer
 viewer:
