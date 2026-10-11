@@ -409,7 +409,10 @@ async function startLiveHls(container, videoId, title) {
   video.addEventListener('playing', () => { if (currentLiveVideoId === videoId) removeLiveFallback(); });
 }
 
-async function loadLiveData() {
+let isRefreshingLive = false;
+let lastLiveRefreshTime = 0;
+
+async function loadLiveData(force = false) {
   const container = document.getElementById('liveVideoContainer');
   const badge = document.getElementById('liveBadgeStatus');
   const title = document.getElementById('liveTitleText');
@@ -419,8 +422,18 @@ async function loadLiveData() {
 
   updateLiveMuteButton();
 
+  const now = Date.now();
+  if (isRefreshingLive && !force) return;
+  if (force && (now - lastLiveRefreshTime < 3000)) {
+    showToast('Esperá unos segundos antes de volver a consultar ⏳');
+    return;
+  }
+  isRefreshingLive = true;
+  lastLiveRefreshTime = now;
+
   try {
-    const res = await fetch('/api/youtube/live');
+    const url = force ? '/api/youtube/live?force=1' : '/api/youtube/live';
+    const res = await fetch(url);
     const data = await res.json();
 
     if (data.is_live && data.video_id) {
@@ -454,6 +467,7 @@ async function loadLiveData() {
     } else {
       currentLiveVideoId = '';
       destroyLiveHls();
+      removeLiveFallback();
       if (muteBtn) muteBtn.style.display = 'none';
       if (shareBar) shareBar.style.display = 'none';
       badge.textContent = '⏸️ SIN DIRECTO ACTIVO';
@@ -466,7 +480,10 @@ async function loadLiveData() {
         </div>
       `;
     }
-  } catch(e) {}
+  } catch(e) {
+  } finally {
+    isRefreshingLive = false;
+  }
 }
 
 function copyLiveStreamLink() {
@@ -544,6 +561,6 @@ function toggleLiveMute() {
 function refreshLiveStream() {
   currentLiveVideoId = '';
   showToast('Actualizando monitor de directo...');
-  loadLiveData();
+  loadLiveData(true);
 }
 

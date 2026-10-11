@@ -182,72 +182,268 @@ def get_youtube_playlist():
         return jsonify({'success': False, 'videos': [], 'items': [], 'error': str(e)})
 
 
+class _SilentYtdlLogger:
+    def debug(self, msg): pass
+    def info(self, msg): pass
+    def warning(self, msg): pass
+    def error(self, msg): pass
+
+# Cache de resolución de handles a channel_id: handle -> (channel_id, channel_title)
+_channel_id_cache = {}
+
+# Cache de estado en vivo para evitar saturar endpoints
+_live_status_cache = {
+    'channel': None,
+    'data': None,
+    'expires_at': 0,
+    'last_check_ts': 0,
+}
+
+# Timestamp hasta el cual pausamos llamadas a la API de YouTube si devolvió 429 / cuota excedida
+_api_quota_cooldown_until = 0
+
+
 @youtube_bp.route('/api/youtube/live')
 def youtube_live():
+    global _api_quota_cooldown_until, _live_status_cache
     cfg = load_config() if load_config else {}
     raw_channel = (cfg.get('youtube_channel_id', '') or '').strip()
     api_key = cfg.get('youtube_api_key', '')
 
     if not raw_channel or not api_key:
-        return jsonify({'is_live': False, 'live': None, 'error': 'Canal o API Key no configurados', 'message': 'Configura tu canal de YouTube en Ajustes'})
+        return jsonify({
+            'is_live': False,
+            'live': None,
+            'error': 'Canal o API Key no configurados',
+            'message': 'Configura tu canal de YouTube en Ajustes'
+        })
 
+    force = request.args.get('force') == '1'
+    now = time.time()
+
+    # 1. Servir desde caché si sigue vigente o si se forzó muy rápido (anti-spam)
+    if _live_status_cache['data'] and _live_status_cache['channel'] == raw_channel:
+        if not force and now < _live_status_cache['expires_at']:
+            return jsonify(_live_status_cache['data'])
+        if force and (now - _live_status_cache['last_check_ts']) < 3:
+            return jsonify(_live_status_cache['data'])
+
+    # 2. Resolución de channel_id y channel_title (con caché en memoria)
     channel_id = raw_channel
     channel_title = ''
 
-    # Si el usuario ingresó un handle (ej. @ramaafb o ramaafb) o URL de canal
-    if raw_channel.startswith('@') or (not raw_channel.startswith('UC') and len(raw_channel) != 24):
+    if raw_channel in _channel_id_cache:
+        channel_id, channel_title = _channel_id_cache[raw_channel]
+    elif raw_channel.startswith('UC') and len(raw_channel) == 24:
+        channel_id = raw_channel
+        channel_title = ''
+        _channel_id_cache[raw_channel] = (channel_id, channel_title)
+    else:
         clean_handle = raw_channel.lstrip('@').split('/')[-1]
-        try:
-            h_params = {
-                'part': 'id,snippet',
-                'forHandle': clean_handle,
+        resolved = False
+
+        # Intentar con API de YouTube solo si no estamos en enfriamiento por 429
+        if now >= _api_quota_cooldown_until and api_key:
+            try:
+                h_params = {
+                    'part': 'id,snippet',
+                    'forHandle': clean_handle,
+                    'key': api_key
+                }
+                h_url = f"https://www.googleapis.com/youtube/v3/channels?{urllib.parse.urlencode(h_params)}"
+                with urllib.request.urlopen(h_url, timeout=5) as response:
+                    h_data = json.loads(response.read().decode())
+                    if h_data.get('items'):
+                        channel_id = h_data['items'][0].get('id', raw_channel)
+                        channel_title = h_data['items'][0].get('snippet', {}).get('title', '')
+                        _channel_id_cache[raw_channel] = (channel_id, channel_title)
+                        resolved = True
+            except urllib.error.HTTPError as h_err:
+                if h_err.code == 429:
+                    _api_quota_cooldown_until = now + 300
+                    print(f"[youtube] API rate limit (429) al resolver handle: {h_err}")
+            except Exception as h_err:
+                print(f"[youtube] Error resolviendo handle con API: {h_err}")
+
+        # Fallback a yt-dlp para resolver handle sin consumir cuota
+        if not resolved:
+            try:
+                import yt_dlp
+                ydl_opts = {
+                    'extract_flat': True,
+                    'quiet': True,
+                    'no_warnings': True,
+                    'logger': _SilentYtdlLogger()
+                }
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(f"https://www.youtube.com/@{clean_handle}", download=False)
+                    channel_id = info.get('channel_id') or info.get('id') or raw_channel
+                    channel_title = info.get('channel') or ''
+                    _channel_id_cache[raw_channel] = (channel_id, channel_title)
+            except Exception as yt_err:
+                print(f"[youtube] Error resolviendo handle con yt-dlp: {yt_err}")
+                channel_id = raw_channel
+
+    # 3. Verificación de transmisión en vivo
+    res_data = None
+    ytdlp_success = False
+
+    # A) Verificación en tiempo real y sin cuota mediante yt-dlp sobre canonical /live
+    try:
+        import yt_dlp
+        target_url = (f"https://www.youtube.com/channel/{channel_id}/live"
+                      if channel_id.startswith('UC')
+                      else f"https://www.youtube.com/@{raw_channel.lstrip('@')}/live")
+        ydl_opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+            'logger': _SilentYtdlLogger()
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(target_url, download=False)
+            vid = info.get('id')
+            title = info.get('title') or 'Transmisión activa'
+            is_live = bool(info.get('is_live'))
+            was_live = bool(info.get('was_live'))
+            ytdlp_success = True
+
+            if vid and is_live and not was_live:
+                res_data = {
+                    'is_live': True,
+                    'video_id': vid,
+                    'title': title,
+                    'channel_title': channel_title,
+                    'channel_id': channel_id,
+                    'live': {'videoId': vid}
+                }
+            else:
+                res_data = {
+                    'is_live': False,
+                    'live': None,
+                    'channel_id': channel_id,
+                    'channel_title': channel_title,
+                    'message': f'Canal {channel_title or raw_channel}: no hay transmisión en vivo activa en este momento.'
+                }
+    except Exception as yt_err:
+        err_msg = str(yt_err).lower()
+        if 'not currently live' in err_msg or 'is not currently live' in err_msg:
+            ytdlp_success = True
+            res_data = {
+                'is_live': False,
+                'live': None,
+                'channel_id': channel_id,
+                'channel_title': channel_title,
+                'message': f'Canal {channel_title or raw_channel} detectado. No hay transmisión en vivo activa en este momento.'
+            }
+        else:
+            print(f"[youtube] yt-dlp live check fallback: {yt_err}")
+
+    # B) Fallback a YouTube Data API si yt-dlp falló y no estamos en cooldown por 429
+    if not ytdlp_success:
+        if now < _api_quota_cooldown_until:
+            res_data = {
+                'is_live': False,
+                'live': None,
+                'channel_id': channel_id,
+                'channel_title': channel_title,
+                'message': f'Canal {channel_title or raw_channel}: pausa temporal de consultas a YouTube (límite de peticiones).'
+            }
+        else:
+            params = {
+                'part': 'snippet',
+                'channelId': channel_id,
+                'eventType': 'live',
+                'type': 'video',
                 'key': api_key
             }
-            h_url = f"https://www.googleapis.com/youtube/v3/channels?{urllib.parse.urlencode(h_params)}"
-            with urllib.request.urlopen(h_url, timeout=6) as response:
-                h_data = json.loads(response.read().decode())
-                if h_data.get('items'):
-                    channel_id = h_data['items'][0].get('id', raw_channel)
-                    channel_title = h_data['items'][0].get('snippet', {}).get('title', '')
-        except Exception as h_err:
-            print(f"[youtube] Error resolviendo handle de canal: {h_err}")
+            url = f'https://www.googleapis.com/youtube/v3/search?{urllib.parse.urlencode(params)}'
+            try:
+                with urllib.request.urlopen(url, timeout=8) as response:
+                    data = json.loads(response.read().decode())
 
-    params = {
-        'part': 'snippet',
-        'channelId': channel_id,
-        'eventType': 'live',
-        'type': 'video',
-        'key': api_key
+                items = data.get('items', [])
+                if items:
+                    video_id = items[0].get('id', {}).get('videoId')
+                    live_title = items[0].get('snippet', {}).get('title', 'Transmisión activa')
+                    if video_id:
+                        # Verificación estricta con videos.list
+                        try:
+                            v_params = {
+                                'part': 'snippet,liveStreamingDetails',
+                                'id': video_id,
+                                'key': api_key
+                            }
+                            v_url = f"https://www.googleapis.com/youtube/v3/videos?{urllib.parse.urlencode(v_params)}"
+                            with urllib.request.urlopen(v_url, timeout=5) as v_resp:
+                                v_data = json.loads(v_resp.read().decode())
+                            v_items = v_data.get('items', [])
+                            if v_items:
+                                v_item = v_items[0]
+                                live_details = v_item.get('liveStreamingDetails', {})
+                                snippet = v_item.get('snippet', {})
+                                live_content = snippet.get('liveBroadcastContent', '')
+
+                                if live_details.get('actualEndTime') or live_content != 'live':
+                                    res_data = {
+                                        'is_live': False,
+                                        'live': None,
+                                        'channel_id': channel_id,
+                                        'channel_title': channel_title,
+                                        'message': f'Canal {channel_title or raw_channel}: la última transmisión ya finalizó.'
+                                    }
+                                else:
+                                    live_title = snippet.get('title') or live_title
+                        except Exception as v_err:
+                            print(f"[youtube] Error verificando estado con videos.list: {v_err}")
+
+                        if not res_data:
+                            res_data = {
+                                'is_live': True,
+                                'video_id': video_id,
+                                'title': live_title,
+                                'channel_title': channel_title,
+                                'channel_id': channel_id,
+                                'live': {'videoId': video_id}
+                            }
+                if not res_data:
+                    res_data = {
+                        'is_live': False,
+                        'live': None,
+                        'channel_id': channel_id,
+                        'channel_title': channel_title,
+                        'message': f'Canal {channel_title or raw_channel} detectado. No hay transmisión en vivo activa en este momento.'
+                    }
+            except urllib.error.HTTPError as http_err:
+                if http_err.code == 429:
+                    _api_quota_cooldown_until = now + 300
+                    print(f"[youtube] API rate limit (429) alcanzado en live search: {http_err}")
+                res_data = {
+                    'is_live': False,
+                    'live': None,
+                    'channel_id': channel_id,
+                    'channel_title': channel_title,
+                    'message': f'Canal {channel_title or raw_channel}: límite de consultas de YouTube alcanzado temporalmente. Se reintentará en breve.'
+                }
+            except Exception as e:
+                res_data = {
+                    'is_live': False,
+                    'live': None,
+                    'channel_id': channel_id,
+                    'channel_title': channel_title,
+                    'message': f'Canal {channel_title or raw_channel}: no se pudo conectar con YouTube ({e}).'
+                }
+
+    # 4. Guardar en caché y retornar
+    ttl = 30 if (res_data and res_data.get('is_live')) else 45
+    _live_status_cache = {
+        'channel': raw_channel,
+        'data': res_data,
+        'expires_at': now + ttl,
+        'last_check_ts': now,
     }
-    url = f'https://www.googleapis.com/youtube/v3/search?{urllib.parse.urlencode(params)}'
 
-    try:
-        with urllib.request.urlopen(url, timeout=10) as response:
-            data = json.loads(response.read().decode())
-    except Exception as e:
-        return jsonify({'is_live': False, 'live': None, 'error': str(e), 'channel_id': channel_id, 'message': f'Error al consultar YouTube: {e}'})
-
-    items = data.get('items', [])
-    if items:
-        video_id = items[0].get('id', {}).get('videoId')
-        live_title = items[0].get('snippet', {}).get('title', 'Transmisión activa')
-        if video_id:
-            return jsonify({
-                'is_live': True,
-                'video_id': video_id,
-                'title': live_title,
-                'channel_title': channel_title,
-                'channel_id': channel_id,
-                'live': {'videoId': video_id}
-            })
-
-    return jsonify({
-        'is_live': False,
-        'live': None,
-        'channel_id': channel_id,
-        'channel_title': channel_title,
-        'message': f'Canal {channel_title or raw_channel} detectado. No hay transmisión en vivo activa en este momento.'
-    })
+    return jsonify(res_data)
 
 
 @youtube_bp.route('/api/get_video_url')
