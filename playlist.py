@@ -99,8 +99,8 @@ def main():
         target = next((it for it in details["items"] if it["index"] == from_pos), None)
         if not target:
             sys.exit(f"[!] No existe ningún video en la posición #{from_pos}.")
-        if not target.get("canDelete"):
-            sys.exit(f"[!] Solo podés administrar los videos agregados por vos (#{from_pos} está fijo).")
+        if not (target.get("canMove") or target.get("canDelete")):
+            sys.exit(f"[!] No tenés permisos para mover el video en la posición #{from_pos}.")
         res = mgr.move_video(pid, target["setVideoId"], to_pos - 1)
         print(f"[✓] Video '{target['title']}' movido manualmente a la posición #{res['newIndex']}.")
         print_editable_videos(res["playlist"])

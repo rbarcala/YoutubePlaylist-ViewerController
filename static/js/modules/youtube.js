@@ -216,12 +216,19 @@ function scrollToBottomFondos() {
   const pmPanel = document.getElementById('playlistManagerPanel');
   if (pmPanel && pmPanel.style.display !== 'none') {
     const pmList = document.getElementById('pmListContainer');
-    if (pmList) pmList.scrollTo({ top: pmList.scrollHeight, behavior: 'smooth' });
+    if (pmList) {
+      pmList.scrollTop = pmList.scrollHeight;
+      requestAnimationFrame(() => { pmList.scrollTop = pmList.scrollHeight; });
+    }
     return;
   }
   const container = document.getElementById('fondosScrollContent');
   if (container) {
-    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    container.scrollTop = container.scrollHeight;
+    requestAnimationFrame(() => {
+      container.scrollTop = container.scrollHeight;
+      setTimeout(() => { container.scrollTop = container.scrollHeight; }, 60);
+    });
   }
 }
 
@@ -362,10 +369,13 @@ async function loadPlaylistManager(forceRefresh = true) {
   }
 }
 
-function renderPlaylistManagerList() {
+function renderPlaylistManagerList(highlightSetId = '') {
   const listEl = document.getElementById('pmItemsList');
+  const listContainer = document.getElementById('pmListContainer');
   const loading = document.getElementById('pmLoadingState');
   if (!listEl || !pmPlaylistData || !Array.isArray(pmPlaylistData.items)) return;
+
+  const prevScrollTop = listContainer ? listContainer.scrollTop : 0;
 
   if (loading) loading.style.display = 'none';
   const allItems = pmPlaylistData.items;
@@ -392,7 +402,7 @@ function renderPlaylistManagerList() {
 
   if (filtered.length === 0) {
     const emptyMsg = pmFilterMode === 'editable'
-      ? 'No se encontraron videos agregados por tu cuenta con este filtro. Podés cambiar a "⬇️ Últimos del final" o agregar un nuevo video arriba.'
+      ? 'No se encontraron videos agregados por tu cuenta con este filtro. Podés cambiar a "📋 Toda la playlist" o agregar un nuevo video arriba.'
       : 'No hay videos que coincidan con la búsqueda.';
     listEl.innerHTML = `<div style="text-align:center; padding:36px 20px; color:var(--muted); font-size:13px;">${emptyMsg}</div>`;
     return;
@@ -402,31 +412,41 @@ function renderPlaylistManagerList() {
   const fragment = document.createDocumentFragment();
 
   filtered.forEach(item => {
+    const canReorderItem = Boolean(item.setVideoId && (item.canMove || item.canDelete));
     const row = document.createElement('div');
-    row.className = 'pm-item-row ' + (item.canDelete ? 'is-editable' : 'is-locked');
+    row.className = 'pm-item-row ' + (item.canDelete ? 'is-editable' : '');
     row.dataset.setVideoId = item.setVideoId || '';
+    if (highlightSetId && item.setVideoId === highlightSetId) {
+      row.style.borderColor = 'var(--accent)';
+      row.style.boxShadow = '0 0 14px rgba(232, 255, 71, 0.35)';
+    }
 
     const safeTitle = escapeHtmlAttr(item.title || 'Sin título');
     const safeChannel = escapeHtmlAttr(item.channel || '');
     const durText = item.duration ? `<span>⏱ ${escapeHtmlAttr(item.duration)}</span>` : '';
     const statusTag = item.canDelete
-      ? `<span class="pm-mine-tag">★ Agregado por vos / Administrable</span>`
-      : `<span class="pm-locked-tag">🔒 Orden original fijo</span>`;
+      ? `<span class="pm-mine-tag">★ Agregado por vos (Borrable)</span>`
+      : `<span class="pm-locked-tag">↕️ Reordenable en playlist</span>`;
 
     let controlsHtml = `
       <button class="btn" onclick="playVideoByIdFromManager('${escapeHtmlAttr(item.videoId)}')" title="Reproducir este fondo en el Viewer">▶ Probar</button>
     `;
 
-    if (item.canDelete && item.setVideoId) {
+    if (canReorderItem) {
       const canUp = item.position > 0;
       const canDown = item.position < total - 1;
       controlsHtml += `
-        <button class="btn" ${canUp ? '' : 'disabled'} onclick="pmMoveVideo('${escapeHtmlAttr(item.setVideoId)}', ${item.position - 1})" title="Subir 1 posición en YouTube">⬆️</button>
-        <button class="btn" ${canDown ? '' : 'disabled'} onclick="pmMoveVideo('${escapeHtmlAttr(item.setVideoId)}', ${item.position + 1})" title="Bajar 1 posición en YouTube">⬇️</button>
+        <button class="btn" ${canUp ? '' : 'disabled'} onclick="pmMoveVideo('${escapeHtmlAttr(item.setVideoId)}', ${item.position - 1})" title="Subir 1 posición en YouTube (#${item.index} → #${item.index - 1})">⬆️</button>
+        <button class="btn" ${canDown ? '' : 'disabled'} onclick="pmMoveVideo('${escapeHtmlAttr(item.setVideoId)}', ${item.position + 1})" title="Bajar 1 posición en YouTube (#${item.index} → #${item.index + 1})">⬇️</button>
         <div style="display:inline-flex; align-items:center; gap:4px;" title="Mover manualmente a esta posición exacta (1 a ${total})">
           <input type="number" class="pm-pos-input" min="1" max="${total}" value="${item.index}" id="pmPos_${escapeHtmlAttr(item.setVideoId)}" onkeydown="if(event.key==='Enter') pmMoveToInputPos('${escapeHtmlAttr(item.setVideoId)}', ${total})">
           <button class="btn" onclick="pmMoveToInputPos('${escapeHtmlAttr(item.setVideoId)}', ${total})">Mover</button>
         </div>
+      `;
+    }
+
+    if (item.canDelete && item.setVideoId) {
+      controlsHtml += `
         <button class="btn btn-danger-outline" onclick="pmRemoveVideo('${escapeHtmlAttr(item.setVideoId)}', '${escapeHtmlAttr(item.videoId)}', '${safeTitle}')" title="Borrar este video de la playlist en YouTube">🗑️ Borrar</button>
       `;
     }
@@ -451,6 +471,9 @@ function renderPlaylistManagerList() {
   });
 
   listEl.appendChild(fragment);
+  if (listContainer) {
+    listContainer.scrollTop = prevScrollTop;
+  }
 }
 
 function playVideoByIdFromManager(videoId) {
@@ -581,7 +604,7 @@ async function pmMoveVideo(setVideoId, newPositionZeroBased) {
     pmPlaylistData = data.playlist;
     updatePmHeaderUI({ authenticated: true }, pmPlaylistData);
     syncMainFondosFromManager(pmPlaylistData);
-    renderPlaylistManagerList();
+    renderPlaylistManagerList(setVideoId);
     showToast(`Posición actualizada a #${data.newIndex} en YouTube ✅`, 'success');
   } catch (e) {
     showToast('Error de red al mover el video', 'error');

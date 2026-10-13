@@ -272,6 +272,7 @@ def spotify_lyrics():
         title_candidates.append(title)
 
     ua = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    plain_fallback = None
 
     # 1. Consultar lrclib.net get directo
     for art in artist_candidates:
@@ -295,23 +296,47 @@ def spotify_lyrics():
                         result = {"lyrics": plain_lyrics, "syncedLyrics": synced_lyrics, "source": "lrclib"}
                         _lyrics_cache[cache_key] = result
                         return jsonify(result)
-                    if plain_lyrics.strip():
-                        result = {"lyrics": plain_lyrics.strip(), "syncedLyrics": "", "source": "lrclib"}
-                        _lyrics_cache[cache_key] = result
-                        return jsonify(result)
+                    if plain_lyrics.strip() and not plain_fallback:
+                        plain_fallback = {"lyrics": plain_lyrics.strip(), "syncedLyrics": "", "source": "lrclib"}
             except Exception:
                 pass
 
     # 2. Fallback de búsqueda abierta: elegir la versión cuya duración coincide con la pista
+    def _norm_phonetic(s):
+        s = re.sub(r'[^a-z0-9áéíóúñ]+', '', (s or '').lower())
+        return s.replace('v', 'b').replace('z', 's')
+
     for art in artist_candidates[:1]:
         for tit in title_candidates[:1]:
             try:
-                q_params = urllib.parse.urlencode({'q': f'{art} {tit}'})
-                search_url = f"https://lrclib.net/api/search?{q_params}"
-                req = urllib.request.Request(search_url, headers={'User-Agent': ua})
-                with urllib.request.urlopen(req, timeout=3.5) as r:
-                    items = json.loads(r.read().decode('utf-8'))
-                if not (items and isinstance(items, list)):
+                search_queries = [f'{art} {tit}']
+                # Si en español hay variación b/v (ej. "Gordo Traba" vs "Gordo trava" en lrclib), buscar por artista
+                if art:
+                    search_queries.append(art)
+
+                items = []
+                for sq in search_queries:
+                    q_params = urllib.parse.urlencode({'q': sq})
+                    search_url = f"https://lrclib.net/api/search?{q_params}"
+                    req = urllib.request.Request(search_url, headers={'User-Agent': ua})
+                    with urllib.request.urlopen(req, timeout=3.5) as r:
+                        res_items = json.loads(r.read().decode('utf-8'))
+                    if isinstance(res_items, list) and res_items:
+                        if sq == art:
+                            # Filtrar solo pistas cuyo título normalizado (b/v) coincida
+                            target_norm = _norm_phonetic(tit)
+                            res_items = [
+                                it for it in res_items
+                                if target_norm and (
+                                    _norm_phonetic(it.get('trackName', '')) == target_norm
+                                    or target_norm in _norm_phonetic(it.get('trackName', ''))
+                                )
+                            ]
+                        if res_items:
+                            items = res_items
+                            break
+
+                if not items:
                     continue
 
                 def _score(it):
@@ -332,12 +357,14 @@ def spotify_lyrics():
                     result = {"lyrics": plain, "syncedLyrics": synced, "source": "lrclib"}
                     _lyrics_cache[cache_key] = result
                     return jsonify(result)
-                if plain.strip():
-                    result = {"lyrics": plain.strip(), "syncedLyrics": "", "source": "lrclib"}
-                    _lyrics_cache[cache_key] = result
-                    return jsonify(result)
+                if plain.strip() and not plain_fallback:
+                    plain_fallback = {"lyrics": plain.strip(), "syncedLyrics": "", "source": "lrclib"}
             except Exception:
                 pass
+
+    if plain_fallback:
+        _lyrics_cache[cache_key] = plain_fallback
+        return jsonify(plain_fallback)
 
     return jsonify({'lyrics': '', 'syncedLyrics': ''})
 

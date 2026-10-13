@@ -493,7 +493,9 @@ class YouTubePlaylistManager:
         self._load_config = load_config_fn
         self._save_config = save_config_fn
         self._cached_details = {}
-        self._lock = False
+        self._client = None
+        self._client_cookie_path = ""
+        self._client_cookie_mtime = 0.0
 
     def _get_config(self) -> dict:
         if callable(self._load_config):
@@ -503,29 +505,34 @@ class YouTubePlaylistManager:
                 return {}
         return {}
 
-    def resolve_cookie_file(self) -> Optional[str]:
+    def resolve_cookie_file(self, force_scan: bool = False) -> Optional[str]:
         """Devuelve la ruta al archivo de cookies de YouTube con sesión activa (SAPISID)."""
+        if not force_scan and self._client_cookie_path and os.path.isfile(self._client_cookie_path):
+            return self._client_cookie_path
+
         candidates = []
         if PLAYLIST_COOKIE_FILE.is_file():
             candidates.append(str(PLAYLIST_COOKIE_FILE))
-        default_cookie = get_youtube_cookiefile()
-        if default_cookie and default_cookie not in candidates:
-            candidates.append(default_cookie)
+        default_std = CONFIG_DIR / "youtube_cookies.txt"
+        if default_std.is_file():
+            candidates.append(str(default_std))
 
         for path in candidates:
             try:
                 client = YouTubeInnerTubePlaylistClient(path)
                 if client.sapisid:
+                    self._client_cookie_path = path
                     return path
             except Exception:
                 continue
 
-        # Intentar escanear navegadores si aún no hay archivo válido
+        # Escanear navegadores si aún no hay archivo válido en disco
         scanned = get_youtube_cookiefile(force_refresh=True)
         if scanned:
             try:
                 client = YouTubeInnerTubePlaylistClient(scanned)
                 if client.sapisid:
+                    self._client_cookie_path = scanned
                     return scanned
             except Exception:
                 pass
@@ -549,8 +556,14 @@ class YouTubePlaylistManager:
                 "No se encontró una sesión activa de Google/YouTube. "
                 "Haz clic en 'Iniciar sesión de Google' para vincular la cuenta con acceso a la playlist."
             )
+        mtime = os.path.getmtime(cfile) if os.path.isfile(cfile) else 0.0
+        if self._client and self._client_cookie_path == cfile and self._client_cookie_mtime == mtime:
+            return self._client
         cfg = self._get_config()
-        return YouTubeInnerTubePlaylistClient(cfile, api_key=cfg.get("youtube_api_key", ""))
+        self._client = YouTubeInnerTubePlaylistClient(cfile, api_key=cfg.get("youtube_api_key", ""))
+        self._client_cookie_path = cfile
+        self._client_cookie_mtime = mtime
+        return self._client
 
     def get_playlist(self, playlist_id: str = "", force_refresh: bool = True) -> dict:
         cfg = self._get_config()
@@ -566,6 +579,16 @@ class YouTubePlaylistManager:
         self._cached_details[pid] = details
         return details
 
+    @staticmethod
+    def _reindex_details(details: dict) -> dict:
+        items = details.get("items", [])
+        for idx, it in enumerate(items):
+            it["position"] = idx
+            it["index"] = idx + 1
+        details["total"] = len(items)
+        details["editableCount"] = sum(1 for x in items if x.get("canDelete"))
+        return details
+
     def add_video(self, playlist_id: str, video_url_or_id: str) -> dict:
         cfg = self._get_config()
         pid = extract_playlist_id(playlist_id or cfg.get("playlist_id", ""))
@@ -574,6 +597,8 @@ class YouTubePlaylistManager:
 
         client = self.get_client()
         res = client.add_video(pid, video_url_or_id)
+        # Esperar brevemente a que la réplica de lectura de YouTube refleje el nuevo video y su setVideoId
+        time.sleep(1.2)
         details = client.fetch_playlist_details(pid)
         self._cached_details[pid] = details
         return {**res, "playlist": details}
@@ -586,8 +611,14 @@ class YouTubePlaylistManager:
 
         client = self.get_client()
         res = client.remove_video(pid, set_video_id, video_id=video_id)
-        details = client.fetch_playlist_details(pid)
-        self._cached_details[pid] = details
+        cached = self._cached_details.get(pid)
+        if cached and cached.get("items"):
+            cached["items"] = [it for it in cached["items"] if it.get("setVideoId") != set_video_id]
+            details = self._reindex_details(cached)
+        else:
+            time.sleep(1.2)
+            details = client.fetch_playlist_details(pid)
+            self._cached_details[pid] = details
         return {**res, "playlist": details}
 
     def move_video(self, playlist_id: str, set_video_id: str, new_position: int) -> dict:
@@ -598,11 +629,23 @@ class YouTubePlaylistManager:
 
         client = self.get_client()
         cached = self._cached_details.get(pid)
-        current_items = cached["items"] if cached and cached.get("items") else None
+        if not cached or not cached.get("items"):
+            cached = client.fetch_playlist_details(pid)
+            self._cached_details[pid] = cached
+
+        current_items = cached["items"]
         res = client.move_video(pid, set_video_id, new_position, current_items=current_items)
-        details = client.fetch_playlist_details(pid)
-        self._cached_details[pid] = details
-        return {**res, "playlist": details}
+
+        # Actualizar orden en memoria inmediatamente para evitar el desfase de réplica de lectura de YouTube
+        moving_item = next((it for it in current_items if it.get("setVideoId") == set_video_id), None)
+        if moving_item:
+            remaining = [it for it in current_items if it.get("setVideoId") != set_video_id]
+            target_idx = res["newPosition"]
+            remaining.insert(target_idx, moving_item)
+            cached["items"] = remaining
+            self._reindex_details(cached)
+
+        return {**res, "playlist": cached}
 
 
 if __name__ == "__main__":

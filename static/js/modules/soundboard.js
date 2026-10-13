@@ -324,11 +324,20 @@ async function stopSoundboard() {
 }
 
 function scrollToTopFondos() {
+  const pmPanel = document.getElementById('playlistManagerPanel');
+  if (pmPanel && pmPanel.style.display !== 'none') {
+    const pmList = document.getElementById('pmListContainer');
+    if (pmList) {
+      pmList.scrollTop = 0;
+    }
+    return;
+  }
   const container = document.getElementById('fondosScrollContent');
   if (container) {
-    container.scrollTo({ top: 0, behavior: 'smooth' });
+    container.scrollTop = 0;
+    requestAnimationFrame(() => { container.scrollTop = 0; });
   }
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0 });
 }
 
 function scrollToTopSpotify() {
@@ -372,8 +381,14 @@ function updateFloatingTopBtn() {
     const sb = document.getElementById('sbScrollContainer');
     if (sb && sb.scrollTop > 0) scrollPos = sb.scrollTop;
   } else if (currentView === 'fondos') {
-    const fc = document.getElementById('fondosScrollContent');
-    if (fc && fc.scrollTop > 0) scrollPos = fc.scrollTop;
+    const pmPanel = document.getElementById('playlistManagerPanel');
+    if (pmPanel && pmPanel.style.display !== 'none') {
+      const pmList = document.getElementById('pmListContainer');
+      if (pmList && pmList.scrollTop > 0) scrollPos = pmList.scrollTop;
+    } else {
+      const fc = document.getElementById('fondosScrollContent');
+      if (fc && fc.scrollTop > 0) scrollPos = fc.scrollTop;
+    }
   } else if (currentView === 'spotify') {
     const sp = document.getElementById('spResultsList');
     if (sp && sp.scrollTop > 0) scrollPos = sp.scrollTop;
@@ -389,6 +404,8 @@ window.addEventListener('scroll', updateFloatingTopBtn, { passive: true });
 document.addEventListener('DOMContentLoaded', () => {
   const fc = document.getElementById('fondosScrollContent');
   if (fc) fc.addEventListener('scroll', updateFloatingTopBtn, { passive: true });
+  const pmList = document.getElementById('pmListContainer');
+  if (pmList) pmList.addEventListener('scroll', updateFloatingTopBtn, { passive: true });
   const sp = document.getElementById('spResultsList');
   if (sp) sp.addEventListener('scroll', updateFloatingTopBtn, { passive: true });
   const sb = document.getElementById('sbScrollContainer');

@@ -707,42 +707,31 @@
       if (data.lyrics && data.lyrics.trim()) {
         currentLyrics = data.lyrics.trim();
         currentSyncedLyrics = parseSyncedLyrics(data.syncedLyrics);
-        lyricsEl.classList.add('visible');
 
+        // Si la fuente (lrclib) solo tiene letra plana sin timestamps [mm:ss],
+        // distribuir las líneas proporcionalmente a la duración real del tema en Spotify
+        // para que acompañe el progress_ms real, respete pausas/adelantos y el modo visual.
+        if (!currentSyncedLyrics.length) {
+          const rawLines = currentLyrics.split('\n').map(l => l.trim()).filter(Boolean);
+          if (rawLines.length > 0) {
+            const totalDurMs = Math.max(30000, Number(currentSpotify.duration_ms) || (rawLines.length * 4000));
+            const introMs = Math.min(8000, Math.round(totalDurMs * 0.07));
+            const outroMs = Math.min(6000, Math.round(totalDurMs * 0.06));
+            const usableMs = Math.max(10000, totalDurMs - introMs - outroMs);
+            const weights = rawLines.map(l => Math.max(8, l.length));
+            const totalWeight = weights.reduce((a, b) => a + b, 0) || 1;
+            let accMs = introMs;
+            currentSyncedLyrics = rawLines.map((text, idx) => {
+              const item = { time: Math.round(accMs), text };
+              accMs += (weights[idx] / totalWeight) * usableMs;
+              return item;
+            });
+          }
+        }
+
+        lyricsEl.classList.add('visible');
         if (currentSyncedLyrics.length && currentSpotify.progress_ms !== undefined) {
           updateSyncedLyrics(currentSpotify.progress_ms);
-        } else {
-          const lines = currentLyrics.split('\n').filter(l => l.trim().length > 0);
-          if (lines.length > 0) {
-            lt.className = 'lyrics-text';
-            lt.innerHTML = lines.map((l, idx) => `<div class="lyric-line" id="plain-lyr-${idx}">${l}</div>`).join('');
-            let lineIdx = 0;
-            const updatePlainActive = () => {
-              const domLines = Array.from(lt.children);
-              domLines.forEach((dl, i) => {
-                if (i === lineIdx) {
-                  dl.classList.add('active');
-                  dl.style.color = overlayConfig.overlay_lyrics_highlight_color || '#e8ff47';
-                  dl.style.opacity = '1';
-                } else {
-                  dl.classList.remove('active');
-                  dl.style.color = '';
-                  dl.style.opacity = '0.4';
-                }
-              });
-              if (domLines[lineIdx]) {
-                const containerHeight = lyricsEl.offsetHeight || 150;
-                const pos = domLines[lineIdx].offsetTop + (domLines[lineIdx].offsetHeight / 2);
-                lt.style.transition = 'transform 0.4s ease';
-                lt.style.transform = `translateY(${Math.min(0, (containerHeight / 2) - pos)}px)`;
-              }
-            };
-            updatePlainActive();
-            lyricsInterval = setInterval(() => {
-              lineIdx = (lineIdx + 1) % lines.length;
-              updatePlainActive();
-            }, 3500);
-          }
         }
       } else {
         clearLyricsUI();
